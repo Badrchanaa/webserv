@@ -1,0 +1,27 @@
+server:
+ host: 127.0.0.1
+ port: 4000 9999
+ server_name: localhost www.youssef.com
+ body_size: 4000M 
+ errors:
+   "500": errors/500.html
+   "404": errors/404.html
+   "403": errors/403.html
+   "405": errors/405.html
+   "400": errors/400.htmt
+
+ location:
+   uri: /
+   upload: uploads
+   methods:
+     - POST
+     - GET
+     - DELETE
+   root: www
+   autoindex: off
+   methods_cgi:
+     - POST
+     - GET 
+   cgi:
+     - .py: /usr/bin/python3
+     - .php: /usr/bin/php-cgi
