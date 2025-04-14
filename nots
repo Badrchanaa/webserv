@@ -1,0 +1,11 @@
+#signals:
+ - page159 from linux programing interface
+A socket may be closed using the close() system call or as a consequence of the
+application terminating. Afterward, when the peer application attempts to
+read from the other end of the connection, it receives end-of-file (once all buff-
+ered data has been read). If the peer application attempts to write to its socket,
+it receives a SIGPIPE signal, and the system call fails with the error EPIPE. As we
+noted in Section 44.2, the usual way of dealing with this possibility is to ignore
+the SIGPIPE signal and find out about the closed connection via the EPIPE erro
+
+

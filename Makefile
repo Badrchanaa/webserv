@@ -41,7 +41,7 @@ OBJ_PATH = obj
 
 # LIBS
 
-CFLAGS = -g -Wall -Wextra -Werror -D BUFFER_SIZE=10
+CFLAGS = -g -Wall -Wextra -Werror -D BUFFER_SIZE=10 -std=c++98
 
 # ANIMATION
 SRCS_COUNT = 0
@@ -56,7 +56,7 @@ ifdef DEBUG
 endif
 
 # SOURCES
-PARSING_SOURCES = main.cpp ConfigFile.cpp 
+PARSING_SOURCES = main.cpp ConfigFile.cpp  Methodes_Validates.cpp Utils.cpp
 
 ALL_SOURCES = $(PARSING_SOURCES)
 vpath %.cpp srcs/Parsing 

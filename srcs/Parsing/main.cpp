@@ -4,7 +4,7 @@ int main() {
   // if (argc != 2)
   // else
   //   std::ifstream infile(argv[1]);
-  Parsing parse;
+  ParseConfig parse;
   parse.ParseConfigFile(DEFAULT_PATH);
 
   //+++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -43,7 +43,7 @@ int main() {
     std::cout << "  Autoindex: " << s.location.autoindex << "\n";
     std::cout << "  Upload: " << s.location.upload << "\n";
     // std::cout << "  Methods: ";
-    std::cout << "Methods: " << method_bit_to_string(s.location.allowed_methods)
+    std::cout << "Methods: " << parse.method_bit_to_string(s.location.allowed_methods)
               << "\n";
     std::cout << std::endl;
     std::cout << "+++++++++++++++++++++++++++++++++++++++" << std::endl;
@@ -55,7 +55,7 @@ int main() {
     }
     std::cout << "+++++++++++++++++++++++++++++++++++++++" << std::endl;
     std::cout << "CGI Methods: "
-              << method_bit_to_string(s.location.allowed_cgi_methods) << "\n";
+              << parse.method_bit_to_string(s.location.allowed_cgi_methods) << "\n";
     std::cout << std::endl
               << "+++++++++++++++++++++++++++++++++++++++" << std::endl;
     std::cout << "\n  CGI:\n";
