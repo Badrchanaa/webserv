@@ -175,56 +175,20 @@ private:
 // In your main event loop:
 //
 //
-//
+void test() {
+  CGIHandler cgi(epoll_fd);
 
-void handle_cgi_request(Connection &conn, const RouteConfig &route,
-                        EpollManager &epoll) {
-  // Prepare environment variables
-  std::map<std::string, std::string> env;
-  env["REQUEST_METHOD"] = conn.request.method;
-  env["SCRIPT_FILENAME"] = route.resolve_path(conn.request.uri);
-  env["QUERY_STRING"] = conn.request.query;
-  env["CONTENT_LENGTH"] = toString(conn.request.body.size());
-  env["SERVER_PROTOCOL"] = "HTTP/1.1";
-  // ... add other required variables ...
+  while (1) {
+    int n = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
+    cgi.check_zombies();
 
-  // Initialize CGI handler
-  conn.cgi_handler = new CGIHandler(epoll);
-
-  try {
-    conn.cgi_handler->spawn(route.cgi_path, env, conn.fd, conn.request.body);
-
-    // Modify epoll to monitor CGI socket
-    epoll.modify_fd(conn.fd, EPOLLOUT); // Prepare to send request body
-  } catch (const std::exception &e) {
-    send_error_response(conn, 502);
-  }
-}
-
-void handle_request(Connection *conn, const Config &config,
-                    EpollManager &epoll) {
-  try {
-
-    if (route->cgi_enabled && is_cgi_request(conn->request.uri, route)) {
-      handle_cgi_request(*conn, *route, epoll);
-      return;
-    }
-  }
-
-  void test() {
-    CGIHandler cgi(epoll_fd);
-
-    while (1) {
-      int n = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
-      cgi.check_zombies();
-
-      for (int i = 0; i < n; ++i) {
-        if (cgi.is_cgi_socket(events[i].data.fd)) {
-          cgi.handle(events[i].data.fd, events[i].events);
-        } else {
-          handle_client(current_fd, events[i].events);
-          // Handle normal connections
-        }
+    for (int i = 0; i < n; ++i) {
+      if (cgi.is_cgi_socket(events[i].data.fd)) {
+        cgi.handle(events[i].data.fd, events[i].events);
+      } else {
+        handle_client(current_fd, events[i].events);
+        // Handle normal connections
       }
     }
   }
+}

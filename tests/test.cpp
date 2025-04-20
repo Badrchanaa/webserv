@@ -1,400 +1,302 @@
-#include <algorithm>
-#include <arpa/inet.h>
-#include <cerrno>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <fcntl.h>
-#include <iostream>
-#include <list>
-#include <map>
-#include <netdb.h>
-#include <signal.h>
-#include <string>
-#include <sys/epoll.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
+#include "./test.hpp"
 
-#define MAX_EVENTS 1024
-#define BUFFER_SIZE 4096
-#define BACKLOG 128
-#define PORT "1337"
+/*
 
-class FileDescriptor {
-public:
-  int fd;
+NOTS:
 
-  explicit FileDescriptor(int f = -1) : fd(f) {}
-  ~FileDescriptor() { reset(); }
+EINTR, indicating that the call was interrupted by a signal handler (page 1339)
 
-  void reset(int new_fd = -1) {
-    if (fd != -1)
-      close(fd);
-    fd = new_fd;
-  }
 
-  int release() {
-    int old_fd = fd;
-    fd = -1;
-    return old_fd;
-  }
+AI_PASSIVE : Return socket address structures suitable for a passive open (i.e.,
+a listen- ing socket). In this case, host should be NULL, and the IP address
+component of the socket address structure(s) returned by result will contain a
+wildcard IP address (i.e., INADDR_ANY or IN6ADDR_ANY_INIT)
 
-  operator int() const { return fd; }
 
-private:
-  FileDescriptor(const FileDescriptor &);
-  FileDescriptor &operator=(const FileDescriptor &);
-};
+AI_NUMERICSERV : Interpret service as a numeric port number. This flag prevents
+the invoca- tion of any name-resolution service, which is not required if
+service is a numeric string
 
-class EpollManager {
-public:
-  int epfd;
 
-  EpollManager() {
-    epfd = epoll_create(1337);
-    if (epfd == -1)
-      throw std::runtime_error("epoll_create1 failed");
-  }
+EPOLLET: Employ edge-triggered event notification
+EPOLLONESHOT: Disable monitoring after event notification
+EPOLLIN: Data other than high-priority data can be read
+EPOLLOUT: Normal data can be written EPOLLERR: An error has occurred
+EPOLLHUP: A hangup has occurred
+EPOLLRDHUP: Shutdown on peer socket (since Linux 2.6.17)
 
-  ~EpollManager() {
-    if (epfd != -1)
-      close(epfd);
-  }
 
-  void add_fd(int fd, uint32_t events) {
-    struct epoll_event ev;
-    ev.events = events;
-    ev.data.fd = fd;
-    if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev) == -1)
-      throw std::runtime_error("epoll_ctl add failed");
-  }
 
-  void mod_fd(int fd, uint32_t events) {
-    struct epoll_event ev;
-    ev.events = events;
-    ev.data.fd = fd;
-    if (epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &ev) == -1)
-      throw std::runtime_error("epoll_ctl mod failed");
-  }
+If no pending connections are present on the queue, and the socket is not
+marked as nonblocking, accept() blocks the caller until a connection is present.
+If the socket is marked nonblocking and no pending connections are present on
+the queue, accept() fails with the error EAGAIN or EWOULDBLOCK.
 
-  void remove_fd(int fd) {
-    if (epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL) == -1)
-      throw std::runtime_error("epoll_ctl del failed");
-  }
-};
+*/
 
-class Connection {
-public:
-  FileDescriptor fd;
-  std::string request;
-  bool headers_complete;
-  struct sockaddr_storage addr;
+void WebServer::create_listener() {
+  DEBUG_LOG("Initializing network stack...");
+  struct addrinfo hints, *res;
+  memset(&hints, 0, sizeof hints);
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
 
-  Connection(int f, struct sockaddr_storage a)
-      : fd(f), headers_complete(false), addr(a) {}
-};
+  DEBUG_LOG("Resolving addresses...");
+  int status = getaddrinfo(NULL, PORT, &hints, &res);
+  if (status != 0)
+    throw std::runtime_error(gai_strerror(status));
 
-class WebServer {
-  FileDescriptor listen_fd;
-  EpollManager epoll;
-  std::list<Connection *> connections;
-  volatile bool running;
+  for (struct addrinfo *p = res; p != NULL; p = p->ai_next) {
+    char ipstr[INET6_ADDRSTRLEN];
+    void *addr;
+    int port;
+    const char *ipver;
 
-public:
-  WebServer() : running(true) {
-    // setup_signals();
-    create_listener();
-    setup_epoll();
-  }
+    if (p->ai_family == AF_INET) {
+      struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
+      addr = &(ipv4->sin_addr);
+      port = ntohs(ipv4->sin_port);
+      ipver = "IPv4";
+    } else {
+      struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)p->ai_addr;
+      addr = &(ipv6->sin6_addr);
+      port = ntohs(ipv6->sin6_port);
+      ipver = "IPv6";
+    }
 
-  void run() {
-    struct epoll_event events[MAX_EVENTS];
+    inet_ntop(p->ai_family, addr, ipstr, sizeof ipstr);
+    DEBUG_LOG("Attempting to bind to " << ipver << " " << ipstr << ":" << port);
 
-    while (running) {
-      int n = epoll_wait(epoll.epfd, events, MAX_EVENTS, -1);
-      if (n == -1 && errno != EINTR)
-        throw std::runtime_error("epoll_wait failed");
+    FileDescriptor temp_fd(
+        socket(p->ai_family, p->ai_socktype | SOCK_NONBLOCK, p->ai_protocol));
+    if (temp_fd.fd == -1) {
+      DEBUG_LOG("Socket creation failed: " << strerror(errno));
+      continue;
+    }
 
-      for (int i = 0; i < n; ++i) {
-        if (events[i].data.fd == listen_fd)
-          accept_connections();
-        else
-          handle_client(events[i].data.fd, events[i].events);
-      }
+    int yes = 1;
+    if (setsockopt(temp_fd.fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) ==
+        -1) {
+      DEBUG_LOG("setsockopt failed: " << strerror(errno));
+      continue;
+    }
+
+    if (bind(temp_fd.fd, p->ai_addr, p->ai_addrlen) == 0) {
+      DEBUG_LOG("Successfully bound to " << ipver << " interface");
+      listen_fd.reset(temp_fd.release());
+      break;
+    } else {
+      DEBUG_LOG("Bind failed: " << strerror(errno));
     }
   }
 
-private:
-  // void setup_signals() {
-  //     struct sigaction sa;
-  //     memset(&sa, 0, sizeof(sa));
-  //     sa.sa_handler = &WebServer::signal_handler;
-  //     sigaction(SIGINT, &sa, NULL);
-  //     sigaction(SIGTERM, &sa, NULL);
-  // }
+  freeaddrinfo(res);
+  if (listen_fd.fd == -1)
+    throw std::runtime_error("All bind attempts failed");
 
-  // static void signal_handler(int) {
-  //     // Signal handling needs to be static, so we use a global pattern
-  //     // Actual shutdown handled in run loop
-  //     WebServer::instance().running = false;
-  // }
+  if (listen(listen_fd.fd, BACKLOG) == -1)
+    throw std::runtime_error("listen failed");
 
-  // void create_listener() {
-  //   struct addrinfo hints, *res;
-  //   memset(&hints, 0, sizeof hints);
-  //   hints.ai_family = AF_UNSPEC;
-  //   hints.ai_socktype = SOCK_STREAM;
-  //   hints.ai_flags = AI_PASSIVE;
-  //
-  //   int status = getaddrinfo(NULL, PORT, &hints, &res);
-  //   if (status != 0)
-  //     throw std::runtime_error(gai_strerror(status));
-  //
-  //   for (struct addrinfo *p = res; p != NULL; p = p->ai_next) {
-  //     FileDescriptor temp_fd(
-  //         socket(p->ai_family, p->ai_socktype, p->ai_protocol));
-  //     if (temp_fd.fd == -1)
-  //       continue;
-  //
-  //     int yes = 1;
-  //     if (setsockopt(temp_fd.fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int))
-  //     ==
-  //         -1)
-  //       continue;
-  //
-  //     // if (bind(temp_fd.fd, p->ai_addr, p->ai_addrlen) == 0) {
-  //     //   listen_fd.reset(temp_fd.release());
-  //     //   break;
-  //     // }
-  //     // Inside the successful bind block:
-  //     if (bind(temp_fd.fd, p->ai_addr, p->ai_addrlen) == 0) {
-  //       listen_fd.reset(temp_fd.release());
-  //
-  //       // Add this logging:
-  //       if (p->ai_family == AF_INET6) {
-  //         std::cout << "Listening on IPv6 address\n";
-  //       } else if (p->ai_family == AF_INET) {
-  //         std::cout << "Listening on IPv4 address\n";
-  //       }
-  //       break;
-  //     }
-  //   }
-  //
-  //   freeaddrinfo(res);
-  //   if (listen_fd.fd == -1)
-  //     throw std::runtime_error("bind failed");
-  //
-  //   if (listen(listen_fd.fd, BACKLOG) == -1)
-  //     throw std::runtime_error("listen failed");
-  // }
+  DEBUG_LOG("Listening on port " << PORT << " with backlog " << BACKLOG);
+}
 
-  void create_listener() {
-    struct addrinfo hints, *res;
-    memset(&hints, 0, sizeof hints);
-    hints.ai_family = AF_UNSPEC; // Try both IPv4 and IPv6
-    hints.ai_socktype = SOCK_STREAM;
-    // hints.ai_flags = AI_PASSIVE;
+// void WebServer::setup_epoll() { epoll.add_fd(listen_fd, EPOLLIN); }
+void WebServer::setup_epoll() { epoll.add_fd(listen_fd, EPOLLIN | EPOLLET); }
 
-    int status = getaddrinfo(NULL, PORT, &hints, &res);
-    if (status != 0)
-      throw std::runtime_error(gai_strerror(status));
+WebServer::WebServer() : running(true) {
+  DEBUG_LOG("Initializing web server...");
+  create_listener();
+  setup_epoll();
+  DEBUG_LOG("Server initialized. Entering main event loop.");
+}
 
-    for (struct addrinfo *p = res; p != NULL; p = p->ai_next) {
-      // Print address info before attempting to bind
-      char ipstr[INET6_ADDRSTRLEN];
-      void *addr;
-      int port;
-      const char *ipver;
+void WebServer::run() {
+  struct epoll_event events[MAX_EVENTS];
+  DEBUG_LOG("Starting main event loop");
 
-      // Get pointer to address based on family
-      if (p->ai_family == AF_INET) { // IPv4
-        struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
-        addr = &(ipv4->sin_addr);
-        port = ntohs(ipv4->sin_port);
-        ipver = "IPv4";
-      } else { // IPv6
-        struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)p->ai_addr;
-        addr = &(ipv6->sin6_addr);
-        port = ntohs(ipv6->sin6_port);
-        ipver = "IPv6";
-      }
+  while (running) {
+    int n = epoll_wait(epoll.epfd, events, MAX_EVENTS, -1);
+    DEBUG_LOG("Epoll_wait returned " << n << " events");
 
-      // Convert IP to string
-      inet_ntop(p->ai_family, addr, ipstr, sizeof ipstr);
-      std::cout << "Attempting to bind to " << ipver << " address: " << ipstr
-                << ":" << port << std::endl;
+    if (n == -1 && errno != EINTR)
+      throw std::runtime_error("epoll_wait failed");
 
-      FileDescriptor temp_fd(
-          socket(p->ai_family, p->ai_socktype, p->ai_protocol));
-      if (temp_fd.fd == -1) {
-        std::cerr << "  -> Socket creation failed: " << strerror(errno)
-                  << std::endl;
-        continue;
-      }
-
-      int yes = 1;
-      if (setsockopt(temp_fd.fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) ==
-          -1) {
-        std::cerr << "  -> setsockopt failed: " << strerror(errno) << std::endl;
-        continue;
-      }
-
-      if (bind(temp_fd.fd, p->ai_addr, p->ai_addrlen) == 0) {
-        std::cout << "  -> Successfully bound to " << ipver << " address!"
-                  << std::endl;
-        listen_fd.reset(temp_fd.release());
-        break;
+    for (int i = 0; i < n; ++i) {
+      if (events[i].data.fd == listen_fd) {
+        DEBUG_LOG("New connection pending on listening socket");
+        accept_connections();
       } else {
-        std::cerr << "  -> Bind failed: " << strerror(errno) << std::endl;
+        DEBUG_LOG("Processing event on fd: " << events[i].data.fd);
+        handle_client(events[i].data.fd, events[i].events);
       }
     }
-
-    freeaddrinfo(res);
-    if (listen_fd.fd == -1)
-      throw std::runtime_error("bind failed");
-
-    if (listen(listen_fd.fd, BACKLOG) == -1)
-      throw std::runtime_error("listen failed");
   }
+}
 
-  // void create_listener() {
-  //     struct addrinfo hints, *res;
-  //     memset(&hints, 0, sizeof hints);
-  //     hints.ai_family = AF_UNSPEC;
-  //     hints.ai_socktype = SOCK_STREAM;
-  //     hints.ai_flags = AI_PASSIVE;
-  //
-  //     int status = getaddrinfo(NULL, PORT, &hints, &res);
-  //     if(status != 0) throw std::runtime_error(gai_strerror(status));
-  //
-  //     for(struct addrinfo* p = res; p != NULL; p = p->ai_next) {
-  //         listen_fd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-  //         if(listen_fd == -1) continue;
-  //
-  //         int yes = 1;
-  //         setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-  //
-  //         if(bind(listen_fd, p->ai_addr, p->ai_addrlen) == 0) break;
-  //
-  //         listen_fd.fd = -1;
-  //     }
-  //
-  //     freeaddrinfo(res);
-  //     if(listen_fd == -1) throw std::runtime_error("bind failed");
-  //
-  //     if(listen(listen_fd, BACKLOG) == -1)
-  //         throw std::runtime_error("listen failed");
-  // }
+void WebServer::accept_connections() {
+  struct sockaddr_storage client_addr;
+  socklen_t addr_size = sizeof(client_addr);
 
-  void setup_epoll() { epoll.add_fd(listen_fd, EPOLLIN | EPOLLET); }
-
-  void accept_connections() {
-    struct sockaddr_storage client_addr;
-    socklen_t addr_size = sizeof(client_addr);
-
-    while (true) {
-      int new_fd =
-          accept(listen_fd, (struct sockaddr *)&client_addr, &addr_size);
-      if (new_fd == -1) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-          break;
-        throw std::runtime_error("accept failed");
+  while (true) { // queue
+    int new_fd = accept(listen_fd, (struct sockaddr *)&client_addr, &addr_size);
+    if (new_fd == -1) {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        break;
       }
-
-      // set_nonblocking(new_fd);
-      Connection *conn = new Connection(new_fd, client_addr);
-      connections.push_back(conn);
-      epoll.add_fd(new_fd, EPOLLIN | EPOLLET | EPOLLRDHUP);
-
-      log_connection(client_addr);
+      throw std::runtime_error("accept failed");
     }
+
+    Connection *conn = new Connection(new_fd, client_addr);
+    connections.push_back(conn);
+    epoll.add_fd(new_fd, EPOLLIN | EPOLLET | EPOLLRDHUP);
+    // epoll.add_fd(new_fd, EPOLLIN | EPOLLRDHUP);
+
+    log_connection(client_addr);
+  }
+}
+
+void WebServer::handle_client(int fd, uint32_t events) {
+  if (events & (EPOLLRDHUP | EPOLLHUP)) {
+    DEBUG_LOG("Connection closed by client (fd: "
+              << fd << ")" << " -> EPOLLRDHUP || EPOLLHUP Happend!");
+    cleanup_connection(fd);
+    return;
   }
 
-  void handle_client(int fd, uint32_t events) {
-    if (events & EPOLLRDHUP || events & EPOLLHUP) {
+  if (events & EPOLLIN) {
+    Connection *conn = find_connection(fd);
+    if (!conn)
+      return;
+
+    char buffer[BUFFER_SIZE];
+    ssize_t bytes_received;
+
+    while ((bytes_received = recv(fd, buffer, sizeof(buffer), 0)) > 0) {
+      DEBUG_LOG("Received " << bytes_received << " bytes from fd: " << fd);
+
+      // Print raw received data
+      std::cerr << "Raw request data:\n"
+                << std::string(buffer, bytes_received)
+                << "\n----------------------------------------" << std::endl;
+
+      conn->request.append(buffer, bytes_received);
+
+      // if (!conn->headers_complete &&
+      //     conn->request.find("\r\n\r\n") != std::string::npos) {
+      //   conn->headers_complete = true;
+      //   DEBUG_LOG("Complete headers received from fd: " << fd);
+      //   log_request(*conn);
+      // }
+    }
+
+    if (bytes_received == 0) {
+      DEBUG_LOG("Connection closed gracefully (fd: " << fd << ")");
+      log_request(*conn);
       cleanup_connection(fd);
+    } else if (bytes_received == -1 && errno != EAGAIN) {
+      DEBUG_LOG("Receive error on fd " << fd << ": " << strerror(errno));
+      cleanup_connection(fd);
+    }
+  }
+}
+
+void WebServer::log_connection(const struct sockaddr_storage &addr) {
+  char ip[INET6_ADDRSTRLEN];
+  int port = 0;
+
+  if (addr.ss_family == AF_INET) {
+    struct sockaddr_in *s = (struct sockaddr_in *)&addr;
+    inet_ntop(AF_INET, &s->sin_addr, ip, sizeof(ip));
+    port = ntohs(s->sin_port);
+  } else {
+    struct sockaddr_in6 *s = (struct sockaddr_in6 *)&addr;
+    inet_ntop(AF_INET6, &s->sin6_addr, ip, sizeof(ip));
+    port = ntohs(s->sin6_port);
+  }
+
+  DEBUG_LOG("New connection from " << ip << ":" << port);
+}
+
+// void WebServer::log_request(const Connection &conn) {
+//   size_t end = conn.request.find("\r\n\r\n");
+//   if (end != std::string::npos) {
+//     std::cout << "HTTP Request:\n"
+//               << conn.request.substr(0, end + 4)
+//               << "\n----------------------------------------\n";
+//   }
+// }
+
+// void WebServer::log_request(const Connection &conn) {
+//   size_t headers_end = conn.request.find("\r\n\r\n");
+//   if (headers_end != std::string::npos) {
+//     DEBUG_LOG("Full headers received:");
+//     std::cerr << conn.request.substr(0, headers_end + 4)
+//               << "\n----------------------------------------" << std::endl;
+//   }
+//
+//   // Log full request if body is complete
+//   if (conn.request.length() > headers_end + 4) {
+//     DEBUG_LOG("Request body content:");
+//     std::cerr << conn.request.substr(headers_end + 4)
+//               << "\n----------------------------------------" << std::endl;
+//   }
+// }
+
+void WebServer::log_request(const Connection &conn) {
+  size_t headers_end = conn.request.find("\r\n\r\n");
+  if (headers_end != std::string::npos) {
+    DEBUG_LOG("Full headers received:");
+    std::cerr << conn.request.substr(0, headers_end + 4)
+              << "\n----------------------------------------" << std::endl;
+  }
+
+  // Check if there's a body to write
+  if (conn.request.length() > headers_end + 4) {
+    DEBUG_LOG("Request body content:");
+    std::string body = conn.request.substr(headers_end + 4);
+    std::cerr << body << "\n----------------------------------------"
+              << std::endl;
+
+    // Write the body to 'file_output'
+    std::ofstream outfile("file_output", std::ios::binary);
+    if (outfile) {
+      outfile.write(body.c_str(), body.size());
+      outfile.close();
+    } else {
+      std::cerr << "Failed to open 'file_output' for writing." << std::endl;
+    }
+    if (headers_end != std::string::npos) {
+      DEBUG_LOG("Full headers received:");
+      std::cerr << conn.request.substr(0, headers_end + 4)
+                << "\n----------------------------------------" << std::endl;
+      DEBUG_LOG("Full Body Bytes : " << conn.request.size() -
+                                            (headers_end + 4));
+      std::cerr << "\n----------------------------------------" << std::endl;
+    }
+  }
+}
+
+Connection *WebServer::find_connection(int fd) {
+  for (std::list<Connection *>::iterator it = connections.begin();
+       it != connections.end(); ++it) {
+    if ((*it)->fd == fd)
+      return *it;
+  }
+  return NULL;
+}
+
+void WebServer::cleanup_connection(int fd) {
+  for (std::list<Connection *>::iterator it = connections.begin();
+       it != connections.end(); ++it) {
+    if ((*it)->fd == fd) {
+      delete *it;
+      connections.erase(it);
+      // epoll.remove_fd(fd);
       return;
     }
-
-    if (events & EPOLLIN) {
-      Connection *conn = find_connection(fd);
-      if (!conn)
-        return;
-
-      char buffer[BUFFER_SIZE];
-      ssize_t bytes_read;
-
-      while ((bytes_read = read(fd, buffer, sizeof(buffer)))) {
-        if (bytes_read == -1) {
-          if (errno == EAGAIN)
-            break;
-          cleanup_connection(fd);
-          return;
-        }
-
-        conn->request.append(buffer, bytes_read);
-        if (!conn->headers_complete &&
-            conn->request.find("\r\n\r\n") != std::string::npos) {
-          conn->headers_complete = true;
-          log_request(*conn);
-        }
-      }
-    }
   }
-
-  // void set_nonblocking(int fd) {
-  //     int flags = fcntl(fd, F_GETFL, 0);
-  //     fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-  // }
-
-  void log_connection(const struct sockaddr_storage &addr) {
-    char ip[INET6_ADDRSTRLEN];
-    int port = 0;
-
-    if (addr.ss_family == AF_INET) {
-      struct sockaddr_in *s = (struct sockaddr_in *)&addr;
-      inet_ntop(AF_INET, &s->sin_addr, ip, sizeof(ip));
-      port = ntohs(s->sin_port);
-    } else {
-      struct sockaddr_in6 *s = (struct sockaddr_in6 *)&addr;
-      inet_ntop(AF_INET6, &s->sin6_addr, ip, sizeof(ip));
-      port = ntohs(s->sin6_port);
-    }
-
-    std::cout << "New connection from " << ip << ":" << port << std::endl;
-  }
-
-  void log_request(const Connection &conn) {
-    size_t end = conn.request.find("\r\n\r\n");
-    if (end != std::string::npos) {
-      std::cout << "HTTP Request:\n"
-                << conn.request.substr(0, end + 4)
-                << "\n----------------------------------------\n";
-    }
-  }
-
-  Connection *find_connection(int fd) {
-    for (std::list<Connection *>::iterator it = connections.begin();
-         it != connections.end(); ++it) {
-      if ((*it)->fd == fd)
-        return *it;
-    }
-    return NULL;
-  }
-
-  void cleanup_connection(int fd) {
-    for (std::list<Connection *>::iterator it = connections.begin();
-         it != connections.end(); ++it) {
-      if ((*it)->fd == fd) {
-        delete *it;
-        connections.erase(it);
-        epoll.remove_fd(fd);
-        return;
-      }
-    }
-  }
-};
+}
 
 int main() {
   try {
