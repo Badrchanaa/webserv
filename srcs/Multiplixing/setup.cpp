@@ -1,5 +1,4 @@
 #include "./Multiplixing.hpp"
-
 /*
 
 NOTS:
@@ -117,7 +116,8 @@ WebServer::WebServer() : running(true) {
   DEBUG_LOG("Server initialized. Entering main event loop.");
 }
 
-void WebServer::run() {
+void WebServer::run() {//2000 /500
+  
   struct epoll_event events[MAX_EVENTS];
   DEBUG_LOG("Starting main event loop");
 
@@ -129,12 +129,23 @@ void WebServer::run() {
       throw std::runtime_error("epoll_wait failed");
 
     for (int i = 0; i < n; ++i) {
-      if (events[i].data.fd == listen_fd) {
+      if (events[i].data.fd == listen_fd)
+      {
         DEBUG_LOG("New connection pending on listening socket");
         this->accept_connections();
-      } else if (cgi.is_cgi_socket(events[i].data.fd)) {
+      }
+      else if (cgi.is_cgi_socket(events[i].data.fd)) 
+      {
         this->cgi.handle_cgi_request(events[i].data.fd, events[i].events);
-      } else {
+      }
+      else if (cgi.is_cgi_socket(events[i].data.fd)) 
+      {
+        if (gettype(event.fd))// RESPONSEWRITE 
+        {
+        }
+      }
+      else
+      {
         DEBUG_LOG("Processing event on fd: " << events[i].data.fd);
         this->handle_client(events[i].data.fd, events[i].events);
       }
@@ -164,6 +175,52 @@ void WebServer::accept_connections() {
   }
 }
 
+// client_fd READ 
+void  WebServer::handle_client_request(Connection *conn)
+{
+    char buffer[BUFFER_SIZE];
+    ssize_t bytes_received;
+
+   bytes_received = recv(conn->fd, buffer, BUFFER_SIZE, 0);
+    DEBUG_LOG("Received " << bytes_received << " bytes from fd: " << conn->fd);
+
+    // Print raw received data
+    std::cerr << "Raw request data:\n"
+              << std::string(buffer, bytes_received)
+              << "\n----------------------------------------" << std::endl;
+
+
+    HTTPRequest &request = conn->request;
+    HTTPParser::parse(request, buffer, bytes_received);
+    if (request.getParseState().isComplete())
+    {
+      conn.init_response(request, cgi_process);
+      // modify fd for epollout
+      this->epoll.mod_fd(conn->fd, EPOLLOUT | EPOLLRDHUP | EPOLLERR | EPOLLHUP);
+    }
+
+    if (bytes_received == 0) {
+      DEBUG_LOG("Connection closed gracefully (fd: " << fd << ")");
+      log_request(*conn);
+      cleanup_connection(fd);
+    } else if (bytes_received == -1) {
+      DEBUG_LOG("Receive error on fd " << fd << ": " << strerror(errno));
+      cleanup_connection(fd);
+    }
+}
+
+// file, cgi READ/WRITE
+void  WebServer::handle_client_response(Connection *conn)
+{
+    conn->response.resume();
+    if (conn->response.isComplete)
+    {
+      response.reset();
+      request.reset();
+    }
+
+}
+
 void WebServer::handle_client(int fd, uint32_t events) {
   if (events & (EPOLLRDHUP | EPOLLHUP)) {
     DEBUG_LOG("Connection closed by client (fd: "
@@ -172,40 +229,11 @@ void WebServer::handle_client(int fd, uint32_t events) {
     return;
   }
 
-  if (events & EPOLLIN) {
-    Connection *conn = find_connection(fd);
-    if (!conn)
-      return;
-
-    char buffer[BUFFER_SIZE];
-    ssize_t bytes_received;
-
-    while ((bytes_received = recv(fd, buffer, sizeof(buffer), 0)) > 0) {
-      DEBUG_LOG("Received " << bytes_received << " bytes from fd: " << fd);
-
-      // Print raw received data
-      std::cerr << "Raw request data:\n"
-                << std::string(buffer, bytes_received)
-                << "\n----------------------------------------" << std::endl;
-
-      conn->request.append(buffer, bytes_received);
-
-      // if (!conn->headers_complete &&
-      //     conn->request.find("\r\n\r\n") != std::string::npos) {
-      //   conn->headers_complete = true;
-      //   DEBUG_LOG("Complete headers received from fd: " << fd);
-      //   log_request(*conn);
-      // }
-    }
-
-    if (bytes_received == 0) {
-      DEBUG_LOG("Connection closed gracefully (fd: " << fd << ")");
-      log_request(*conn);
-      cleanup_connection(fd);
-    } else if (bytes_received == -1 && errno != EAGAIN) {
-      DEBUG_LOG("Receive error on fd " << fd << ": " << strerror(errno));
-      cleanup_connection(fd);
-    }
+  Connection *conn = find_connection(fd);
+  if (!conn)
+    return;
+  if (conn->state == Connection::REQUEST && (events & EPOLLIN)) {
+      handle_client_request();
   }
 }
 

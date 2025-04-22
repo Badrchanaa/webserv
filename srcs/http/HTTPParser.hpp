@@ -21,22 +21,22 @@ class HTTPParser
 		HTTPParser(const HTTPParser &other);
 		HTTPParser& operator=(const HTTPParser &other);
 		~HTTPParser();
-		void	parse(HTTPRequest &request, char *buff, size_t len) const;
+		static void	parse(HTTPRequest &request, char *buff, size_t len);
 
 		static const uint8_t TOKEN_ALLOWED_CHARS[128];
 		
 	private:
 		//unsigned int	_parseRequestLine(HTTPRequest &request, char *buff, size_t len) const;
-		size_t	_parseStart(HTTPRequest &request, char *buff, size_t start, size_t len) const;
-		size_t	_parseMethod(HTTPRequest &request, char *buff, size_t start, size_t len) const;
-		size_t	_parseTarget(HTTPRequest &request, char *buff, size_t start, size_t len) const;
-		size_t	_parseVersion(HTTPRequest &request, char *buff, size_t start, size_t len) const;
-		size_t	_parseVersionNumber(HTTPRequest &request, char *buff, size_t start, size_t len) const;
-		size_t	_parseHeaderCrlf(HTTPRequest &request, char *buff, size_t start, size_t len) const;
-		size_t	_parseHeaderField(HTTPRequest &request, char *buff, size_t start, size_t len) const;
-		size_t	_parseHeaderValue(HTTPRequest &request, char *buff, size_t start, size_t len) const;
-		size_t	_parseBody(HTTPRequest &request, char *buff, size_t start, size_t len) const;
-		size_t	_skipCrlf(HTTPParseState &parseState, char *buff, size_t start, size_t len) const;
+		static size_t	_parseStart(HTTPRequest &request, char *buff, size_t start, size_t len);
+		static size_t	_parseMethod(HTTPRequest &request, char *buff, size_t start, size_t len);
+		static size_t	_parseTarget(HTTPRequest &request, char *buff, size_t start, size_t len);
+		static size_t	_parseVersion(HTTPRequest &request, char *buff, size_t start, size_t len);
+		static size_t	_parseVersionNumber(HTTPRequest &request, char *buff, size_t start, size_t len);
+		static size_t	_parseHeaderCrlf(HTTPRequest &request, char *buff, size_t start, size_t len);
+		static size_t	_parseHeaderField(HTTPRequest &request, char *buff, size_t start, size_t len);
+		static size_t	_parseHeaderValue(HTTPRequest &request, char *buff, size_t start, size_t len);
+		static size_t	_parseBody(HTTPRequest &request, char *buff, size_t start, size_t len);
+		static size_t	_skipCrlf(HTTPParseState &parseState, char *buff, size_t start, size_t len);
 		static inline bool	_isCrlf(char current, char previous);
 		static const unsigned int	MAX_REQUEST_LINE_SIZE;
 		static const unsigned int	MAX_METHOD_SIZE;

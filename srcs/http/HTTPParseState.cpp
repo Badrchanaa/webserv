@@ -4,7 +4,7 @@
 
 bool	HTTPParseState::isComplete() const
 {
-	return m_RequestState == REQ_DONE;
+	return m_RequestState == REQ_DONE || m_RequestState == REQ_ERROR;
 }
 
 bool	HTTPParseState::isError() const

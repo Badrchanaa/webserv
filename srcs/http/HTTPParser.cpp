@@ -259,8 +259,19 @@ size_t	HTTPParser::_parseHeaderField(HTTPRequest &request, char *buff, size_t st
 	parseState.advance();
 	return i;
 }
+// map<int fd , int enum>  open 
 
 
+// edite_fd(int fd_edite, uint32_t flags, int dec)
+// {
+// 	if (dec == response_read || response write)
+// 	{
+// 		fd_edite(set -1 for client_fd); 
+// 	}
+// 	else
+// 		fd_edite(set -1 for parnet cgi); 
+// 	fd_edite(fd_edite)
+// }
 void	HTTPParser::parse(HTTPRequest &request, char *buff, size_t len) const
 {
 	HTTPParseState	&parseState = request.getParseState();
@@ -291,6 +302,12 @@ void	HTTPParser::parse(HTTPRequest &request, char *buff, size_t len) const
 			case HTTPParseState::REQ_LINE_VERSION_MAJOR:
 				offset = _parseVersionNumber(request, buff, offset, len);
 				break;
+			// parse body()
+			/// fd = open(file_wirting)
+			// EpollManage::RESPONSE_READ;
+			//  REQUEST_WRITE
+			//  handler.edite_fd(fd, write, RESPONSE_READ)
+
 			default:
 				return;
 		}

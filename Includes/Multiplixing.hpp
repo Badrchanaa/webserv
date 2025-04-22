@@ -1,6 +1,17 @@
 #ifndef __test__
 #define __test__
 
+
+befor resume:
+///// open -==> fd
+ev.fd= -1
+///// this->mod_fd(epfd , MOD, client, &ev )
+
+
+///
+
+
+
 #include "./cgi.hpp"
 #include <algorithm>
 #include <arpa/inet.h>
@@ -21,6 +32,12 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include "http/HTTPRequest.hpp"
+#include "http/HTTPParser.hpp"
+#include "http/HTTPParseState.hpp"
+
+#include "http/HTTPResponse.hpp"
+
 #define DEBUG_LOG(msg) std::cerr << "[Server] " << msg << std::endl
 #define CLIENT_LOG(msg) std::cerr << "[Client] " << msg << std::end
 
@@ -28,6 +45,8 @@
 #define BUFFER_SIZE 4096
 #define BACKLOG 128
 #define PORT "1337"
+
+#define   EPOLL_ERRORS (EPOLLRDHUP | EPOLLERR | EPOLLHUP)
 
 class FileDescriptor {
 public:
@@ -55,10 +74,28 @@ private:
   FileDescriptor &operator=(const FileDescriptor &);
 };
 
+class Event
+{
+  public:
+    int fd;
+    int flags;
+    int type;
+    void *listener;
+};
+
 class EpollManager {
+  std::map<int, Event> events;
+// public:
+//   typedef enum
+//   {
+//     REQUEST_READ,
+//     REQUEST_WRITE,
+//     RESPONSE_READ,
+//     RESPONSE_WRITE
+//   } ;
 public:
   int epfd;
-
+// jjjjjjjj
   EpollManager() {
     DEBUG_LOG("[Epoll] Creating epoll instance");
     epfd = epoll_create(1337);
@@ -82,7 +119,7 @@ public:
     DEBUG_LOG("[Epoll] Adding fd "
               << fd << " with events: " << format_events(events));
     struct epoll_event ev;
-    ev.events = events;
+    ev.events = events | EPOLL_ERRORS;
     ev.data.fd = fd;
 
     if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev) == -1) {
@@ -96,7 +133,7 @@ public:
     DEBUG_LOG("[Epoll] Modifying fd "
               << fd << " with events: " << format_events(events));
     struct epoll_event ev;
-    ev.events = events;
+    ev.events = events | EPOLL_ERRORS;
     ev.data.fd = fd;
 
     if (epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &ev) == -1) {
@@ -115,6 +152,62 @@ public:
       throw std::runtime_error("epoll_ctl del failed");
     }
     DEBUG_LOG("[Epoll] Successfully removed fd: " << fd);
+  }
+
+  int subscribe(int fd, int flags, int type, void *listener)
+  {
+    // Event event;
+    // event.listener = listener;
+    std::map<int, Event>::iterator it = events.find(fd);
+    if (it != events.end())
+      return 1;
+
+    events[fd] = {
+      fd,
+      flags,
+      type,
+      listener
+    };
+    this->add_fd(fd, flags | EPOLL_ERRORS);
+    this->add_mod(fd, flags | EPOLL_ERRORS);
+
+  }
+
+  void  wait()
+  {
+    epoll_wait();
+    for (event in epoll_events)
+    {
+      if (events.(event.fd))
+      {
+        notify(event);
+      }
+    }
+  }
+
+  void unregister(int fd)
+  {
+    // delete from map and epoll context
+    
+  }
+
+  void notify(Event &event)
+  {
+    if (event.type == REQUEST)
+    {
+      HTTPRequest *request = static_cast<HTTPRequest *>(event.listener);
+      bool should_delete = request->resume(event.fd);
+    }
+    else
+    {
+      HTTPResponse *response = static_cast<HTTPResponse *>(event.listener);
+      bool should_delete = response->resume(event.fd);
+    }
+    if (should_delete)
+    {
+      epoll_ctl DELETE;
+    }
+    // event.listener
   }
 
 private:
@@ -141,13 +234,26 @@ private:
 
 class Connection {
 public:
+  typedef enum 
+  {
+    REQUEST,
+    RESPONSE
+  } connectionState;
+public:
   FileDescriptor fd;
-  std::string request;
-  bool headers_complete;
+  //std::string request;
+  HTTPRequest request;
+  HTTPResponse  response;
+  connectionState state;
+  void  init_response(HTTPRequest &request)
+  {
+    this->state = RESPONSE;
+    this->response.init(request, handler);
+  }
   struct sockaddr_storage addr;
 
   Connection(int f, struct sockaddr_storage a)
-      : fd(f), headers_complete(false), addr(a) {}
+      : fd(f), state(REQUEST), addr(a) {}
 };
 
 class WebServer {
@@ -166,6 +272,8 @@ public:
   void create_listener();
   void setup_epoll();
   void accept_connections();
+  void  handle_client_request(Connection *conn);
+  void  handle_client_response(Connection *conn);
   void handle_client(int fd, uint32_t events);
   void log_connection(const struct sockaddr_storage &addr);
   void log_request(const Connection &conn);

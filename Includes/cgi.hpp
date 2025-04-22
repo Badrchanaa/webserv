@@ -34,10 +34,55 @@
 #include <sys/wait.h>
 #include <vector>
 
+// CGIHandler
+
+// Response.CGIHandler
+
+#include <map>
+#include <vector>
+
+class Manager {
+
+  // struct epoll_event ev;
+    // ev.events = events;
+    // ev.data.fd = fd;
+  std::map<int, Event> events;
+
+public:
+  int subscribe(int fd, int type, void *listener, int flags)
+  {
+    // Event event;
+    // event.listener = listener;
+    std::map<int, Event>::iterator it = events.find(fd);
+    if (it != events.end())
+      return 1;
+    
+
+
+    epoll_ctl(instance, EPOLL_CTL_ADD, fd, ev);
+  }
+
+  void remove()
+  {
+      events.delete(fd, event);
+  }
+
+  void loop()
+  {
+    epoll_wait();
+    for(event in events)
+    {
+      event.http_instance.resume();
+      if (event.flags | REMOVE_ON_EVENT)
+        remove(fd, event);
+    }
+  }
+};
 
 class CGIHandler {
 private:
-  struct CGIProcess {
+  struct  CGIProcess {
+    // int  
     int client_fd;
     int cgi_sock;
     pid_t pid;
@@ -60,6 +105,7 @@ public:
   void setup_child(int sock, const std::string &script, const std::vector<std::string> &env);
   void handle_output(CGIProcess &proc);
   void handle_input(CGIProcess &proc);
+  //read(index.html);
   void cleanup(CGIProcess &proc, bool error);
 };
 
