@@ -120,18 +120,3 @@ void CGIHandler::cleanup(CGIProcess &proc, bool error) {
   processes.erase(proc.cgi_sock);
 }
 
-void handle_request(Connection &conn) {
-  if (needs_cgi(conn.request)) {
-    std::map<std::string, std::string> env;
-    // Populate environment variables...
-
-    try {
-      cgi_handler.spawn("/path/to/cgi/script", env, conn.client_fd,
-                        conn.request.body);
-    } catch (const std::exception &e) {
-      send_error_response(conn.client_fd, 500);
-    }
-  } else {
-    // Handle normal request
-  }
-}

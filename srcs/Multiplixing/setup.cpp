@@ -1,4 +1,4 @@
-#include "./test.hpp"
+#include "./Multiplixing.hpp"
 
 /*
 
@@ -41,10 +41,10 @@ void WebServer::create_listener() {
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
-  hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
+  hints.ai_flags = 0;//AI_PASSIVE | AI_NUMERICSERV;
 
   DEBUG_LOG("Resolving addresses...");
-  int status = getaddrinfo(NULL, PORT, &hints, &res);
+  int status = getaddrinfo("192.168.122.1", PORT, NULL, &res);
   if (status != 0)
     throw std::runtime_error(gai_strerror(status));
 
@@ -69,6 +69,7 @@ void WebServer::create_listener() {
     inet_ntop(p->ai_family, addr, ipstr, sizeof ipstr);
     DEBUG_LOG("Attempting to bind to " << ipver << " " << ipstr << ":" << port);
 
+    /*
     FileDescriptor temp_fd(
         socket(p->ai_family, p->ai_socktype | SOCK_NONBLOCK, p->ai_protocol));
     if (temp_fd.fd == -1) {
@@ -90,6 +91,7 @@ void WebServer::create_listener() {
     } else {
       DEBUG_LOG("Bind failed: " << strerror(errno));
     }
+    */
   }
 
   freeaddrinfo(res);

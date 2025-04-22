@@ -1,0 +1,78 @@
+#include "HTTPParseState.hpp"
+#include <iostream>
+#include <string>
+
+bool	HTTPParseState::isComplete() const
+{
+	return m_RequestState == REQ_DONE;
+}
+
+bool	HTTPParseState::isError() const
+{
+	return m_RequestState == REQ_ERROR;
+}
+
+HTTPParseState::requestState	HTTPParseState::getState() const
+{
+	return m_RequestState;
+}
+
+void	HTTPParseState::setState(HTTPParseState::requestState state)
+{
+	m_RequestState = state;
+}
+
+void	HTTPParseState::setReadBytes(unsigned int val)
+{
+	m_ReadBytes = val;
+}
+
+char			HTTPParseState::getPrevChar() const
+{
+	return m_PrevChar;
+}
+
+void			HTTPParseState::setPrevChar(const char c)
+{
+	m_PrevChar = c;
+}
+
+char			*HTTPParseState::getMethod()
+{
+	return m_Method;
+}
+
+unsigned int	HTTPParseState::getReadBytes() const
+{
+	return m_ReadBytes;
+}
+
+HTTPParseState::requestState	HTTPParseState::advance()
+{
+	m_ReadBytes = 0;
+	if (m_RequestState != REQ_DONE)
+		m_RequestState = static_cast<requestState>(m_RequestState + 1);
+	return m_RequestState;
+}
+
+HTTPParseState::HTTPParseState(void): m_RequestState(REQ_LINE_START), m_ReadBytes(0)
+{
+}
+
+HTTPParseState::HTTPParseState(const HTTPParseState &other)
+{
+	m_ReadBytes = other.m_ReadBytes;
+	m_RequestState = other.m_RequestState;
+}
+
+HTTPParseState& HTTPParseState::operator=(const HTTPParseState &other)
+{
+	m_ReadBytes = other.m_ReadBytes;
+	m_RequestState = other.m_RequestState;
+	return *this;
+}
+
+HTTPParseState::~HTTPParseState(void)
+{
+	
+}
