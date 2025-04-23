@@ -1,4 +1,5 @@
 #include "../../includes/WebServer.hpp"
+
 /*
 
 NOTS:
@@ -40,10 +41,10 @@ void WebServer::create_listener() {
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
-  hints.ai_flags = 0;//AI_PASSIVE | AI_NUMERICSERV;
+  hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
 
   DEBUG_LOG("Resolving addresses...");
-  int status = getaddrinfo("192.168.122.1", PORT, NULL, &res);
+  int status = getaddrinfo(NULL, PORT, &hints, &res);
   if (status != 0)
     throw std::runtime_error(gai_strerror(status));
 
@@ -68,7 +69,6 @@ void WebServer::create_listener() {
     inet_ntop(p->ai_family, addr, ipstr, sizeof ipstr);
     DEBUG_LOG("Attempting to bind to " << ipver << " " << ipstr << ":" << port);
 
-    /*
     FileDescriptor temp_fd(
         socket(p->ai_family, p->ai_socktype | SOCK_NONBLOCK, p->ai_protocol));
     if (temp_fd.fd == -1) {
@@ -90,7 +90,6 @@ void WebServer::create_listener() {
     } else {
       DEBUG_LOG("Bind failed: " << strerror(errno));
     }
-    */
   }
 
   freeaddrinfo(res);
@@ -116,8 +115,7 @@ WebServer::WebServer() : running(true) {
   DEBUG_LOG("Server initialized. Entering main event loop.");
 }
 
-void WebServer::run() {//2000 /500
-  
+void WebServer::run() {
   struct epoll_event events[MAX_EVENTS];
   DEBUG_LOG("Starting main event loop");
 
@@ -129,26 +127,15 @@ void WebServer::run() {//2000 /500
       throw std::runtime_error("epoll_wait failed");
 
     for (int i = 0; i < n; ++i) {
-      if (events[i].data.fd == listen_fd)
-      {
+      if (events[i].data.fd == listen_fd) {
         DEBUG_LOG("New connection pending on listening socket");
         this->accept_connections();
-      }
-      else if (cgi.is_cgi_socket(events[i].data.fd)) 
-      {
+      } else if (cgi.is_cgi_socket(events[i].data.fd)) {
         this->cgi.handle_cgi_request(events[i].data.fd, events[i].events);
-      }
-      else
-      {
+      } else {
         DEBUG_LOG("Processing event on fd: " << events[i].data.fd);
         this->handle_client(events[i].data.fd, events[i].events);
       }
-      // else if (cgi.is_cgi_socket(events[i].data.fd)) 
-      // {
-      //   if (gettype(event.fd))// RESPONSEWRITE 
-      //   {
-      //   }
-      // }
     }
   }
 }
@@ -168,63 +155,68 @@ void WebServer::accept_connections() {
 
     Connection *conn = new Connection(new_fd, client_addr);
     connections.push_back(conn);
-    // epoll.add_fd(new_fd, EPOLLIN | EPOLLET | EPOLLRDHUP);
-    epoll.subscribe(new_fd, EPOLL_READ, CLIENT_EVENT, &conn->request);
-
+    epoll.add_fd(new_fd, EPOLL_READ);
     // epoll.add_fd(new_fd, EPOLLIN | EPOLLRDHUP);
 
     log_connection(client_addr);
   }
 }
 
-// client_fd READ 
-void  WebServer::handle_client_request(Connection *conn)
+
+void  WebServer::handle_client_response(Connection *connection)
+{
+  HTTPResponse  &response = conn->response;
+
+      /*
+      if cgi connection should add socketpair to epollmanager
+      else response is immediate
+      */
+  
+  response.process();
+  if (!response.done())
+    return;
+  if (connection->keepAlive())
+    connection.reset();
+  else
+    cleanup_connection(fd);
+}
+
+void  WebServer::handle_client_request(Connection *connection)
 {
     char buffer[BUFFER_SIZE];
     ssize_t bytes_received;
 
-   bytes_received = recv(conn->fd, buffer, BUFFER_SIZE, 0);
-    DEBUG_LOG("Received " << bytes_received << " bytes from fd: " << conn->fd);
-
-    // Print raw received data
-    std::cerr << "Raw request data:\n"
-              << std::string(buffer, bytes_received)
-              << "\n----------------------------------------" << std::endl;
-
-
-    HTTPRequest &request = conn->request;
-    HTTPParser::parse(request, buffer, bytes_received);
-    if (request.getParseState().isComplete())
+    bytes_received = recv(fd, buffer, sizeof(buffer), 0);
+    if (bytes_received == 0)
     {
-      conn.init_response(request, cgi_process);
-      // modify fd for epollout
-      this->epoll.mod_fd(conn->fd, EPOLLOUT | EPOLLRDHUP | EPOLLERR | EPOLLHUP);
-    }
-
-    if (bytes_received == 0) {
+      // Should send response ?? 
+      //
+      conn->init_response();
+      handle_client_response(connection);
       DEBUG_LOG("Connection closed gracefully (fd: " << fd << ")");
       log_request(*conn);
       cleanup_connection(fd);
-    } else if (bytes_received == -1) {
+    }
+    else if (bytes_received == -1)
+    {
+      // should send response??
       DEBUG_LOG("Receive error on fd " << fd << ": " << strerror(errno));
       cleanup_connection(fd);
     }
-}
+   
+    DEBUG_LOG("Received " << bytes_received << " bytes from fd: " << fd);
 
-// file, cgi READ/WRITE
-void  WebServer::handle_client_response(Connection *conn)
-{
-    conn->response.resume();
-    if (conn->response.isComplete)
+    HTTPRequest &request = conn->request;
+    HTTPParser::parse(request, buffer, len);
+    if (request.isComplete())
     {
-      response.reset();
-      request.reset();
+      conn->init_response();
+      handle_client_response(connection);
     }
-
 }
 
 void WebServer::handle_client(int fd, uint32_t events) {
-  if (events & (EPOLLRDHUP | EPOLLHUP)) {
+  if (events & EPOLL_ERRORS) {
     DEBUG_LOG("Connection closed by client (fd: "
               << fd << ")" << " -> EPOLLRDHUP || EPOLLHUP Happend!");
     cleanup_connection(fd);
@@ -232,10 +224,13 @@ void WebServer::handle_client(int fd, uint32_t events) {
   }
 
   Connection *conn = find_connection(fd);
-  if (!conn)
-    return;
-  if (conn->state == Connection::REQUEST && (events & EPOLLIN)) {
-      handle_client_request();
+    if (!conn)
+      return; // handle error;
+  if (conn->state == Connection::REQUEST_PARSING && (events & EPOLLIN)) {
+
+  }
+  else if (conn->state == Connection::RESPONSE_PROCESSING && (events & EPOLLOUT))
+    handle_client_response(conn);
   }
 }
 

@@ -1,0 +1,36 @@
+- Connection or request/response should add events to epoll manager
+
+
+
+Request:
+	read(file | socket): (epoll)
+	write(file | socket): (epoll)
+	parse(); // socket client or request file
+
+Response:
+	read(file | socket): (epoll)
+	write(file | socket): (epoll)
+	resume(); // socket client or cgi fd
+	
+
+#- Webserver should map event.fd to connection.
+- request
+
+file
+{
+	read()
+{
+	add_
+	read
+	
+}
+
+CGIProcess
+{
+	cgi_fd
+	client_fd
+	file_fd = -1
+	
+}
+
+

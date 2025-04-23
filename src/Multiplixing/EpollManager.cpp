@@ -59,45 +59,6 @@ EpollManager::EpollManager() {
     DEBUG_LOG("[Epoll] Successfully added fd " << fd);
   }
 
-  int EpollManager::subscribe(int fd, uint32_t flags, int type, void *listener) {
-    DEBUG_LOG("[Epoll] Adding fd "
-              << fd << " with events: " << format_events(events));
-    std::map<int, Event>::iterator it = events.find(fd);
-    if (it != events.end())
-      return 1;
-
-    events[fd] = {fd, flags, type, listener};
-    this->add_fd(fd, flags | EPOLL_ERRORS);
-    // this->add_mod(fd, flags | EPOLL_ERRORS);
-  }
-
-  void EpollManager::wait() {
-    epoll_wait();
-    for (event in epoll_events) {
-      if (events.(event.fd)) {
-        notify(event);
-      }
-    }
-  }
-
-  void EpollManager::unregister(int fd) {
-    // delete from map and epoll context
-  }
-
-  void EpollManager::notify(Event &event, Connection &connection) {
-    if (event.type == REQUEST) {
-      connection.handle_request();
-      connection.handle_response();
-      bool should_delete = request->resume(event.fd);
-    } else {
-      HTTPResponse *response = static_cast<HTTPResponse *>(event.listener);
-      bool should_delete = response->resume(event.fd);
-    }
-    if (should_delete) {
-      epoll_ctl DELETE;
-    }
-    // event.listener
-  }
 
   std::string EpollManager::format_events(uint32_t events) {
     std::string result;

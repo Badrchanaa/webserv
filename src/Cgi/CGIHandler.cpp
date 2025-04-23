@@ -1,5 +1,4 @@
-#include "../../includes/CGIHandler.hpp"
-
+#include "./cgi.hpp"
 bool CGIHandler::is_cgi_socket(int fd) const {
   return processes.find(fd) != processes.end();
 }
@@ -27,7 +26,7 @@ void CGIHandler::spawn(const std::string &script,
     ev.data.fd = sockets[0];
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sockets[0], &ev);
 
-    CGIProcess proc = {client, sockets[0], -1,  pid, "", body, 0};
+    CGIProcess proc = {client, sockets[0], pid, "", body, 0};
     processes[sockets[0]] = proc;
   }
 }
@@ -62,15 +61,11 @@ void CGIHandler::check_zombies() {
   }
 }
 
-void CGIHandler::setup_child(int sock, int open_fd, const std::string &script,
+void CGIHandler::setup_child(int sock, const std::string &script,
                              const std::vector<std::string> &env) {
-  if (open_fd != -1)
-    dup2(open_fd ,STDIN_FILENO);
-  else
-    dup2(sock, STDIN_FILENO);
+  dup2(sock, STDIN_FILENO);
   dup2(sock, STDOUT_FILENO);
   close(sock);
-  close(open_fd);
 
   std::vector<const char *> envp;
   for (size_t i = 0; i < env.size(); ++i)
@@ -125,3 +120,18 @@ void CGIHandler::cleanup(CGIProcess &proc, bool error) {
   processes.erase(proc.cgi_sock);
 }
 
+// void handle_request(Connection &conn) {
+//   if (needs_cgi(conn.request)) {
+//     std::map<std::string, std::string> env;
+//     // Populate environment variables...
+
+//     try {
+//       cgi_handler.spawn("/path/to/cgi/script", env, conn.client_fd,
+//                         conn.request.body);
+//     } catch (const std::exception &e) {
+//       send_error_response(conn.client_fd, 500);
+//     }
+//   } else {
+//     // Handle normal request
+//   }
+// }
