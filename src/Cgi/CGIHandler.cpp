@@ -1,4 +1,5 @@
-#include "./cgi.hpp"
+#include "../../includes/CGIHandler.hpp"
+
 bool CGIHandler::is_cgi_socket(int fd) const {
   return processes.find(fd) != processes.end();
 }
