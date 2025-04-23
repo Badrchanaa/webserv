@@ -130,12 +130,20 @@ void WebServer::run() {
       if (events[i].data.fd == listen_fd) {
         DEBUG_LOG("New connection pending on listening socket");
         this->accept_connections();
-      } else if (cgi.is_cgi_socket(events[i].data.fd)) {
-        this->cgi.handle_cgi_request(events[i].data.fd, events[i].events);
-      } else {
-        DEBUG_LOG("Processing event on fd: " << events[i].data.fd);
-        this->handle_client(events[i].data.fd, events[i].events);
       }
+      else
+      {
+        connection = find_connection(fd);
+        epoll->notify(event, connection);
+        CGIHandler
+        this->handle_client_request();
+      }
+      // } else if (cgi.is_cgi_socket(events[i].data.fd)) {
+      //   this->cgi.handle_cgi_request(events[i].data.fd, events[i].events);
+      // } else {
+      //   DEBUG_LOG("Processing event on fd: " << events[i].data.fd);
+      //   this->handle_client(events[i].data.fd, events[i].events);
+      // }
     }
   }
 }

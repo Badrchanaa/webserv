@@ -138,17 +138,17 @@ void WebServer::run() {//2000 /500
       {
         this->cgi.handle_cgi_request(events[i].data.fd, events[i].events);
       }
-      else if (cgi.is_cgi_socket(events[i].data.fd)) 
-      {
-        if (gettype(event.fd))// RESPONSEWRITE 
-        {
-        }
-      }
       else
       {
         DEBUG_LOG("Processing event on fd: " << events[i].data.fd);
         this->handle_client(events[i].data.fd, events[i].events);
       }
+      // else if (cgi.is_cgi_socket(events[i].data.fd)) 
+      // {
+      //   if (gettype(event.fd))// RESPONSEWRITE 
+      //   {
+      //   }
+      // }
     }
   }
 }
@@ -168,7 +168,9 @@ void WebServer::accept_connections() {
 
     Connection *conn = new Connection(new_fd, client_addr);
     connections.push_back(conn);
-    epoll.add_fd(new_fd, EPOLLIN | EPOLLET | EPOLLRDHUP);
+    // epoll.add_fd(new_fd, EPOLLIN | EPOLLET | EPOLLRDHUP);
+    epoll.subscribe(new_fd, EPOLL_READ, CLIENT_EVENT, &conn->request);
+
     // epoll.add_fd(new_fd, EPOLLIN | EPOLLRDHUP);
 
     log_connection(client_addr);

@@ -26,7 +26,7 @@ void CGIHandler::spawn(const std::string &script,
     ev.data.fd = sockets[0];
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sockets[0], &ev);
 
-    CGIProcess proc = {client, sockets[0], pid, "", body, 0};
+    CGIProcess proc = {client, sockets[0], -1,  pid, "", body, 0};
     processes[sockets[0]] = proc;
   }
 }
@@ -61,11 +61,15 @@ void CGIHandler::check_zombies() {
   }
 }
 
-void CGIHandler::setup_child(int sock, const std::string &script,
+void CGIHandler::setup_child(int sock, int open_fd, const std::string &script,
                              const std::vector<std::string> &env) {
-  dup2(sock, STDIN_FILENO);
+  if (open_fd != -1)
+    dup2(open_fd ,STDIN_FILENO);
+  else
+    dup2(sock, STDIN_FILENO);
   dup2(sock, STDOUT_FILENO);
   close(sock);
+  close(open_fd);
 
   std::vector<const char *> envp;
   for (size_t i = 0; i < env.size(); ++i)

@@ -2,10 +2,10 @@
 #define __test__
 
 
-befor resume:
-///// open -==> fd
-ev.fd= -1
-///// this->mod_fd(epfd , MOD, client, &ev )
+// befor resume:
+// ///// open -==> fd
+// ev.fd= -1
+// ///// this->mod_fd(epfd , MOD, client, &ev )
 
 
 ///
@@ -38,6 +38,25 @@ ev.fd= -1
 
 #include "http/HTTPResponse.hpp"
 
+/*
+  main()
+  {
+  // body req --> fd=2 <-
+    read = stdin;
+    process
+    write = 
+
+    fork()
+   if child {
+    dup2(file_fd, stdin)
+    dup2(socketpair_fd, stdout);
+    }
+    if parent
+    {
+    }
+  }
+*/
+
 #define DEBUG_LOG(msg) std::cerr << "[Server] " << msg << std::endl
 #define CLIENT_LOG(msg) std::cerr << "[Client] " << msg << std::end
 
@@ -47,6 +66,8 @@ ev.fd= -1
 #define PORT "1337"
 
 #define   EPOLL_ERRORS (EPOLLRDHUP | EPOLLERR | EPOLLHUP)
+#define   EPOLL_READ (EPOLLIN)
+#define   EPOLL_WRITE (EPOLLOUT)
 
 class FileDescriptor {
 public:
@@ -74,14 +95,22 @@ private:
   FileDescriptor &operator=(const FileDescriptor &);
 };
 
+typedef enum
+{
+  RESPONSE_EVENT,
+  REQUEST_EVENT,
+  CLIENT_EVENT
+} eventType;
+
 class Event
 {
   public:
     int fd;
     int flags;
-    int type;
+    eventType type;
     void *listener;
 };
+
 
 class EpollManager {
   std::map<int, Event> events;
@@ -115,19 +144,6 @@ public:
     }
   }
 
-  void add_fd(int fd, uint32_t events) {
-    DEBUG_LOG("[Epoll] Adding fd "
-              << fd << " with events: " << format_events(events));
-    struct epoll_event ev;
-    ev.events = events | EPOLL_ERRORS;
-    ev.data.fd = fd;
-
-    if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev) == -1) {
-      DEBUG_LOG("[Epoll] Add failed (fd: " << fd << "): " << strerror(errno));
-      throw std::runtime_error("epoll_ctl add failed");
-    }
-    DEBUG_LOG("[Epoll] Successfully added fd " << fd);
-  }
 
   void mod_fd(int fd, uint32_t events) {
     DEBUG_LOG("[Epoll] Modifying fd "
@@ -154,10 +170,24 @@ public:
     DEBUG_LOG("[Epoll] Successfully removed fd: " << fd);
   }
 
-  int subscribe(int fd, int flags, int type, void *listener)
+  void add_fd(int fd, uint32_t events) {
+    DEBUG_LOG("[Epoll] Adding fd "
+              << fd << " with events: " << format_events(events));
+    struct epoll_event ev;
+    ev.events = events | EPOLL_ERRORS;
+    ev.data.fd = fd;
+
+    if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev) == -1) {
+      DEBUG_LOG("[Epoll] Add failed (fd: " << fd << "): " << strerror(errno));
+      throw std::runtime_error("epoll_ctl add failed");
+    }
+    DEBUG_LOG("[Epoll] Successfully added fd " << fd);
+  }
+
+  int subscribe(int fd, uint32_t flags, int type, void *listener)
   {
-    // Event event;
-    // event.listener = listener;
+    DEBUG_LOG("[Epoll] Adding fd "
+              << fd << " with events: " << format_events(events));
     std::map<int, Event>::iterator it = events.find(fd);
     if (it != events.end())
       return 1;
@@ -169,7 +199,7 @@ public:
       listener
     };
     this->add_fd(fd, flags | EPOLL_ERRORS);
-    this->add_mod(fd, flags | EPOLL_ERRORS);
+    // this->add_mod(fd, flags | EPOLL_ERRORS);
 
   }
 
@@ -191,11 +221,12 @@ public:
     
   }
 
-  void notify(Event &event)
+  void notify(Event &event, Connection &connection)
   {
     if (event.type == REQUEST)
     {
-      HTTPRequest *request = static_cast<HTTPRequest *>(event.listener);
+      connection.handle_request();
+      connection.handle_response();
       bool should_delete = request->resume(event.fd);
     }
     else
@@ -236,8 +267,8 @@ class Connection {
 public:
   typedef enum 
   {
-    REQUEST,
-    RESPONSE
+    REQUEST_PARSING,
+    RESPONSE_PROCESSING,
   } connectionState;
 public:
   FileDescriptor fd;
@@ -245,6 +276,7 @@ public:
   HTTPRequest request;
   HTTPResponse  response;
   connectionState state;
+
   void  init_response(HTTPRequest &request)
   {
     this->state = RESPONSE;

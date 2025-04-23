@@ -42,6 +42,11 @@ class HTTPResponse
 			}
 			process();
 		}
+
+		bool	buffer_has_data()
+		{
+
+		}
 		void process()
 		{
 			//
@@ -96,12 +101,17 @@ class HTTPResponse
 		write_cgi(){
 		}
 
+		bytes_read = Connection.read(int fd, &buff, size_t len);
+		notify()
+
+		Connection.write();
+
 	private:
 		int	status_code;
 		CGIProcess *cgi;
 		CGIHandler	*cgi_handler;
 		bool has_cgi;
-		int client_fd;
+		// int client_fd;
 
 };
 
