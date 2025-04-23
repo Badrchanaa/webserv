@@ -42,7 +42,7 @@ SRC_PATH = ./src
 
 # LIBS
 
-CFLAGS = -Wall -Wextra -Werror -std=c++98
+CFLAGS = -Wall -Wextra -Werror -std=c++98 -I includes
 
 # ANIMATION
 SRCS_COUNT = 0
@@ -60,14 +60,15 @@ endif
 CONFIG_PARSING_SOURCES = main.cpp ConfigFile.cpp  Methodes_Validates.cpp Utils.cpp
 
 HTTP_TEST_SOURCES = $(SRC_PATH)/http/test.cpp
-HTTP_SOURCES = $(filter-out $(HTTP_TEST_SOURCES) $(wildcard $(SRC_PATH)/http/*.cpp))
+HTTP_SOURCES = $(filter-out $(HTTP_TEST_SOURCES), $(wildcard $(SRC_PATH)/http/*.cpp))
 
 ALL_SOURCES = $(CONFIG_PARSING_SOURCES)
 vpath %.cpp $(SRC_PATH)/Parsing 
+vpath %.cpp $(SRC_PATH)/http
 vpath %.hpp includes/
 # OBJ_FILES = $(ALL_SOURCES:%.c=%.o)
 
-HTTP_OBJ_FILES = $(addprefix $(OBJ_PATH)/, $(HTTP_SOURCES:.cpp=.o) $(HTTP_TEST_SOURCES:.cpp=.o))
+HTTP_OBJ_FILES = $(addprefix $(OBJ_PATH)/, $(HTTP_SOURCES:$(SRC_PATH)/http/%.cpp=%.o) $(HTTP_TEST_SOURCES:$(SRC_PATH)/http/%.cpp=%.o))
 OBJ_PARSING_FILES = $(CONFIG_PARSING_SOURCES:%.cpp=%.o)
 
 # OBJ_PIPX_FILES = $(PIPX_SOURCES:%.c=%.o)
@@ -83,6 +84,7 @@ $(NAME): $(OBJ_FILES)
 	@echo "\n\n\n   ${BOLD}${CUR}${LYELLOW}WEBSERV COMPILED ✨${DEF}${NOCOL}\n"
 
 http_test: $(HTTP_OBJ_FILES)
+	$(CC) -o $@ $(CFLAGS) $^
 
 
 # #is used to redirect both standard output (stdout) and standard error (stderr) to /dev/null
