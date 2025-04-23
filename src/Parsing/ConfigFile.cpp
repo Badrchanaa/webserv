@@ -1,4 +1,4 @@
-#include "../../Includes/Parsing.hpp"
+#include "Parsing.hpp"
 
 void ParseConfig::ResetParsingState() {
   inServer = false;

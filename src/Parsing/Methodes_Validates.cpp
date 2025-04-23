@@ -1,4 +1,4 @@
-#include "../../Includes/Parsing.hpp"
+#include "Parsing.hpp"
 
 void ParseConfig::ProcessMethodContext(const std::string &trimmed) {
   std::string method = get_list_item(trimmed);

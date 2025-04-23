@@ -1,4 +1,4 @@
-#include "../../Includes/Parsing.hpp"
+#include "Parsing.hpp"
 
 bool ParseConfig::is_commented(std::string &line) {
   size_t i = 0;

@@ -36,16 +36,17 @@ MAKE = make
 CC = c++
 
 # PATHS
-OBJ_PATH = obj
+OBJ_PATH = .bin
+SRC_PATH = ./src
 
 
 # LIBS
 
-CFLAGS = -g -Wall -Wextra -Werror -D BUFFER_SIZE=10 -std=c++98
+CFLAGS = -Wall -Wextra -Werror -std=c++98
 
 # ANIMATION
 SRCS_COUNT = 0
-SRCS_TOT = ${shell find ./srcs/ -type f -name '*.cpp' | wc -l}
+SRCS_TOT = ${shell find $(SRC_PATH)/ -type f -name '*.cpp' | wc -l}
 SRCS_PRCT = ${shell expr 100 \* ${SRCS_COUNT} / ${SRCS_TOT}}
 #determine the length of the progress bar.
 BAR =  ${shell expr 23 \* ${SRCS_COUNT} / ${SRCS_TOT}}
@@ -56,17 +57,21 @@ ifdef DEBUG
 endif
 
 # SOURCES
-PARSING_SOURCES = main.cpp ConfigFile.cpp  Methodes_Validates.cpp Utils.cpp
+CONFIG_PARSING_SOURCES = main.cpp ConfigFile.cpp  Methodes_Validates.cpp Utils.cpp
 
-ALL_SOURCES = $(PARSING_SOURCES)
-vpath %.cpp srcs/Parsing 
-vpath %.hpp Includes/
+HTTP_TEST_SOURCES = $(SRC_PATH)/http/test.cpp
+HTTP_SOURCES = $(filter-out $(HTTP_TEST_SOURCES) $(wildcard $(SRC_PATH)/http/*.cpp))
+
+ALL_SOURCES = $(CONFIG_PARSING_SOURCES)
+vpath %.cpp $(SRC_PATH)/Parsing 
+vpath %.hpp includes/
 # OBJ_FILES = $(ALL_SOURCES:%.c=%.o)
 
-OBJ_PARSING_FILES = $(PARSING_SOURCES:%.cpp=%.o)
+HTTP_OBJ_FILES = $(addprefix $(OBJ_PATH)/, $(HTTP_SOURCES:.cpp=.o) $(HTTP_TEST_SOURCES:.cpp=.o))
+OBJ_PARSING_FILES = $(CONFIG_PARSING_SOURCES:%.cpp=%.o)
 
 # OBJ_PIPX_FILES = $(PIPX_SOURCES:%.c=%.o)
-OBJ_PARSING_FILES = $(PARSING_SOURCES:%.cpp=%.o)
+OBJ_PARSING_FILES = $(CONFIG_PARSING_SOURCES:%.cpp=%.o)
 OBJ_FILES = $(addprefix $(OBJ_PATH)/, $(OBJ_PARSING_FILES))
 
 all: $(NAME)
@@ -76,6 +81,8 @@ $(NAME): $(OBJ_FILES)
 	@$(CC) $^ -o $@ $(CFLAGS) #-fsanitize=address
 # @echo "i am here\n"
 	@echo "\n\n\n   ${BOLD}${CUR}${LYELLOW}WEBSERV COMPILED ✨${DEF}${NOCOL}\n"
+
+http_test: $(HTTP_OBJ_FILES)
 
 
 # #is used to redirect both standard output (stdout) and standard error (stderr) to /dev/null
