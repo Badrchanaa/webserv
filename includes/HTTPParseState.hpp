@@ -40,10 +40,17 @@ class HTTPParseState
 		requestState	advance();
 		bool			isComplete() const;
 		bool			isError() const;
+		void			appendHeaderField(const char *buff, size_t start, size_t end);
+		void			appendHeaderValue(const char *buff, size_t start, size_t end);
+		std::string		&getHeaderField() const;
+		std::string		&getHeaderValue() const;
 
 		char			*getMethod();
 		~HTTPParseState();
 	private:
+		std::string		m_HeaderField;
+		std::string		m_HeaderValue;
+		
 		requestState	m_RequestState;
 		char			m_Method[10];
 		unsigned int	m_ReadBytes;

@@ -26,7 +26,9 @@ class HTTPRequest
 		void			setMethod(char *method_cstr);
 		void			appendToPath(char *buff, size_t start, size_t len);
 		bool			validPath();
-		const std::string		&getPath() const;
+		bool			addHeader(std::string &key, std::string &value);
+		std::string		getHeader(std::string &key) const;
+		const std::string	&getPath() const;
 	private:
 		HTTPParseState		m_ParseState;
 		HeaderMap			m_Headers;

@@ -17,6 +17,20 @@ HTTPParseState::requestState	HTTPParseState::getState() const
 	return m_RequestState;
 }
 
+void	HTTPParseState::appendHeaderValue(const char *buff, size_t start, size_t end)
+{
+	if (start == end)
+		return;
+	m_HeaderValue.append(buff + start, end - start);
+}
+
+void	HTTPParseState::appendHeaderField(const char *buff, size_t start, size_t end)
+{
+	if (start == end)
+		return;
+	m_HeaderField.append(buff + start, end - start);
+}
+
 void	HTTPParseState::setState(HTTPParseState::requestState state)
 {
 	m_RequestState = state;

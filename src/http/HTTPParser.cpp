@@ -25,7 +25,7 @@ inline bool	HTTPParser::_isCrlf(char current, char previous = LF)
 	return ((current == CR || current == LF) && previous != current);
 }
 
-size_t	HTTPParser::_skipCrlf(HTTPParseState &parseState, char *buff, size_t start, size_t len) const
+size_t	HTTPParser::_skipCrlf(HTTPParseState &parseState, char *buff, size_t start, size_t len)
 {
 	size_t	i;
 	unsigned int count;
@@ -49,7 +49,7 @@ size_t	HTTPParser::_skipCrlf(HTTPParseState &parseState, char *buff, size_t star
 /*
 	Handles CRLF before Request-Line.
 */
-size_t	HTTPParser::_parseStart(HTTPRequest &request, char *buff, size_t start, size_t len) const
+size_t	HTTPParser::_parseStart(HTTPRequest &request, char *buff, size_t start, size_t len)
 {
 	HTTPParseState	&parseState = request.getParseState();
 	size_t	i;
@@ -68,7 +68,7 @@ size_t	HTTPParser::_parseStart(HTTPRequest &request, char *buff, size_t start, s
 /*
 	Handle request method
 */
-size_t	HTTPParser::_parseMethod(HTTPRequest &request, char *buff, size_t start, size_t len) const
+size_t	HTTPParser::_parseMethod(HTTPRequest &request, char *buff, size_t start, size_t len)
 {
 	HTTPParseState	&parseState = request.getParseState();
 	size_t	i = start;
@@ -96,14 +96,14 @@ size_t	HTTPParser::_parseMethod(HTTPRequest &request, char *buff, size_t start, 
 	return i + 1;
 }
 
-size_t	HTTPParser::_parseTarget(HTTPRequest &request, char *buff, size_t start, size_t len) const
+size_t	HTTPParser::_parseTarget(HTTPRequest &request, char *buff, size_t start, size_t len)
 {
 	HTTPParseState	&parseState = request.getParseState();
 	unsigned int	targetSize = parseState.getReadBytes();
 	size_t	i = start;
 
 	// TODO: add constant for max target size
-	while (i < len && std::isprint(buff[i]) && targetSize < )
+	while (i < len && std::isprint(buff[i]) && targetSize < HTTPParser::MAX_REQUEST_LINE_SIZE)
 	{
 		if (buff[i] == SP)
 			break;
@@ -131,7 +131,7 @@ size_t	HTTPParser::_parseTarget(HTTPRequest &request, char *buff, size_t start, 
 	return i + 1;
 }
 
-size_t	HTTPParser::_parseVersion(HTTPRequest &request, char *buff, size_t start, size_t len) const
+size_t	HTTPParser::_parseVersion(HTTPRequest &request, char *buff, size_t start, size_t len)
 {
 	HTTPParseState	&parseState = request.getParseState();
 	unsigned int	count = parseState.getReadBytes();
@@ -161,7 +161,7 @@ size_t	HTTPParser::_parseVersion(HTTPRequest &request, char *buff, size_t start,
 	return i;
 }
 
-size_t	HTTPParser::_parseVersionNumber(HTTPRequest &request, char *buff, size_t start, size_t len) const
+size_t	HTTPParser::_parseVersionNumber(HTTPRequest &request, char *buff, size_t start, size_t len)
 {
 	HTTPParseState	&parseState = request.getParseState();
 	HTTPParseState::requestState	state = parseState.getState();
@@ -196,7 +196,7 @@ size_t	HTTPParser::_parseVersionNumber(HTTPRequest &request, char *buff, size_t 
 	return i;
 }
 
-size_t	HTTPParser::_parseHeaderCrlf(HTTPRequest &request, char *buff, size_t start, size_t len) const
+size_t	HTTPParser::_parseHeaderCrlf(HTTPRequest &request, char *buff, size_t start, size_t len)
 {
 	HTTPParseState	&parseState = request.getParseState();
 	size_t	i;
@@ -225,14 +225,12 @@ size_t	HTTPParser::_parseHeaderCrlf(HTTPRequest &request, char *buff, size_t sta
 	return i;
 }
 
-size_t	HTTPParser::_parseHeaderField(HTTPRequest &request, char *buff, size_t start, size_t len) const
+size_t	HTTPParser::_parseHeaderField(HTTPRequest &request, char *buff, size_t start, size_t len)
 {
 	HTTPParseState	&parseState = request.getParseState();
-	size_t	i;
 	size_t	count = parseState.getReadBytes();
-	bool	isAllowed;
+	size_t	i;
 	char	c;
-	bool	isErr = false;
 	
 	i = start;
 	while (i < len)
@@ -245,8 +243,7 @@ size_t	HTTPParser::_parseHeaderField(HTTPRequest &request, char *buff, size_t st
 		c = buff[i];
 		if (c == ':')
 			break;
-		isAllowed = c >= 0 && c < 128 && HTTPParser::TOKEN_ALLOWED_CHARS[c];
-		if (!isAllowed)
+		if (c < 0 || c >= 128 || !HTTPParser::TOKEN_ALLOWED_CHARS[c])
 		{
 			parseState.setState(HTTPParseState::REQ_ERROR);
 			return i;
@@ -254,9 +251,57 @@ size_t	HTTPParser::_parseHeaderField(HTTPRequest &request, char *buff, size_t st
 		i++;
 		count++;
 	}
+	parseState.appendHeaderField(buff, start, i);
+	parseState.setReadBytes(count);
 	if (i == len)
 		return i;
-	parseState.advance();
+	parseState.setState(HTTPParseState::REQ_HEADER_VALUE);
+	return i;
+}
+
+size_t	HTTPParser::_parseHeaderValue(HTTPRequest &request, char *buff, size_t start, size_t len)
+{
+	HTTPParseState	&parseState = request.getParseState();
+	size_t	count = parseState.getReadBytes();
+	size_t	i;
+
+	i = start;
+	while (i < len)
+	{
+		if (buff[i] == CR)
+			break;
+		else if(!std::isprint(buff[i]) || count > HTTPParser::MAX_HEADER_SIZE)
+		{
+			parseState.setState(HTTPParseState::REQ_ERROR);
+			return i;
+		}
+		i++;
+		count++;
+	}
+	parseState.appendHeaderValue(buff, start, i);
+	parseState.setReadBytes(count);
+	if (i == len)
+		return i;
+	if (request.addHeader(parseState.getHeaderField(), parseState.getHeaderValue()))
+		parseState.advance();
+	else
+		parseState.setState(HTTPParseState::REQ_ERROR);
+	return i;
+}
+
+size_t	HTTPParser::_parseBody(HTTPRequest &request, char *buff, size_t start, size_t len)
+{
+	HTTPParseState	&parseState = request.getParseState();
+	size_t	i;
+	size_t	count = parseState.getReadBytes();
+
+	i = start;
+	while (i < len)
+	{
+		i++;
+	}
+	if (i == len)
+		return i;
 	return i;
 }
 // map<int fd , int enum>  open 
@@ -272,7 +317,7 @@ size_t	HTTPParser::_parseHeaderField(HTTPRequest &request, char *buff, size_t st
 // 		fd_edite(set -1 for parnet cgi); 
 // 	fd_edite(fd_edite)
 // }
-void	HTTPParser::parse(HTTPRequest &request, char *buff, size_t len) const
+void	HTTPParser::parse(HTTPRequest &request, char *buff, size_t len)
 {
 	HTTPParseState	&parseState = request.getParseState();
 	HTTPParseState::requestState	state;
@@ -302,12 +347,18 @@ void	HTTPParser::parse(HTTPRequest &request, char *buff, size_t len) const
 			case HTTPParseState::REQ_LINE_VERSION_MAJOR:
 				offset = _parseVersionNumber(request, buff, offset, len);
 				break;
-			// parse body()
-			/// fd = open(file_wirting)
-			// EpollManage::RESPONSE_READ;
-			//  REQUEST_WRITE
-			//  handler.edite_fd(fd, write, RESPONSE_READ)
-
+			case HTTPParseState::REQ_HEADER_CRLF:
+				offset = _parseHeaderCrlf(request, buff, offset, len);
+				break;
+			case HTTPParseState::REQ_HEADER_FIELD:
+				offset = _parseHeaderField(request, buff, offset, len);
+				break;
+			case HTTPParseState::REQ_HEADER_VALUE:
+				offset = _parseHeaderValue(request, buff, offset, len);
+				break;
+			case HTTPParseState::REQ_BODY:
+				offset = _parseBody(request, buff, offset, len);
+				break;
 			default:
 				return;
 		}

@@ -11,6 +11,27 @@ HTTPRequest::HTTPRequest(void)
 {
 	m_ParseState.setPrevChar('\n');
 }
+		
+bool	HTTPRequest::addHeader(std::string &key, std::string &value)
+{
+	size_t	start = value.find_first_not_of(" \t");
+	if (start == std::string::npos)
+		return false;
+	size_t	end = value.find_last_not_of(" \t");
+	value = value.substr(start, end);
+	if (value.empty())
+		return false;
+	m_Headers[key] = value;
+	return true;
+}
+
+std::string	HTTPRequest::getHeader(std::string &key) const
+{
+	HeaderMap::const_iterator it = m_Headers.find(key);
+	if (it == m_Headers.end())
+		return std::string();
+	return it->second;	
+}
 
 void	HTTPRequest::setMethod(char *method_cstr)
 {
