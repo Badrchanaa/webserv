@@ -7,33 +7,42 @@
 class HTTPParseState
 {
 	public:
-		typedef	enum e_RequestState
+		typedef	enum requestState
 		{
 			//  request-line   = method SP request-target SP HTTP-version
 			REQ_LINE_START = 1,
-			REQ_LINE_METHOD,
-			REQ_LINE_TARGET,
-			// REQ_LINE_H,
-			// REQ_LINE_HT,
-			// REQ_LINE_HTT,
-			REQ_LINE_HTTP,
-			REQ_LINE_VERSION_MINOR,
-			REQ_LINE_VERSION_DOT,
-			REQ_LINE_VERSION_MAJOR,
-			REQ_HEADER_CRLF,
-			REQ_HEADER_FIELD,
-			REQ_HEADER_VALUE,
-			REQ_BODY_CRLF,
-			REQ_BODY,
-			REQ_DONE,
-			REQ_ERROR,
+			REQ_LINE_METHOD = 2,
+			REQ_LINE_TARGET = 3,
+			REQ_LINE_HTTP = 4,
+			REQ_LINE_VERSION_MINOR = 5,
+			REQ_LINE_VERSION_DOT = 6,
+			REQ_LINE_VERSION_MAJOR = 7,
+			REQ_HEADER_CRLF = 8,
+			REQ_HEADER_FIELD = 9,
+			REQ_HEADER_VALUE = 10,
+			REQ_BODY_CRLF = 11,
+			REQ_BODY = 12,
+			REQ_DONE = 13,
+			REQ_ERROR = 14,
 		}		requestState;
+		typedef enum chunkState
+		{
+			CHUNK_SIZE = 0,
+			CHUNK_EXT,
+			CHUNK_CRLF,
+			CHUNK_DATA,
+			CHUNK_DATA_CRLF,
+			CHUNK_END,
+			CHUNK_ERROR
+		} chunkState;
 	public:
 		HTTPParseState(void);
 		HTTPParseState(const HTTPParseState &other);
 		HTTPParseState& operator=(const HTTPParseState &other);
 		requestState	getState() const;
+		chunkState		getChunkState() const;
 		void			setState(HTTPParseState::requestState state);
+		void			setChunkState(HTTPParseState::chunkState state);
 		unsigned int	getReadBytes() const;
 		void			setReadBytes(unsigned int val);
 		char			getPrevChar() const;
@@ -50,17 +59,21 @@ class HTTPParseState
 		std::string		&getHeaderValue() const;
 
 		char			*getMethod();
+		std::string		&getChunkSizeStr();
 		~HTTPParseState();
 	private:
-		std::string		m_HeaderField;
-		std::string		m_HeaderValue;
-		
-		requestState	m_RequestState;
-		char			m_Method[10];
-		unsigned int	m_ReadBytes;
-		char			m_PrevChar;
+		std::string			m_HeaderField;
+		std::string			m_HeaderValue;
 
-		
+		requestState		m_RequestState;
+		char				m_Method[10];
+		unsigned int		m_ReadBytes;
+		char				m_PrevChar;
+		chunkState			m_ChunkState;
+		std::string			m_ChunkSizeStr;
+		unsigned int		m_ChunkBytes;
+		unsigned int		m_ChunkSize;
+
 };
 
 #endif

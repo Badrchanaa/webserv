@@ -18,10 +18,6 @@
 class HTTPParser
 {
 	public:
-		HTTPParser(void);
-		HTTPParser(const HTTPParser &other);
-		HTTPParser& operator=(const HTTPParser &other);
-		~HTTPParser();
 		/// @brief begins/resumes http request parsing.
 		/// @param request HTTP Request class
 		/// @param buff content to parse
@@ -31,6 +27,7 @@ class HTTPParser
 		static const uint8_t TOKEN_ALLOWED_CHARS[128];
 		
 	private:
+		HTTPParser(void);
 		//unsigned int	_parseRequestLine(HTTPRequest &request, char *buff, size_t len) const;
 		static size_t	_parseStart(HTTPRequest &request, char *buff, size_t start, size_t len);
 		static size_t	_parseMethod(HTTPRequest &request, char *buff, size_t start, size_t len);

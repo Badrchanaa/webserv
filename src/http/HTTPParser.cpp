@@ -295,23 +295,91 @@ size_t	HTTPParser::_parseHeaderValue(HTTPRequest &request, char *buff, size_t st
 
 size_t	HTTPParser::_parseChunkedBody(HTTPRequest &request, char *buff, size_t start, size_t len)
 {
-	size_t	i;
+	HTTPParseState	&parseState = request.getParseState();
+	size_t			count = parseState.getReadBytes();
+	size_t			i;
+	HTTPParseState::chunkState chunkState;
+	char			c;
 
-	i = start;
+	for (i = start; i < len; i++)
+	{
+		if (count > HTTPParser::MAX_BODY_SIZE)
+		{
+			parseState.setState(HTTPParseState::REQ_ERROR);
+			return i;
+		}
+		c = buff[i];
+		chunkState = parseState.getChunkState();
+		// switch (chunkState)
+		// {
+		// 	case HTTPParseState::CHUNK_SIZE:
+		// 		if (std::isalnum(c))
+		// 			parseState.getChunkSizeStr().append(1, c);
+		// 		else if (c == ';')
+		// 			chunkState = HTTPParseState::CHUNK_EXT;
+		// 		else if (c == CR)
+		// 			chunkState = HTTPParseState::CHUNK_CRLF;
+		// 		else
+		// 			chunkState = HTTPParseState::CHUNK_ERROR;
+		// 		break;
+		// 	case HTTPParseState::CHUNK_EXT:
+		// 		if (c == CR)
+		// 			chunkState = HTTPParseState::CHUNK_CRLF;
+		// 		// Skip Chunk extension
+		// 		break;
+		// 	case HTTPParseState::CHUNK_CRLF:
+		// 		if (c != LF) // err
+		// 		break;
+		// 	case HTTPParseState::CHUNK_DATA: 
+		// 		if (c == CR)
+		// 			chunkState = HTTPParseState::CHUNK_DATA_CRLF;
+		// 		break;
+		// 	case HTTPParseState::CHUNK_DATA_CRLF:
+		// 		if (c == LF)
+		// 			chunkState = HTTPParseState::CHUNK_SIZE;
+		// 		else
+		// 			chunkState = HTTPParseState::CHUNK_ERROR;
+		// 		break;
+		// 	default:
+		// 		return 0;
+		// }
+		switch (buff[i])
+		{
+			case CR:
+				if (chunkState == )
+				break;
+			case LF:
+				if (chunkState == HTTPParseState::CHUNK_CRLF)
+					chunkState = HTTPParseState::CHUNK_DATA;
+				else if (chunkState == HTTPParseState::CHUNK_DATA_CRLF)
+					chunkState = HTTPParseState::CHUNK_SIZE;
+				else
+					chunkState = HTTPParseState::CHUNK_ERROR;
+			case ';':
+				if (chunkState == HTTPParseState::CHUNK_SIZE)
+					chunkState = HTTPParseState::CHUNK_EXT;
+			default:
+				if (std::isalnum(buff[i]) && chunkState == HTTPParseState::CHUNK_SIZE)
+					parseState.getChunkSizeStr().append(1, c);
+				else if (chunkState == HTTPParseState::CHUNK_CRLF || chunkState == HTTPParseState::CHUNK_DATA_CRLF)
+					chunkState = HTTPParseState::CHUNK_ERROR;
+		}
+		count++;
+	}
 	return i;
 }
 
 size_t	HTTPParser::_parseMultipartForm(HTTPRequest &request, char &buff, size_t start, size_t len)
 {
-	if ()
+
 }
 
 size_t	HTTPParser::_parseBody(HTTPRequest &request, char *buff, size_t start, size_t len)
 {
 	HTTPParseState	&parseState = request.getParseState();
-	size_t	count = parseState.getReadBytes();
-	size_t	i;
-	uint64_t	content_length;
+	size_t			count = parseState.getReadBytes();
+	size_t			i;
+	uint64_t		content_length;
 
 	if (request.isChunked())
 	{

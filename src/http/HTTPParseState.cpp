@@ -46,6 +46,11 @@ char			HTTPParseState::getPrevChar() const
 	return m_PrevChar;
 }
 
+HTTPParseState::chunkState	HTTPParseState::getChunkState() const
+{
+	return m_ChunkState;
+}
+
 void			HTTPParseState::setPrevChar(const char c)
 {
 	m_PrevChar = c;
@@ -54,6 +59,11 @@ void			HTTPParseState::setPrevChar(const char c)
 char			*HTTPParseState::getMethod()
 {
 	return m_Method;
+}
+
+std::string &HTTPParseState::getChunkSizeStr()
+{
+	return m_ChunkSizeStr;
 }
 
 unsigned int	HTTPParseState::getReadBytes() const

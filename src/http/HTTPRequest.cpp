@@ -13,11 +13,16 @@ HTTPRequest::HTTPRequest(void)
 	m_ParseState.setPrevChar('\n');
 }
 
+bool	HTTPRequest::isTransferChunked() const
+{
+	return m_TransferEncoding == CHUNKED;
+}
+
 /*
 	Process request headers (Host, Content-length, etc..)
 	returns if headers are valid.
 */
-bool	HTTPRequest::_processHeaders()
+bool	HTTPRequest::_validateHeaders()
 {
 	HeaderMap::const_iterator it;
 
@@ -36,7 +41,8 @@ bool	HTTPRequest::_processHeaders()
 		iss >> m_ContentLength;
 		if (iss.fail() || !iss.eof())
 		{
-
+			m_Error = ERR_INVALID_CONTENT_LENGTH;
+			return false;
 		}
 		if (m_ContentLength < 0)
 		{
