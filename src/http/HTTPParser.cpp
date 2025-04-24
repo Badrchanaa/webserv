@@ -216,7 +216,10 @@ size_t	HTTPParser::_parseHeaderCrlf(HTTPRequest &request, char *buff, size_t sta
 			parseState.setState(HTTPParseState::REQ_HEADER_FIELD);
 			break;
 		case 2:
-			parseState.setState(HTTPParseState::REQ_BODY);
+			if (request.processHeaders()) // check if headers are valid
+				parseState.setState(HTTPParseState::REQ_BODY);
+			else
+				parseState.setState(HTTPParseState::REQ_ERROR);
 			break;
 		default:
 			parseState.setState(HTTPParseState::REQ_ERROR);
@@ -230,7 +233,7 @@ size_t	HTTPParser::_parseHeaderField(HTTPRequest &request, char *buff, size_t st
 	HTTPParseState	&parseState = request.getParseState();
 	size_t	count = parseState.getReadBytes();
 	size_t	i;
-	char	c;
+	int		c;
 	
 	i = start;
 	while (i < len)
@@ -238,9 +241,9 @@ size_t	HTTPParser::_parseHeaderField(HTTPRequest &request, char *buff, size_t st
 		if (count > HTTPParser::MAX_HEADER_SIZE)
 		{
 			parseState.setState(HTTPParseState::REQ_ERROR);
-			break;
+			return i;
 		}
-		c = buff[i];
+		c = static_cast<int>(buff[i]);
 		if (c == ':')
 			break;
 		if (c < 0 || c >= 128 || !HTTPParser::TOKEN_ALLOWED_CHARS[c])
@@ -248,6 +251,8 @@ size_t	HTTPParser::_parseHeaderField(HTTPRequest &request, char *buff, size_t st
 			parseState.setState(HTTPParseState::REQ_ERROR);
 			return i;
 		}
+		else if (std::isalpha(c))
+			buff[i] = std::tolower(c);
 		i++;
 		count++;
 	}
@@ -282,23 +287,37 @@ size_t	HTTPParser::_parseHeaderValue(HTTPRequest &request, char *buff, size_t st
 	parseState.setReadBytes(count);
 	if (i == len)
 		return i;
-	if (request.addHeader(parseState.getHeaderField(), parseState.getHeaderValue()))
-		parseState.advance();
-	else
-		parseState.setState(HTTPParseState::REQ_ERROR);
+	request.addHeader(parseState.getHeaderField(), parseState.getHeaderValue());
+	parseState.setReadBytes(0);
+	parseState.setState(HTTPParseState::REQ_HEADER_CRLF);
+	return i;
+}
+
+size_t	HTTPParser::_parseChunkedBody(HTTPRequest &request, char *buff, size_t start, size_t len)
+{
+	size_t	i;
+
+	i = start;
 	return i;
 }
 
 size_t	HTTPParser::_parseBody(HTTPRequest &request, char *buff, size_t start, size_t len)
 {
 	HTTPParseState	&parseState = request.getParseState();
-	size_t	i;
 	size_t	count = parseState.getReadBytes();
+	size_t	i;
+	uint64_t	content_length;
 
+	if (request.isChunked())
+	{
+		i = _parseChunkedBody(request, buff, start, len);
+	}
 	i = start;
 	while (i < len)
 	{
+		if (count > request.)
 		i++;
+		count++;
 	}
 	if (i == len)
 		return i;
@@ -357,7 +376,10 @@ void	HTTPParser::parse(HTTPRequest &request, char *buff, size_t len)
 				offset = _parseHeaderValue(request, buff, offset, len);
 				break;
 			case HTTPParseState::REQ_BODY:
-				offset = _parseBody(request, buff, offset, len);
+				if (request.isChunked())
+					offset = _parseBody(request, buff, offset, len);
+				else
+					offset = _parseBody(request, buff, offset, len);
 				break;
 			default:
 				return;

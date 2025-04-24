@@ -1,7 +1,7 @@
 #ifndef __Connection__
 #define __Connection__
 
-#include "./WebServer.hpp"
+#include "WebServer.hpp"
 
 class Connection {
 

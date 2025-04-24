@@ -6,6 +6,16 @@
 #include <vector>
 #include <string>
 
+typedef enum
+{
+	ERR_NONE,
+	ERR_INVALID_HOST,
+	ERR_INVALID_METHOD,
+	ERR_INVALID_PATH,
+	ERR_INVALID_CONTENT_LENGTH,
+
+} RequestError;
+
 class HTTPRequest
 {
 	public:
@@ -26,15 +36,20 @@ class HTTPRequest
 		void			setMethod(char *method_cstr);
 		void			appendToPath(char *buff, size_t start, size_t len);
 		bool			validPath();
-		bool			addHeader(std::string &key, std::string &value);
+		void			addHeader(std::string &key, std::string &value);
+		bool			processHeaders();
 		std::string		getHeader(std::string &key) const;
 		const std::string	&getPath() const;
+		bool			isChunked();
 	private:
 		HTTPParseState		m_ParseState;
+		RequestError		m_Error;
 		HeaderMap			m_Headers;
 		std::vector<char>	m_Body;
 		std::string			m_Host;
 		std::string			m_Path;
+		uint64_t			m_ContentLength;
+		bool				m_TransferChunked;
 		// httpMethod			m_Method;
 		// size_t				m_ContentLength;
 };

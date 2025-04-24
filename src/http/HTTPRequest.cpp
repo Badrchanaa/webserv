@@ -1,6 +1,7 @@
 #include "HTTPRequest.hpp"
 #include <iostream>
 #include <string>
+#include <sstream>
 
 HTTPParseState &HTTPRequest::getParseState()
 {
@@ -11,18 +12,54 @@ HTTPRequest::HTTPRequest(void)
 {
 	m_ParseState.setPrevChar('\n');
 }
-		
-bool	HTTPRequest::addHeader(std::string &key, std::string &value)
+
+/*
+	Process request headers (Host, Content-length, etc..)
+	returns if headers are valid.
+*/
+bool	HTTPRequest::processHeaders()
+{
+	HeaderMap::const_iterator it;
+
+	it = m_Headers.find("host");
+	if (it == m_Headers.end())
+	{
+		m_Error = ERR_INVALID_HOST;
+		return false;
+	}
+	
+	m_Host = it->second;
+	it = m_Headers.find("content-length");
+	if (it != m_Headers.end())
+	{
+		std::istringstream iss(it->second);
+		iss >> m_ContentLength;
+		if (iss.fail() || !iss.eof())
+		{
+
+		}
+		if (m_ContentLength < 0)
+		{
+			m_Error = ERR_INVALID_CONTENT_LENGTH;
+			return false;
+		}
+	}
+	else
+		m_ContentLength = 0;
+	return m_Error == ERR_NONE;
+}
+
+void	HTTPRequest::addHeader(std::string &key, std::string &value)
 {
 	size_t	start = value.find_first_not_of(" \t");
 	if (start == std::string::npos)
-		return false;
+	{
+		m_Headers[key];
+		return;
+	}
 	size_t	end = value.find_last_not_of(" \t");
 	value = value.substr(start, end);
-	if (value.empty())
-		return false;
 	m_Headers[key] = value;
-	return true;
 }
 
 std::string	HTTPRequest::getHeader(std::string &key) const

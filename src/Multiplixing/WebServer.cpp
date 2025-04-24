@@ -206,8 +206,8 @@ void  WebServer::handle_client_request(Connection *connection)
    
     DEBUG_LOG("Received " << bytes_received << " bytes from fd: " << fd);
 
-    HTTPRequest &request = conn->request;
-    HTTPParser::parse(request, buffer, len);
+    HTTPRequest &request = connection->request;
+    HTTPParser::parse(request, buffer, bytes_received);
     if (request.isComplete())
     {
       conn->init_response();
