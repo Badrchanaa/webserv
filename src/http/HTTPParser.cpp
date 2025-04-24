@@ -216,7 +216,7 @@ size_t	HTTPParser::_parseHeaderCrlf(HTTPRequest &request, char *buff, size_t sta
 			parseState.setState(HTTPParseState::REQ_HEADER_FIELD);
 			break;
 		case 2:
-			if (request.processHeaders()) // check if headers are valid
+				request.();
 				parseState.setState(HTTPParseState::REQ_BODY);
 			else
 				parseState.setState(HTTPParseState::REQ_ERROR);
@@ -299,6 +299,11 @@ size_t	HTTPParser::_parseChunkedBody(HTTPRequest &request, char *buff, size_t st
 
 	i = start;
 	return i;
+}
+
+size_t	HTTPParser::_parseMultipartForm(HTTPRequest &request, char &buff, size_t start, size_t len)
+{
+	if ()
 }
 
 size_t	HTTPParser::_parseBody(HTTPRequest &request, char *buff, size_t start, size_t len)

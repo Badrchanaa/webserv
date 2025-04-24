@@ -17,7 +17,7 @@ HTTPRequest::HTTPRequest(void)
 	Process request headers (Host, Content-length, etc..)
 	returns if headers are valid.
 */
-bool	HTTPRequest::processHeaders()
+bool	HTTPRequest::_processHeaders()
 {
 	HeaderMap::const_iterator it;
 
@@ -47,6 +47,13 @@ bool	HTTPRequest::processHeaders()
 	else
 		m_ContentLength = 0;
 	return m_Error == ERR_NONE;
+}
+
+bool	HTTPRequest	preBody()
+{
+	if (!_validateHeaders())
+
+	return true;	
 }
 
 void	HTTPRequest::addHeader(std::string &key, std::string &value)

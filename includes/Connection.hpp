@@ -3,13 +3,13 @@
 
 #include "WebServer.hpp"
 
+// CGI LINK: https://datatracker.ietf.org/doc/html/rfc3875
 class Connection {
 
   public:
     typedef enum {
       REQUEST_PARSING,
       RESPONSE_PROCESSING,
-      RESPONSE_SENT,
     } connectionState;
 
 
@@ -31,7 +31,7 @@ class Connection {
 
     void  init_response() {
       this->m_State = RESPONSE_PROCESSING;
-      this->response.init(this->m_Request);
+      this->response.init(request, cgihandler, config, fd);
       this->m_KeepAlive = request.isKeepAlive();
     }
   //struct sockaddr_storage addr; //what is this
@@ -40,6 +40,7 @@ class Connection {
     bool      m_KeepAlive;
     HTTPRequest m_Request;
     HTTPResponse m_Response;
+    int         fd;
     connectionState m_State;
 
 };

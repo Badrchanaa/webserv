@@ -14,6 +14,7 @@
 # define HTTP "HTTP"
 # define MAX_CRLF_BYTES 100
 
+/// @brief a static class for parsing HTTP requests.
 class HTTPParser
 {
 	public:
@@ -21,6 +22,10 @@ class HTTPParser
 		HTTPParser(const HTTPParser &other);
 		HTTPParser& operator=(const HTTPParser &other);
 		~HTTPParser();
+		/// @brief begins/resumes http request parsing.
+		/// @param request HTTP Request class
+		/// @param buff content to parse
+		/// @param len content length
 		static void	parse(HTTPRequest &request, char *buff, size_t len);
 
 		static const uint8_t TOKEN_ALLOWED_CHARS[128];
@@ -37,6 +42,7 @@ class HTTPParser
 		static size_t	_parseHeaderValue(HTTPRequest &request, char *buff, size_t start, size_t len);
 		static size_t	_parseBody(HTTPRequest &request, char *buff, size_t start, size_t len);
 		static size_t	_parseChunkedBody(HTTPRequest &request, char *buff, size_t start, size_t len);
+		static size_t	_parseMultipartForm(HTTPRequest &request, char &buff, size_t start, size_t len);
 		static size_t	_skipCrlf(HTTPParseState &parseState, char *buff, size_t start, size_t len);
 		static inline bool	_isCrlf(char current, char previous);
 		static const unsigned int	MAX_REQUEST_LINE_SIZE;

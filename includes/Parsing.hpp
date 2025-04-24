@@ -112,6 +112,13 @@ public:
   /// Geters
   int ServersNumber() { return this->servers.size(); }
   ServerConfig getServer(int index) { return this->servers[index]; }
+
+
+
+  // returns serverconfig based on name parameter
+  ServerConfig getServerByName(std::string name);
+
+
   /// Seters
   void AddServer(ServerConfig &ref) { this->servers.push_back(ref); }
   /// Main

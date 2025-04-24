@@ -172,13 +172,36 @@ void  WebServer::handle_client_response(Connection *connection)
       else response is immediate
       */
   
-  response.process();
-  if (!response.done())
-    return;
-  if (connection->keepAlive())
-    connection.reset();
+  response.resume();
+  if (response.isDone()) // response is sent
+  {
+    if (!response.isKeepAlive())
+    {
+      // delete connection
+
+    }
+    //reset request
+
+  }
   else
-    cleanup_connection(fd);
+  {
+    state = response.getState();
+    if (state == CGI_WRITE)
+    {
+
+    }
+    if (state == CGI_READ)
+    {
+
+    }
+    if (state == SOCKET_WRITE)
+    {
+
+    }
+      conn->m_response.getState(); // Done and soket check keep-alive and remove cgi form instans on kernal  
+      // CGI Write remove socket_fd from epoll, add cgi socket to epoll
+      // CGI read -
+  }
 }
 
 void  WebServer::handle_client_request(Connection *connection)

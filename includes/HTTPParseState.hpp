@@ -3,6 +3,7 @@
 
 #include <string>
 
+/// @brief HTTP Request parsing state class.
 class HTTPParseState
 {
 	public:
@@ -37,7 +38,10 @@ class HTTPParseState
 		void			setReadBytes(unsigned int val);
 		char			getPrevChar() const;
 		void			setPrevChar(const char c);
-		requestState	advance();
+		/// @brief advances parsing state to next state and resets read bytes counter to zero.
+		/// @param resetReadBytes
+		/// @return new state
+		requestState	advance(bool resetReadBytes=true);
 		bool			isComplete() const;
 		bool			isError() const;
 		void			appendHeaderField(const char *buff, size_t start, size_t end);
