@@ -1,6 +1,7 @@
 #include "HTTPParseState.hpp"
 #include <iostream>
 #include <string>
+#include <sstream>
 
 bool	HTTPParseState::isComplete() const
 {
@@ -61,9 +62,32 @@ char			*HTTPParseState::getMethod()
 	return m_Method;
 }
 
-std::string &HTTPParseState::getChunkSizeStr()
+void	HTTPParseState::setChunkState(HTTPParseState::chunkState newState)
 {
-	return m_ChunkSizeStr;
+	m_ChunkSize = newState;
+}
+
+long	HTTPParseState::getChunkSize()
+{
+	return m_ChunkSize;
+}
+
+void	HTTPParseState::appendChunkSize(char c)
+{
+	m_ChunkSizeStr += c;
+}
+
+void	HTTPParseState::setError()
+{
+	m_RequestState = REQ_ERROR;
+}
+
+bool	HTTPParseState::validateChunkSize()
+{
+	std::stringstream ss(m_ChunkSizeStr);
+
+	ss << std::hex;
+	return ss >> m_ChunkSize && ss.eof();
 }
 
 unsigned int	HTTPParseState::getReadBytes() const

@@ -32,8 +32,7 @@ class HTTPParseState
 			CHUNK_CRLF,
 			CHUNK_DATA,
 			CHUNK_DATA_CRLF,
-			CHUNK_END,
-			CHUNK_ERROR
+			CHUNK_END
 		} chunkState;
 	public:
 		HTTPParseState(void);
@@ -42,11 +41,12 @@ class HTTPParseState
 		requestState	getState() const;
 		chunkState		getChunkState() const;
 		void			setState(HTTPParseState::requestState state);
-		void			setChunkState(HTTPParseState::chunkState state);
+		void			setChunkState(HTTPParseState::chunkState newState);
 		unsigned int	getReadBytes() const;
 		void			setReadBytes(unsigned int val);
 		char			getPrevChar() const;
 		void			setPrevChar(const char c);
+		void			setError();
 		/// @brief advances parsing state to next state and resets read bytes counter to zero.
 		/// @param resetReadBytes
 		/// @return new state
@@ -59,7 +59,9 @@ class HTTPParseState
 		std::string		&getHeaderValue() const;
 
 		char			*getMethod();
-		std::string		&getChunkSizeStr();
+		void			appendChunkSize(const char c);
+		bool			validateChunkSize();
+		long			getChunkSize();
 		~HTTPParseState();
 	private:
 		std::string			m_HeaderField;
@@ -72,7 +74,7 @@ class HTTPParseState
 		chunkState			m_ChunkState;
 		std::string			m_ChunkSizeStr;
 		unsigned int		m_ChunkBytes;
-		unsigned int		m_ChunkSize;
+		long				m_ChunkSize;
 
 };
 

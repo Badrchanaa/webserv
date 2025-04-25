@@ -44,11 +44,14 @@ class HTTPRequest
 		HTTPParseState		&getParseState();
 		void				setMethod(char *method_cstr);
 		void				appendToPath(char *buff, size_t start, size_t len);
+		void				appendBody(char *buff, size_t start, size_t len);
 		bool				validPath();
 		void				addHeader(std::string &key, std::string &value);
 		std::string			getHeader(std::string &key) const;
 		const std::string	&getPath() const;
-		bool				isTransferChunked() const;
+		bool				bodyIsChunked() const;
+		bool				bodyIsMultipartForm() const;
+		void				headersEnd();
 
 	private:
 		bool				_validateHeaders();

@@ -32,6 +32,7 @@ server:
      - GET
      - DELETE
    root: www
+   index: iweofweoewfowe.wefwef
    autoindex: off
    methods_cgi:
      - POST

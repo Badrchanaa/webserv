@@ -32,19 +32,12 @@ bool	HTTPRequest::_validateHeaders()
 		m_Error = ERR_INVALID_HOST;
 		return false;
 	}
-	
 	m_Host = it->second;
 	it = m_Headers.find("content-length");
 	if (it != m_Headers.end())
 	{
 		std::istringstream iss(it->second);
-		iss >> m_ContentLength;
-		if (iss.fail() || !iss.eof())
-		{
-			m_Error = ERR_INVALID_CONTENT_LENGTH;
-			return false;
-		}
-		if (m_ContentLength < 0)
+		if (!iss >> m_ContentLength || !iss.eof())
 		{
 			m_Error = ERR_INVALID_CONTENT_LENGTH;
 			return false;
@@ -55,11 +48,15 @@ bool	HTTPRequest::_validateHeaders()
 	return m_Error == ERR_NONE;
 }
 
-bool	HTTPRequest	preBody()
+bool	HTTPRequest::bodyIsChunked() const
+{
+	return m_TransferEncoding == CHUNKED;
+}
+
+void	HTTPRequest::headersEnd()
 {
 	if (!_validateHeaders())
-
-	return true;	
+		m_ParseState.setState(HTTPParseState::REQ_ERROR);
 }
 
 void	HTTPRequest::addHeader(std::string &key, std::string &value)
