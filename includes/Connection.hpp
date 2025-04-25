@@ -35,12 +35,13 @@ public:
   bool socketEvent;
   uint32_t events;
 
-  Connection(CGIHandler &cgihandler, Config &conf, int f, bool hasEv);
+  Connection(CGIHandler &cgihandler, Config &conf, int f);
   // int getCgiSocket() const;
   // Connection(CGIHandler &cgihandler, Config &conf, int f,
   //            struct sockaddr_storage a)
   // : client_fd(f), state(REQUEST_PARSING), addr(a) {}
 
+  void resetEvents();
   void reset();
 
   bool keepAlive();

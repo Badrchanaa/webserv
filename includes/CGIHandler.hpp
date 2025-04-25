@@ -49,10 +49,11 @@ struct CGIProcess {
 };
 
 class CGIHandler {
-private:
-  std::map<int, CGIProcess> processes;
 
 public:
+// private:
+  std::map<int, CGIProcess> processes;
+  ///
   int epoll_fd;
   // CGIHandler(int efd);
   CGIHandler(int ep_fd = -1) : epoll_fd(ep_fd) {}
@@ -67,6 +68,7 @@ public:
   void setup_child(int sock, const std::string &script,
                    const std::vector<std::string> &env);
   // read(index.html);
+  void cleanup_by_fd(int fd);
   void cleanup(CGIProcess &proc, bool error);
 };
 

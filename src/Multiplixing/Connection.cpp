@@ -2,8 +2,7 @@
 
 
 Connection::Connection(CGIHandler &cgihandler, Config &conf, int f)
-      : config(conf), Cgihandler(cgihandler), client_fd(f),
-        m_State(REQUEST_PARSING) {}
+      : config(conf), Cgihandler(cgihandler), client_fd(f), hasEvent(false), cgiEvent(false) , socketEvent(false), events(false), m_State(REQUEST_PARSING) {}
   // Connection(CGIHandler &cgihandler, Config &conf, int f,
   //            struct sockaddr_storage a)
   // : client_fd(f), state(REQUEST_PARSING), addr(a) {}
@@ -14,6 +13,13 @@ Connection::Connection(CGIHandler &cgihandler, Config &conf, int f)
     this->m_Response.reset();
   }
 
+void Connection::resetEvents()
+{
+  this->hasEvent = false;
+  this->socketEvent = false;
+  this->cgiEvent = false;
+  this->events = false;
+}
 
 
 

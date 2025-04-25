@@ -1,6 +1,13 @@
 #include "../../includes/CGIHandler.hpp"
 #include "../../includes/WebServer.hpp"
 
+void CGIHandler::cleanup_by_fd(int fd) {
+  auto it = processes.find(fd);
+  if (it != processes.end()) {
+    cleanup(it->second, true);
+  }
+}
+
 
 int CGIHandler::getCgiSocket(int c_fd) const {
     const std::map<int, CGIProcess>& processes = this->processes;
@@ -44,7 +51,8 @@ void CGIHandler::spawn(const std::string &script,
     close(sockets[1]);
 
     struct epoll_event ev;
-    ev.events = EPOLLIN | EPOLLOUT | EPOLLRDHUP | EPOLLERR | EPOLLHUP;
+    // ev.events = EPOLLIN | EPOLLOUT | EPOLLRDHUP | EPOLLERR | EPOLLHUP;
+    ev.events = EPOLL_READ | EPOLL_WRITE; 
     ev.data.fd = sockets[0];
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sockets[0], &ev);
 
@@ -108,7 +116,7 @@ void CGIProcess::handle_output() {
     proc.written += sent;
     if (proc.written >= proc.input.size()) {
       struct epoll_event ev;
-      ev.events = EPOLLIN; 
+      ev.events = EPOLL_READ;
       ev.data.fd = proc.cgi_sock;
       epoll_ctl(epoll_fd, EPOLL_CTL_MOD, proc.cgi_sock, &ev);
       shutdown(proc.cgi_sock, SHUT_WR);

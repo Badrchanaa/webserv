@@ -32,7 +32,7 @@ public:
   void mod_fd(int fd, uint32_t events);
   void remove_fd(int fd);
   void add_fd(int fd, uint32_t events);
-private:
+// private:
   std::string format_events(uint32_t events);
 };
 
