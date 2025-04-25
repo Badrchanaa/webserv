@@ -1,4 +1,5 @@
 #include "../../includes/WebServer.hpp"
+#include "../../includes/Connection.hpp"
 
 /*
 
@@ -37,6 +38,7 @@ the queue, accept() fails with the error EAGAIN or EWOULDBLOCK.
 
 void WebServer::create_listener() {
   DEBUG_LOG("Initializing network stack...");
+
   struct addrinfo hints, *res;
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
@@ -102,8 +104,8 @@ void WebServer::create_listener() {
   DEBUG_LOG("Listening on port " << PORT << " with backlog " << BACKLOG);
 }
 
-// void WebServer::setup_epoll() { epoll.add_fd(listen_fd, EPOLLIN); }
-void WebServer::setup_epoll() { epoll.add_fd(listen_fd, EPOLLIN | EPOLLET); }
+void WebServer::setup_epoll() { epoll.add_fd(listen_fd, EPOLLIN); }
+// void WebServer::setup_epoll() { epoll.add_fd(listen_fd, EPOLLIN | EPOLLET); }
 
 WebServer::WebServer() : running(true) {
   DEBUG_LOG("Initializing web server...");
@@ -113,6 +115,31 @@ WebServer::WebServer() : running(true) {
   setup_epoll();
   this->cgi.epoll_fd = this->listen_fd;
   DEBUG_LOG("Server initialized. Entering main event loop.");
+}
+
+Connection &WebServer::connection_ref(int fd) {
+  for (std::list<Connection *>::iterator it = connections.begin();
+       it != connections.end(); ++it) {
+    if ((*it)->client_fd == fd)
+      return *(*it);
+  }
+  throw std::runtime_error("Clinet Connection not found");
+}
+
+Connection &WebServer::getClientConnection(int fd) {
+  try {
+    Connection &conn = this->connection_ref(fd);
+    conn.socketEvent = true;
+    return conn;
+  } catch (const std::exception &e) {
+    int client_fd = this->cgi.is_cgi_socket(fd);
+    if (client_fd) {
+      Connection &conn = this->connection_ref(fd);
+      conn.cgiEvent = true;
+      return conn;
+    }
+  }
+  throw std::runtime_error("CGI Connection not found");
 }
 
 void WebServer::run() {
@@ -130,11 +157,22 @@ void WebServer::run() {
       if (events[i].data.fd == listen_fd) {
         DEBUG_LOG("New connection pending on listening socket");
         this->accept_connections();
-      } else if (cgi.is_cgi_socket(events[i].data.fd)) {
-        this->cgi.handle_cgi_request(events[i].data.fd, events[i].events);
+        // } else if (cgi.is_cgi_socket(events[i].data.fd)) {
+        //   this->cgi.handle_cgi_request(events[i].data.fd,
+        //   events[i].events);
       } else {
+
         DEBUG_LOG("Processing event on fd: " << events[i].data.fd);
-        this->handle_client(events[i].data.fd, events[i].events);
+        Connection &conn = this->getClientConnection(events[i].data.fd);
+        conn.hasEvent = true;
+        conn.events = events[i].events;
+        // this->handle_client(events[i].data.fd, events[i].events);
+      }
+    }
+    for (std::list<Connection *>::iterator it = this->connections.begin();
+         it != connections.end(); ++it) {
+      if ((*it)->hasEvent) {
+        this->handle_client(*(*it));
       }
     }
   }
@@ -153,7 +191,7 @@ void WebServer::accept_connections() {
       throw std::runtime_error("accept failed");
     }
 
-    Connection *conn = new Connection(new_fd, client_addr);
+    Connection *conn = new Connection(this->cgi, this->config, new_fd, false);
     connections.push_back(conn);
     epoll.add_fd(new_fd, EPOLL_READ);
     // epoll.add_fd(new_fd, EPOLLIN | EPOLLRDHUP);
@@ -162,98 +200,163 @@ void WebServer::accept_connections() {
   }
 }
 
+// void  WebServer::handle_client_response(Connection *connection)
+// {
+//   HTTPResponse  &response = conn->response;
+//
+//       /*
+//       if cgi connection should add socketpair to epollmanager
+//       else response is immediate
+//       */
+//
+//   response.resume(false, false);
+//   if (response.isDone()) // response is sent
+//   {
+//     if (!response.isKeepAlive())
+//     {
+//       // delete connection
+//       // connection->m_State = Connection::REQUEST_PARSING;
+//       return cleanup_connection(connection->client_fd);
+//     }
+//     connection->m_State = Connection::REQUEST_PARSING;
+//     //reset request
+//
+//   }
+//   else
+//   {
+//     state = connection.m_Response.getState();
+//     if (state == CGI_WRITE)
+//     {
+//       // remove client_fd from instans monitoring for best perfomance
+//
+//     }
+//     if (state == CGI_READ)
+//     {
+//       // remove client_fd from instans monitoring for best perfomance
+//
+//     }
+//     if (state == SOCKET_WRITE)
+//     {
+//       // remove cgi from instans monitoring for best perfomance
+//
+//     }
+//       conn->m_response.getState(); // Done and soket check keep-alive and
+//       remove cgi form instans on kernal
+//       // CGI Write remove socket_fd from epoll, add cgi socket to epoll
+//       // CGI read -
+//   }
+// }
 
-void  WebServer::handle_client_response(Connection *connection)
-{
-  HTTPResponse  &response = conn->response;
+void WebServer::handle_client_response(int fd, Connection *conn) {
+  HTTPResponse &response = conn->m_Response;
+  /// sadfdsafdsfdsa
+  bool is_cgi = cgi.is_cgi_socket(fd);
+  response.resume(false, is_cgi);
 
-      /*
-      if cgi connection should add socketpair to epollmanager
-      else response is immediate
-      */
-  
-  response.resume();
-  if (response.isDone()) // response is sent
-  {
-    if (!response.isKeepAlive())
-    {
-      // delete connection
-
+  if (response.isDone()) {
+    if (!response.isKeepAlive()) {
+      cleanup_connection(conn->client_fd);
+    } else {
+      conn->m_State = Connection::REQUEST_PARSING;
+      /// nots this///
+      epoll.mod_fd(conn->client_fd, EPOLL_READ | EPOLL_WRITE);
+      conn->reset();
     }
-    //reset request
+  } else {
+    int state = conn->m_Response.getState();
+    int cgi_sock = conn->Cgihandler.getCgiSocket(conn->client_fd);
 
-  }
-  else
-  {
-    state = response.getState();
-    if (state == CGI_WRITE)
-    {
+    if (state == HTTPResponse::CGI_WRITE) {
+      // Switch monitoring to CGI socket for writing
+      epoll.remove_fd(conn->client_fd);
+      epoll.add_fd(cgi_sock, EPOLL_WRITE | EPOLL_READ);
+      DEBUG_LOG("Switched to monitoring CGI socket (write)");
 
+    } else if (state == HTTPResponse::CGI_READ) {
+      // Switch monitoring to CGI socket for reading
+      epoll.remove_fd(conn->client_fd);
+      epoll.add_fd(cgi_sock, EPOLL_WRITE | EPOLL_READ);
+      DEBUG_LOG("Switched to monitoring CGI socket (read)");
+
+    } else if (state == HTTPResponse::SOCKET_WRITE) {
+      // Switch back to client socket for writing
+      if (cgi_sock != -1) {
+        epoll.remove_fd(cgi_sock);
+        // response.clearCgiSocket();
+      }
+      epoll.mod_fd(conn->client_fd, EPOLL_READ | EPOLL_WRITE);
     }
-    if (state == CGI_READ)
-    {
-
-    }
-    if (state == SOCKET_WRITE)
-    {
-
-    }
-      conn->m_response.getState(); // Done and soket check keep-alive and remove cgi form instans on kernal  
-      // CGI Write remove socket_fd from epoll, add cgi socket to epoll
-      // CGI read -
   }
 }
 
-void  WebServer::handle_client_request(Connection *connection)
-{
-    char buffer[BUFFER_SIZE];
-    ssize_t bytes_received;
+// void HTTPResponse::clearCgiSocket() {
+//   cgi_sock = -1;
+//   cgi_state = NONE;
+// }
 
-    bytes_received = recv(fd, buffer, sizeof(buffer), 0);
-    if (bytes_received == 0)
-    {
-      // Should send response ?? 
-      //
-      conn->init_response();
-      handle_client_response(connection);
-      DEBUG_LOG("Connection closed gracefully (fd: " << fd << ")");
-      log_request(*conn);
-      cleanup_connection(fd);
-    }
-    else if (bytes_received == -1)
-    {
-      // should send response??
-      DEBUG_LOG("Receive error on fd " << fd << ": " << strerror(errno));
-      cleanup_connection(fd);
-    }
-   
-    DEBUG_LOG("Received " << bytes_received << " bytes from fd: " << fd);
+void WebServer::handle_client_request(Connection *connection) {
+  char buffer[BUFFER_SIZE];
+  ssize_t bytes_received;
 
-    HTTPRequest &request = connection->request;
-    HTTPParser::parse(request, buffer, bytes_received);
-    if (request.isComplete())
-    {
-      conn->init_response();
-      handle_client_response(connection);
-    }
-}
-
-void WebServer::handle_client(int fd, uint32_t events) {
-  if (events & EPOLL_ERRORS) {
-    DEBUG_LOG("Connection closed by client (fd: "
-              << fd << ")" << " -> EPOLLRDHUP || EPOLLHUP Happend!");
-    cleanup_connection(fd);
+  bytes_received = recv(connection->client_fd, buffer, sizeof(buffer), 0);
+  if (bytes_received == 0) {
+    // Should send response ??
+    connection->init_response();
+    handle_client_response(connection);
+    DEBUG_LOG("Connection closed by client (fd: " << connection->client_fd
+                                                  << ")");
+    cleanup_connection(connection->client_fd);
+    // log_request(*conn);
+  } else if (bytes_received == -1) {
+    DEBUG_LOG("Receive error on fd " << connection->client_fd);
+    cleanup_connection(connection->client_fd);
     return;
   }
+  DEBUG_LOG("Received " << bytes_received
+                        << " bytes from fd: " << connection->client_fd);
+
+  HTTPRequest &request = connection->m_Request;
+  HTTPParser::parse(request, buffer, bytes_received);
+  if (request.isComplete()) {
+    connection->m_State = Connection::RESPONSE_PROCESSING;
+    connection->init_response();
+    this->handle_client_response(connection);
+  }
+}
+
+void CGIHandler::cleanup_by_fd(int fd) {
+  auto it = processes.find(fd);
+  if (it != processes.end()) {
+    cleanup(it->second, true);
+  }
+}
+void WebServer::handle_client(Connection &conn) {
+
+  if (events & EPOLL_ERRORS) {
+    if (cgi.is_cgi_socket(fd)) {
+      cgi.cleanup_by_fd(fd);
+    } else {
+      cleanup_connection(fd);
+    }
+    return;
+  }
+  // if (conn.events & EPOLL_ERRORS) {
+  //   // if (cgi !)
+  //   DEBUG_LOG("Connection closed by client (fd: "
+  //             << fd << ")" << " -> EPOLLRDHUP || EPOLLHUP Happend!");
+  //   cleanup_connection(conn.fd);
+  //   return;
+  // }
 
   Connection *conn = find_connection(fd);
-    if (!conn)
-      return; // handle error;
-  if (conn->state == Connection::REQUEST_PARSING && (events & EPOLLIN)) {
+  if (!conn)
+    return; // handle error;
 
-  }
-  else if (conn->state == Connection::RESPONSE_PROCESSING && (events & EPOLLOUT))
-    handle_client_response(conn);
+  if (conn->m_State == Connection::REQUEST_PARSING && (events & EPOLLIN)) {
+    this->handle_client_request(conn);
+  } else if (conn->m_State == Connection::RESPONSE_PROCESSING &&
+             (events & EPOLLOUT)) {
+    this->handle_client_response(fd, conn);
   }
 }
 
@@ -274,92 +377,21 @@ void WebServer::log_connection(const struct sockaddr_storage &addr) {
   DEBUG_LOG("New connection from " << ip << ":" << port);
 }
 
-// void WebServer::log_request(const Connection &conn) {
-//   size_t end = conn.request.find("\r\n\r\n");
-//   if (end != std::string::npos) {
-//     std::cout << "HTTP Request:\n"
-//               << conn.request.substr(0, end + 4)
-//               << "\n----------------------------------------\n";
-//   }
-// }
-
-// void WebServer::log_request(const Connection &conn) {
-//   size_t headers_end = conn.request.find("\r\n\r\n");
-//   if (headers_end != std::string::npos) {
-//     DEBUG_LOG("Full headers received:");
-//     std::cerr << conn.request.substr(0, headers_end + 4)
-//               << "\n----------------------------------------" << std::endl;
-//   }
-//
-//   // Log full request if body is complete
-//   if (conn.request.length() > headers_end + 4) {
-//     DEBUG_LOG("Request body content:");
-//     std::cerr << conn.request.substr(headers_end + 4)
-//               << "\n----------------------------------------" << std::endl;
-//   }
-// }
-
-void WebServer::log_request(const Connection &conn) {
-  size_t headers_end = conn.request.find("\r\n\r\n");
-  if (headers_end != std::string::npos) {
-    DEBUG_LOG("Full headers received:");
-    std::cerr << conn.request.substr(0, headers_end + 4)
-              << "\n----------------------------------------" << std::endl;
-  }
-
-  // Check if there's a body to write
-  if (conn.request.length() > headers_end + 4) {
-    DEBUG_LOG("Request body content:");
-    std::string body = conn.request.substr(headers_end + 4);
-    std::cerr << body << "\n----------------------------------------"
-              << std::endl;
-
-    // Write the body to 'file_output'
-    std::ofstream outfile("file_output", std::ios::binary);
-    if (outfile) {
-      outfile.write(body.c_str(), body.size());
-      outfile.close();
-    } else {
-      std::cerr << "Failed to open 'file_output' for writing." << std::endl;
-    }
-    if (headers_end != std::string::npos) {
-      DEBUG_LOG("Full headers received:");
-      std::cerr << conn.request.substr(0, headers_end + 4)
-                << "\n----------------------------------------" << std::endl;
-      DEBUG_LOG("Full Body Bytes : " << conn.request.size() -
-                                            (headers_end + 4));
-      std::cerr << "\n----------------------------------------" << std::endl;
-    }
-  }
-}
-
 Connection *WebServer::find_connection(int fd) {
   for (std::list<Connection *>::iterator it = connections.begin();
        it != connections.end(); ++it) {
-    if ((*it)->fd == fd)
+    if ((*it)->client_fd == fd)
       return *it;
   }
   return NULL;
 }
-
-// void WebServer::cleanup_connection(int fd) {
-//   for (std::list<Connection *>::iterator it = connections.begin();
-//        it != connections.end(); ++it) {
-//     if ((*it)->fd == fd) {
-//       delete *it;
-//       connections.erase(it);
-//       epoll.remove_fd(fd);
-//       return;
-//     }
-//   }
-// }
 
 void WebServer::cleanup_connection(int fd) {
   DEBUG_LOG("[Cleanup] Starting cleanup for fd: " << fd);
 
   for (std::list<Connection *>::iterator it = connections.begin();
        it != connections.end(); ++it) {
-    if ((*it)->fd == fd) {
+    if ((*it)->client_fd == fd) {
       DEBUG_LOG("[Cleanup] Removing fd " << fd << " from epoll");
       try {
         epoll.remove_fd(fd); // Remove from epoll FIRST

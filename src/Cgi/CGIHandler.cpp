@@ -1,7 +1,29 @@
-#include "./cgi.hpp"
-bool CGIHandler::is_cgi_socket(int fd) const {
-  return processes.find(fd) != processes.end();
+#include "../../includes/CGIHandler.hpp"
+#include "../../includes/WebServer.hpp"
+
+
+int CGIHandler::getCgiSocket(int c_fd) const {
+    const std::map<int, CGIProcess>& processes = this->processes;
+    for (std::map<int, CGIProcess>::const_iterator it = processes.begin(); 
+         it != processes.end(); ++it) {
+        if (it->second.client_fd == c_fd) {
+            return it->first;
+        }
+    }
+    return -1;
 }
+
+// bool CGIHandler::is_cgi_socket(int fd) const {
+//   return processes.find(fd) != processes.end();
+// }
+
+int CGIHandler::is_cgi_socket(int fd) const {
+  std::map<int, CGIProcess>::const_iterator it = processes.find(fd);
+  if (it != processes.end())
+    return it->second.client_fd;
+  return false; // Not found
+}
+
 // CGIHandler::CGIHandler(int efd) : epoll_fd(efd) {}
 // /path/tocgi/script, env, clientfd, requestBody
 void CGIHandler::spawn(const std::string &script,
@@ -22,7 +44,7 @@ void CGIHandler::spawn(const std::string &script,
     close(sockets[1]);
 
     struct epoll_event ev;
-    ev.events = EPOLLIN | EPOLLOUT | EPOLLET | EPOLLRDHUP | EPOLLERR | EPOLLHUP;
+    ev.events = EPOLLIN | EPOLLOUT | EPOLLRDHUP | EPOLLERR | EPOLLHUP;
     ev.data.fd = sockets[0];
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sockets[0], &ev);
 
@@ -36,11 +58,11 @@ void CGIHandler::handle_cgi_request(int fd, uint32_t events) {
   if (it == processes.end())
     return;
 
-  if (events & EPOLLOUT)
+  if (events & EPOLL_WRITE)
     handle_output(it->second);
-  if (events & EPOLLIN)
+  if (events & EPOLL_READ)
     handle_input(it->second);
-  if (events & (EPOLLERR | EPOLLHUP | EPOLLRDHUP))
+  if (events & (EPOLL_ERRORS))
     cleanup(it->second, true);
 }
 
@@ -77,7 +99,7 @@ void CGIHandler::setup_child(int sock, const std::string &script,
   exit(EXIT_FAILURE);
 }
 
-void CGIHandler::handle_output(CGIProcess &proc) {
+void CGIProcess::handle_output() {
   // Hello World + 5 >> World
   ssize_t sent = send(proc.cgi_sock, proc.input.c_str() + proc.written,
                       proc.input.size() - proc.written, MSG_NOSIGNAL);
@@ -86,17 +108,17 @@ void CGIHandler::handle_output(CGIProcess &proc) {
     proc.written += sent;
     if (proc.written >= proc.input.size()) {
       struct epoll_event ev;
-      ev.events = EPOLLIN | EPOLLET;
+      ev.events = EPOLLIN; 
       ev.data.fd = proc.cgi_sock;
       epoll_ctl(epoll_fd, EPOLL_CTL_MOD, proc.cgi_sock, &ev);
       shutdown(proc.cgi_sock, SHUT_WR);
     }
-  } else if (sent < 0 && errno != EAGAIN) {
+  } else if (sent < 0) {
     cleanup(proc, true);
   }
 }
 
-void CGIHandler::handle_input(CGIProcess &proc) {
+void CGIProcess::handle_input(CGIProcess &proc) {
   char buf[4096];
   ssize_t received = recv(proc.cgi_sock, buf, sizeof(buf), 0);
 
@@ -116,7 +138,7 @@ void CGIHandler::cleanup(CGIProcess &proc, bool error) {
   }
 
   close(proc.cgi_sock);
-  close(proc.client_fd);
+  // close(proc.client_fd);
   processes.erase(proc.cgi_sock);
 }
 

@@ -29,32 +29,8 @@
 // #include "Connection.hpp"
 // #include "EpollManager.hpp"
 #include "FileDescriptor.hpp"
-#include "Parsing.hpp"
-// #include "Event.hpp"
-// #include "CGIHandler.hpp"
-
-/*
-  main()
-  {
-  // body req --> fd=2 <-
-    read = stdin;
-    process
-    write =
-
-    fork()
-   if child {
-    dup2(file_fd, stdin)
-    dup2(socketpair_fd, stdout);
-    }
-    if parent
-    {
-    }
-  }
-*/
-
-class Connection;
-class EpollManager;
-class CGIHandler;
+#include "EpollManager.hpp"
+#include "Config.hpp"
 
 #define DEBUG_LOG(msg) std::cerr << "[Server] " << msg << std::endl
 #define CLIENT_LOG(msg) std::cerr << "[Client] " << msg << std::end
@@ -72,6 +48,7 @@ class CGIHandler;
 class WebServer {
 
   FileDescriptor listen_fd; // This is FileDescriptor of the socket
+  Config config;
   CGIHandler cgi;
   EpollManager epoll;
   std::list<Connection *> connections;
@@ -81,16 +58,22 @@ public:
   WebServer();
   void run();
 
+  // Connection getClientConnection(int fd);
   // private:
   void create_listener();
   void setup_epoll();
   void accept_connections();
   void handle_client_request(Connection *conn);
   void handle_client_response(Connection *conn);
-  void handle_client(int fd, uint32_t events);
+  // void handle_client(int fd, uint32_t events);
+  void handle_client(Connection &conn);
   void log_connection(const struct sockaddr_storage &addr);
   void log_request(const Connection &conn);
+//
   Connection *find_connection(int fd);
+  Connection& connection_ref(int fd);
+  Connection &getClientConnection(int fd);
+
   void cleanup_connection(int fd);
   void set_nonblocking(int fd);
 };

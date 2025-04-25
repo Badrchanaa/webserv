@@ -1,5 +1,5 @@
-#ifndef __cgi__
-#define __cgi__
+#ifndef __CGIHandler__
+#define __CGIHandler__
 
 // #include "./test.hpp"
 #include <algorithm>
@@ -29,22 +29,27 @@
 
 // Response.CGIHandler
 
-#include "WebServer.hpp"
+// #include ".hpp"
+// #include ".hpp"
+// #include "WebServer.hpp"
+// #include "WebServer.hpp"
+
+struct CGIProcess {
+  int client_fd;
+  int cgi_sock;
+
+  // int fd_open;
+
+  pid_t pid;
+  std::string output;
+  std::string input;
+  size_t written;
+  void handle_output(CGIProcess &proc);
+  void handle_input(CGIProcess &proc);
+};
 
 class CGIHandler {
 private:
-  struct CGIProcess {
-    // int
-    int client_fd;
-
-    int cgi_sock;
-    // int fd_open;
-    pid_t pid;
-    std::string output;
-    std::string input;
-    size_t written;
-  };
-
   std::map<int, CGIProcess> processes;
 
 public:
@@ -52,15 +57,15 @@ public:
   // CGIHandler(int efd);
   CGIHandler(int ep_fd = -1) : epoll_fd(ep_fd) {}
   // explicit  CGIHandler(int ep_fd = 0) : epoll_fd(ep_fd) {}
-  bool is_cgi_socket(int fd) const;
+  // bool is_cgi_socket(int fd) const;
+  int is_cgi_socket(int fd) const;
+  int getCgiSocket(int c_fd) const;
   void spawn(const std::string &script, const std::vector<std::string> &env,
              int client, const std::string &body);
   void handle_cgi_request(int fd, uint32_t events);
   void check_zombies();
   void setup_child(int sock, const std::string &script,
                    const std::vector<std::string> &env);
-  void handle_output(CGIProcess &proc);
-  void handle_input(CGIProcess &proc);
   // read(index.html);
   void cleanup(CGIProcess &proc, bool error);
 };
