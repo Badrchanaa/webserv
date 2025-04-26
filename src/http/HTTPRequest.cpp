@@ -18,6 +18,17 @@ bool	HTTPRequest::isTransferChunked() const
 	return m_TransferEncoding == CHUNKED;
 }
 
+bool	HTTPRequest::isComplete() const
+{
+	HTTPParseState::requestState state = m_ParseState.getState();
+	return state == HTTPParseState::REQ_DONE || state == HTTPParseState::REQ_ERROR;
+}
+
+bool	HTTPRequest::appendBody(const char *buff, size_t len)
+{
+	return m_Body.append(buff, len);
+}
+
 /*
 	Process request headers (Host, Content-length, etc..)
 	returns if headers are valid.
@@ -48,17 +59,6 @@ bool	HTTPRequest::_validateHeaders()
 	return m_Error == ERR_NONE;
 }
 
-bool	HTTPRequest::bodyIsChunked() const
-{
-	return m_TransferEncoding == CHUNKED;
-}
-
-void	HTTPRequest::headersEnd()
-{
-	if (!_validateHeaders())
-		m_ParseState.setState(HTTPParseState::REQ_ERROR);
-}
-
 void	HTTPRequest::addHeader(std::string &key, std::string &value)
 {
 	size_t	start = value.find_first_not_of(" \t");
@@ -80,7 +80,7 @@ std::string	HTTPRequest::getHeader(std::string &key) const
 	return it->second;	
 }
 
-void	HTTPRequest::setMethod(char *method_cstr)
+void	HTTPRequest::setMethod(const char *method_cstr)
 {
 	std::string method(method_cstr);
 	/*
@@ -97,7 +97,7 @@ bool	HTTPRequest::validPath()
 	return true;
 }
 
-void	HTTPRequest::appendToPath(char *buff, size_t start, size_t len)
+void	HTTPRequest::appendToPath(const char *buff, size_t start, size_t len)
 {
 	m_Path.append(buff, start, len - start);
 }

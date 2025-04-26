@@ -67,7 +67,12 @@ void	HTTPParseState::setChunkState(HTTPParseState::chunkState newState)
 	m_ChunkSize = newState;
 }
 
-long	HTTPParseState::getChunkSize()
+bool	HTTPParseState::isChunkComplete() const
+{
+	return m_ChunkSize == m_chunkPos;
+}
+
+size_t	HTTPParseState::getChunkSize() const
 {
 	return m_ChunkSize;
 }

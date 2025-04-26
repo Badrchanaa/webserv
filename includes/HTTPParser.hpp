@@ -41,6 +41,7 @@ class HTTPParser
 		static size_t	_parseChunk(HTTPRequest &request, char *buff, size_t start, size_t len);
 		static size_t	_parseChunkData(HTTPRequest &request, char *buff, size_t start, size_t len);
 		static size_t	_parseMultipartForm(HTTPRequest &request, char *buff, size_t start, size_t len);
+		static size_t	_parseRawBody(HTTPRequest &request, char *buff, size_t start, size_t len);
 		static size_t	_skipCrlf(HTTPParseState &parseState, char *buff, size_t start, size_t len);
 		static inline bool	_isCrlf(char current, char previous);
 		static const unsigned int	MAX_REQUEST_LINE_SIZE;

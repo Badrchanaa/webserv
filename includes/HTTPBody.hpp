@@ -4,16 +4,11 @@
 #include <string>
 #include <vector>
 #include <stdint.h>
-#include <stream>
+#include <fstream>
 
 # define MB (1024U * 1024U)
 
 # define MAX_BODY_MEMORY (2 * MB)
-
-class BodyBuffer: public std::stream_buf
-{
-
-}
 
 class HTTPBody
 {
@@ -22,15 +17,19 @@ class HTTPBody
 		HTTPBody(char *buffer, size_t len);
 		~HTTPBody();
 
-		void	operator<<(std::string);
-		void	append(const char *buffer, size_t len);
+		bool	append(const char *buffer, size_t len);
+		void	flush();
 
 	private:
-		std::string				m_Swapfilename;
-		std::vector<uint8_t>	m_Content;
+		bool	_switchToFile();
+		bool	_writeToBuffer(const char *buffer, size_t len);
+		bool	_writeToFile(const char *buffer, size_t len);
+
+		std::string				m_Filename;
+		std::ofstream			m_File;
+		std::vector<char>		m_VectorBuffer;
 		size_t					m_Size;
 		bool					m_IsFile;
-		std::stream *r;
 };
 
 #endif

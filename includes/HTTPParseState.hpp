@@ -55,13 +55,16 @@ class HTTPParseState
 		bool			isError() const;
 		void			appendHeaderField(const char *buff, size_t start, size_t end);
 		void			appendHeaderValue(const char *buff, size_t start, size_t end);
-		std::string		&getHeaderField() const;
-		std::string		&getHeaderValue() const;
+		std::string&	getHeaderField() const;
+		std::string&	getHeaderValue() const;
 
-		char			*getMethod();
 		void			appendChunkSize(const char c);
 		bool			validateChunkSize();
-		long			getChunkSize();
+		bool			isChunkComplete() const;
+		char*			getMethod();
+		size_t			getChunkSize() const;
+		unsigned int	getchunkPos() const;
+		void			setchunkPos(unsigned int n);
 		~HTTPParseState();
 	private:
 		std::string			m_HeaderField;
@@ -73,8 +76,8 @@ class HTTPParseState
 		char				m_PrevChar;
 		chunkState			m_ChunkState;
 		std::string			m_ChunkSizeStr;
-		unsigned int		m_ChunkBytes;
-		long				m_ChunkSize;
+		unsigned int		m_chunkPos;
+		size_t				m_ChunkSize;
 
 };
 

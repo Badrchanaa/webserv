@@ -3,6 +3,7 @@
 
 #include "HTTPParseState.hpp"
 #include "HTTPMultipartForm.hpp"
+#include "HTTPBody.hpp"
 #include <map>
 #include <vector>
 #include <string>
@@ -42,16 +43,17 @@ class HTTPRequest
 		HTTPRequest& operator=(const HTTPRequest &other);
 		~HTTPRequest();
 		HTTPParseState		&getParseState();
-		void				setMethod(char *method_cstr);
-		void				appendToPath(char *buff, size_t start, size_t len);
-		void				appendBody(char *buff, size_t start, size_t len);
+		void				setMethod(const char *method_cstr);
+		void				appendToPath(const char *buff, size_t start, size_t len);
+		bool				appendBody(const char *buff, size_t len);
 		bool				validPath();
 		void				addHeader(std::string &key, std::string &value);
 		std::string			getHeader(std::string &key) const;
 		const std::string	&getPath() const;
-		bool				bodyIsChunked() const;
-		bool				bodyIsMultipartForm() const;
-		void				headersEnd();
+		bool				isTransferChunked() const;
+		bool				isMultipartForm() const;
+		bool				isComplete() const;
+		void				processHeaders();
 
 	private:
 		bool				_validateHeaders();
@@ -61,7 +63,7 @@ class HTTPRequest
 		HTTPParseState		m_ParseState;
 		requestError		m_Error;
 		HeaderMap			m_Headers;
-		std::vector<char>	m_Body;
+		HTTPBody			m_Body;
 		std::string			m_Host;
 		std::string			m_Path;
 		uint64_t			m_ContentLength;
