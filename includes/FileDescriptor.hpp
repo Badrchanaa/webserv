@@ -5,10 +5,10 @@ class FileDescriptor {
 public:
   int fd;
 
-  explicit FileDescriptor(int); 
+  explicit FileDescriptor(int fd=-1); 
   ~FileDescriptor();
 
-  void reset(int);
+  void reset(int newfd=-1);
 
   int release();
 
@@ -16,7 +16,7 @@ public:
 
 private:
   FileDescriptor(const FileDescriptor &);
-  FileDescriptor &operator=(const FileDescriptor &);
+  // FileDescriptor &operator=(const FileDescriptor &);
 };
 
 #endif

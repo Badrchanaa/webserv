@@ -39,7 +39,8 @@ public:
   /* Reference to specific server config */
   ServerConfig &server_config; 
                                
-  Connection(CGIHandler &cgihandler, Config &conf, ServerConfig &server ,int f);
+  Connection(CGIHandler &cgihandler, ServerConfig &server, Config &conf, int f);
+  // Connection(CGIHandler &cgihandler, Config &conf, ServerConfig &server ,int f);
   // int getCgiSocket() const;
   // Connection(CGIHandler &cgihandler, Config &conf, int f,
   //            struct sockaddr_storage a)

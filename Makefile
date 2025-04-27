@@ -63,19 +63,21 @@ endif
 
 HTTP_TEST_SOURCES = $(SRC_PATH)/http/test.cpp
 HTTP_SOURCES = $(filter-out $(HTTP_TEST_SOURCES), $(wildcard $(SRC_PATH)/http/*.cpp))
-CONFIG_SOURCES = $(filter-out $(HTTP_TEST_SOURCES), $(wildcard $(SRC_PATH)/Cgi/*.cpp))
-CGI_SOURCES = $(filter-out $(HTTP_TEST_SOURCES), $(wildcard $(SRC_PATH)/Multiplixing/*.cpp))
-SERVER_SOURCES = $(filter-out $(HTTP_TEST_SOURCES), $(wildcard $(SRC_PATH)/Parsing/*.cpp))
+CGI_SOURCES = $(wildcard $(SRC_PATH)/Cgi/*.cpp)
+SERVER_SOURCES = $(wildcard $(SRC_PATH)/Multiplixing/*.cpp)
+CONFIG_SOURCES = $(wildcard $(SRC_PATH)/Parsing/*.cpp)
 
-ALL_SOURCES = $(CONFIG_PARSING_SOURCES)
+# ALL_SOURCES = $(CONFIG_PARSING_SOURCES)
 vpath %.cpp $(SRC_PATH)/Parsing 
 vpath %.cpp $(SRC_PATH)/http
+vpath %.cpp $(SRC_PATH)/Cgi
+vpath %.cpp $(SRC_PATH)/Multiplixing
 vpath %.hpp includes/
 # OBJ_FILES = $(ALL_SOURCES:%.c=%.o)
 
 HTTP_OBJ_FILES = $(addprefix $(OBJ_PATH)/, $(HTTP_SOURCES:$(SRC_PATH)/http/%.cpp=%.o))
-CONFIG_OBJ = $(addprefix $(OBJ_PATH)/, $(CONFIG_SOURCES:$(SRC_PATH)/Parsing/%.cpp=%.o))
 CGI_OBJ = $(addprefix $(OBJ_PATH)/, $(CGI_SOURCES:$(SRC_PATH)/Cgi/%.cpp=%.o))
+CONFIG_OBJ = $(addprefix $(OBJ_PATH)/, $(CONFIG_SOURCES:$(SRC_PATH)/Parsing/%.cpp=%.o))
 SERVER_OBJ = $(addprefix $(OBJ_PATH)/, $(SERVER_SOURCES:$(SRC_PATH)/Multiplixing/%.cpp=%.o))
 # OBJ_PARSING_FILES = $(CONFIG_PARSING_SOURCES:%.cpp=%.o)
 

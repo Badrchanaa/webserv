@@ -1,6 +1,6 @@
 #include "EpollManager.hpp"
 #include "WebServer.hpp"
-# define DEBUG_LOG(name) name
+// # define DEBUG_LOG(name) name
 
 EpollManager::EpollManager() {
     DEBUG_LOG("[Epoll] Creating epoll instance");

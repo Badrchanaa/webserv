@@ -123,6 +123,11 @@ bool	HTTPRequest::validPath()
 	return true;
 }
 
+void	HTTPRequest::reset()
+{
+	m_Headers.clear();
+}
+
 void	HTTPRequest::appendToPath(const char *buff, size_t start, size_t len)
 {
 	m_Path.append(buff, start, len - start);

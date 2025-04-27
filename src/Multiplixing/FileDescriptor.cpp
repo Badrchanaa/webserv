@@ -1,14 +1,13 @@
-#include "../../includes/FileDescriptor.hpp"
-#include "../../includes/WebServer.hpp"
+#include "FileDescriptor.hpp"
+#include "WebServer.hpp"
 
+  FileDescriptor::FileDescriptor(int f) : fd(f) {}
+  FileDescriptor::~FileDescriptor() {this->reset(); }
 
-  explicit FileDescriptor::FileDescriptor(int f = -1) : fd(f) {}
-  ~FileDescriptor::FileDescriptor() {this->reset(); }
-
-  void FileDescriptor::reset(int new_fd = -1) {
+  void FileDescriptor::reset(int newfd) {
     if (fd != -1)
       close(fd);
-    fd = new_fd;
+    fd = newfd;
   }
 
   int FileDescriptor::release() {
@@ -16,4 +15,3 @@
     fd = -1;
     return old_fd;
   }
-
