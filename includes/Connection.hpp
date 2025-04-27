@@ -1,47 +1,57 @@
 #ifndef __Connection__
 #define __Connection__
 
-#include "./WebServer.hpp"
+#include "CGIHandler.hpp"
+#include "Config.hpp"
+#include "ConfigStructs.hpp"
+#include "FileDescriptor.hpp"
+#include "HTTPRequest.hpp"
+#include "HTTPResponse.hpp"
 
+// CGI LINK: https://datatracker.ietf.org/doc/html/rfc3875
 class Connection {
 
-  public:
-    typedef enum {
-      REQUEST_PARSING,
-      RESPONSE_PROCESSING,
-      RESPONSE_SENT,
-    } connectionState;
+public:
+  typedef enum {
+    REQUEST_PARSING,
+    RESPONSE_PROCESSING,
+  } connectionState;
 
+  // private:
 
-  public:
-    Connection(int f, struct sockaddr_storage a): fd(f), state(REQUEST_PARSING), addr(a) {}
-    FileDescriptor fd;
+public:
+  /// Added by bchanaa
+  bool m_KeepAlive;
+  HTTPResponse m_Response;
+  connectionState m_State;
 
-    void  reset()
-    {
-      this->m_State = RESPONSE_PROCESSING;
-      this->m_Request.reset();
-      this->m_Response.reset();
-    }
+  /// Added by regex33
+  Config &config;
+  CGIHandler &Cgihandler;
+  FileDescriptor client_fd;
+  HTTPRequest m_Request;
 
-    bool  keepAlive()
-    {
-      return m_KeepAlive;
-    }
+  bool hasEvent;
+  bool cgiEvent;
+  bool socketEvent;
+  uint32_t events;
 
-    void  init_response() {
-      this->m_State = RESPONSE_PROCESSING;
-      this->response.init(this->m_Request);
-      this->m_KeepAlive = request.isKeepAlive();
-    }
-  //struct sockaddr_storage addr; //what is this
+  /* Reference to specific server config */
+  ServerConfig &server_config; 
+                               
+  Connection(CGIHandler &cgihandler, Config &conf, ServerConfig &server ,int f);
+  // int getCgiSocket() const;
+  // Connection(CGIHandler &cgihandler, Config &conf, int f,
+  //            struct sockaddr_storage a)
+  // : client_fd(f), state(REQUEST_PARSING), addr(a) {}
 
-  private:
-    bool      m_KeepAlive;
-    HTTPRequest m_Request;
-    HTTPResponse m_Response;
-    connectionState m_State;
+  void resetEvents();
+  void reset();
 
+  bool keepAlive();
+
+  void init_response();
+  // struct sockaddr_storage addr; //what is this
 };
 
 #endif

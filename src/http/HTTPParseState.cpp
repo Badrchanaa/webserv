@@ -61,9 +61,10 @@ unsigned int	HTTPParseState::getReadBytes() const
 	return m_ReadBytes;
 }
 
-HTTPParseState::requestState	HTTPParseState::advance()
+HTTPParseState::requestState	HTTPParseState::advance(bool resetReadBytes)
 {
-	m_ReadBytes = 0;
+	if (resetReadBytes)
+		m_ReadBytes = 0;
 	if (m_RequestState != REQ_DONE)
 		m_RequestState = static_cast<requestState>(m_RequestState + 1);
 	return m_RequestState;

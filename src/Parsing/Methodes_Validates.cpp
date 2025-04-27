@@ -1,6 +1,6 @@
-#include "Parsing.hpp"
+#include "Config.hpp"
 
-void ParseConfig::ProcessMethodContext(const std::string &trimmed) {
+void Config::ProcessMethodContext(const std::string &trimmed) {
   std::string method = get_list_item(trimmed);
   HttpMethod bit = get_method_bit(method);
   if (bit == METHOD_NONE) {
@@ -18,7 +18,7 @@ void ParseConfig::ProcessMethodContext(const std::string &trimmed) {
   current_mask |= bit;
 }
 
-HttpMethod ParseConfig::get_method_bit(const std::string &method) {
+HttpMethod Config::get_method_bit(const std::string &method) {
   for (size_t i = 0; i < sizeof(valid_methods) / sizeof(valid_methods[0]);
        ++i) {
     if (method == valid_methods[i].name) {
@@ -30,7 +30,7 @@ HttpMethod ParseConfig::get_method_bit(const std::string &method) {
   return METHOD_NONE;
 }
 
-bool ParseConfig::validate_error_paths(
+bool Config::validate_error_paths(
     const std::map<std::string, std::string> &errors) {
   for (std::map<std::string, std::string>::const_iterator it = errors.begin();
        it != errors.end(); ++it) {
@@ -64,7 +64,7 @@ bool ParseConfig::validate_error_paths(
   return true;
 }
 
-bool ParseConfig::validate_server(const ServerConfig &config) {
+bool Config::validate_server(const ServerConfig &config) {
   for (std::vector<int>::const_iterator it = config.ports.begin();
        it != config.ports.end(); it++) {
     if (!validate_port(*it)) {
@@ -85,9 +85,9 @@ bool ParseConfig::validate_server(const ServerConfig &config) {
   return true;
 }
 
-bool ParseConfig::validate_port(int port) { return port > 0 && port <= 65535; }
+bool Config::validate_port(int port) { return port > 0 && port <= 65535; }
 
-bool ParseConfig::validate_body_size(const std::string &body_size) {
+bool Config::validate_body_size(const std::string &body_size) {
   if (body_size.empty())
     return false;
   size_t unit_pos = body_size.find_first_not_of("0123456789");
