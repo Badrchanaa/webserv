@@ -1,8 +1,8 @@
 #include "../../includes/Connection.hpp"
 
 
-Connection::Connection(CGIHandler &cgihandler, Config &conf, int f)
-      : config(conf), Cgihandler(cgihandler), client_fd(f), hasEvent(false), cgiEvent(false) , socketEvent(false), events(false), m_State(REQUEST_PARSING) {}
+Connection::Connection(CGIHandler &cgihandler, ServerConfig &server, Config &conf, int f)
+      : config(conf), Cgihandler(cgihandler), server_config(conf), client_fd(f), hasEvent(false), cgiEvent(false) , socketEvent(false), events(false), m_State(REQUEST_PARSING) {}
   // Connection(CGIHandler &cgihandler, Config &conf, int f,
   //            struct sockaddr_storage a)
   // : client_fd(f), state(REQUEST_PARSING), addr(a) {}

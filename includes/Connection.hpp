@@ -3,6 +3,7 @@
 
 #include "CGIHandler.hpp"
 #include "Config.hpp"
+#include "ConfigStructs.hpp"
 #include "FileDescriptor.hpp"
 #include "HTTPRequest.hpp"
 #include "HTTPResponse.hpp"
@@ -35,7 +36,10 @@ public:
   bool socketEvent;
   uint32_t events;
 
-  Connection(CGIHandler &cgihandler, Config &conf, int f);
+  /* Reference to specific server config */
+  ServerConfig &server_config; 
+                               
+  Connection(CGIHandler &cgihandler, Config &conf, ServerConfig &server ,int f);
   // int getCgiSocket() const;
   // Connection(CGIHandler &cgihandler, Config &conf, int f,
   //            struct sockaddr_storage a)

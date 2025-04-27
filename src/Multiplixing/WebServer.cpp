@@ -239,14 +239,10 @@ void WebServer::run() {
       throw std::runtime_error("epoll_wait failed");
 
     for (int i = 0; i < n; ++i) {
-      if (events[i].data.fd == listen_fd) {
-        DEBUG_LOG("New connection pending on listening socket");
-        this->accept_connections();
-        // } else if (cgi.is_cgi_socket(events[i].data.fd)) {
-        //   this->cgi.handle_cgi_request(events[i].data.fd,
-        //   events[i].events);
+      if (listener_map.find(events[i].data.fd) != listener_map.end()) {
+        DEBUG_LOG("New connection on listener fd: " << events[i].data.fd);
+        this->accept_connections(events[i].data.fd);
       } else {
-
         DEBUG_LOG("Processing event on fd: " << events[i].data.fd);
         Connection &conn = this->getClientConnection(events[i].data.fd);
         conn.hasEvent = true;
@@ -264,27 +260,25 @@ void WebServer::run() {
   }
 }
 
-void WebServer::accept_connections() {
+void WebServer::accept_connections(int listen_fd) {
   struct sockaddr_storage client_addr;
   socklen_t addr_size = sizeof(client_addr);
+  ServerConfig &server_conf = listener_map[listen_fd];
 
-  while (true) { // queue
-    int new_fd = accept(listen_fd, (struct sockaddr *)&client_addr, &addr_size);
-    if (new_fd == -1) {
-      if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        break;
-      }
-      throw std::runtime_error("accept failed");
-    }
-
-    Connection *conn = new Connection(this->cgi, this->config, new_fd, false);
-    connections.push_back(conn);
-    epoll.add_fd(new_fd, EPOLL_READ);
-    // epoll.add_fd(new_fd, EPOLLIN | EPOLLRDHUP);
-
-    log_connection(client_addr);
+  int new_fd = accept(listen_fd, (struct sockaddr *)&client_addr, &addr_size);
+  if (new_fd == -1) {
+    if (errno == EAGAIN || errno == EWOULDBLOCK)
+      return;
+    throw std::runtime_error("accept failed");
   }
+
+  Connection *conn = new Connection(this->cgi, this->config, server_conf, new_fd);
+  connections.push_back(conn);
+  epoll.add_fd(new_fd, EPOLL_READ);
+
+  log_connection(client_addr);
 }
+
 
 void WebServer::handle_client_response(Connection &conn) {
   HTTPResponse &response = conn.m_Response;
@@ -326,11 +320,6 @@ void WebServer::handle_client_response(Connection &conn) {
     }
   }
 }
-
-// void HTTPResponse::clearCgiSocket() {
-//   cgi_sock = -1;
-//   cgi_state = NONE;
-// }
 
 void WebServer::handle_client_request(Connection &connection) {
   char buffer[BUFFER_SIZE];
