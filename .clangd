@@ -1,0 +1,2 @@
+ompileFlags:
+  Add: [-I./Includes, -I./src, -I/usr/include, -I/usr/local/include]

@@ -40,12 +40,24 @@ void	HTTPRequest::processHeaders()
 
 	if (!this->_validateHeaders())
 		return;
+		//GET
+	m_ParseState.setState(HTTPParseState::REQ_DONE);
 }
 
 bool	HTTPRequest::isMultipartForm() const
 {
 	return false;
 }
+
+size_t		HTTPRequest::getContentLength() const
+{
+	return m_ContentLength;
+}
+
+// std::string HTTPRequest::getBodyStr() const
+// {
+	
+// }
 
 /*
 	Process and validate request headers (Host, Content-length, etc..)
@@ -125,6 +137,7 @@ bool	HTTPRequest::validPath()
 
 void	HTTPRequest::reset()
 {
+	m_Path.clear();
 	m_Headers.clear();
 }
 
