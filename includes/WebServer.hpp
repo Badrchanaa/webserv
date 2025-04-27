@@ -28,33 +28,9 @@
 
 // #include "Connection.hpp"
 // #include "EpollManager.hpp"
+#include "Config.hpp"
+#include "EpollManager.hpp"
 #include "FileDescriptor.hpp"
-#include "Parsing.hpp"
-#include "Event.hpp"
-// #include "CGIHandler.hpp"
-
-/*
-  main()
-  {
-  // body req --> fd=2 <-
-    read = stdin;
-    process
-    write =
-
-    fork()
-   if child {
-    dup2(file_fd, stdin)
-    dup2(socketpair_fd, stdout);
-    }
-    if parent
-    {
-    }
-  }
-*/
-
-class Connection;
-class EpollManager;
-class CGIHandler;
 
 #define DEBUG_LOG(msg) std::cerr << "[Server] " << msg << std::endl
 #define CLIENT_LOG(msg) std::cerr << "[Client] " << msg << std::end
@@ -68,14 +44,17 @@ class CGIHandler;
 #define EPOLL_READ (EPOLLIN)
 #define EPOLL_WRITE (EPOLLOUT)
 
-
 class WebServer {
 
-  FileDescriptor listen_fd; // This is FileDescriptor of the socket
+  // FileDescriptor listen_fd; // This is FileDescriptor of the socket
+  Config config;
   CGIHandler cgi;
   EpollManager epoll;
   std::list<Connection *> connections;
   volatile bool running;
+
+  std::vector<FileDescriptor> listener_descriptors;
+  std::map<int, ServerConfig> listener_map; // Maps listener FDs to their config
 
 public:
   WebServer();
@@ -83,11 +62,17 @@ public:
 
   // private:
   void create_listener();
+  // void accept_connections();
+
+  /* Modified functions */
+  void create_listeners();
+  void accept_connections(int listen_fd);
+
   void setup_epoll();
-  void accept_connections();
-  void handle_client_request(Connection *conn);
-  void handle_client_response(Connection *conn);
-  void handle_client(int fd, uint32_t events);
+  void handle_client_request(Connection &conn);
+  void handle_client_response(Connection &conn);
+  // void handle_client(int fd, uint32_t events);
+  void handle_client(Connection &conn);
   void log_connection(const struct sockaddr_storage &addr);
   void log_request(const Connection &conn);
   Connection *find_connection(int fd);
