@@ -167,7 +167,7 @@ void WebServer::create_listeners() {
           listener_descriptors.push_back(new FileDescriptor(fd));
           listener_map[fd] = server;
           epoll.add_fd(fd, EPOLL_READ);
-          epoll.add_fd(temp_fd.fd, EPOLL_READ);
+          // epoll.add_fd(temp_fd.fd, EPOLL_READ);
           DEBUG_LOG("Listening on port "
                     << port << " for server: " << server.server_names[0]);
           break;
@@ -208,6 +208,7 @@ WebServer::~WebServer() {
 }
 
 WebServer::WebServer() : running(true) {
+  config.ParseConfigFile(DEFAULT_PATH);
   DEBUG_LOG("Initializing web server...");
   create_listeners();
   this->cgi.epoll_fd = this->epoll.epfd;
