@@ -1,4 +1,4 @@
-#include "../../includes/Config.hpp"
+#include "Config.hpp"
 
 ServerConfig Config::getServerByName(std::string name) {
   for (size_t i = 0; i < servers.size(); ++i) {

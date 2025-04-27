@@ -58,19 +58,47 @@ class HTTPResponse
 		/// @param fd 
 		void	init(HTTPRequest &request, CGIHandler &cgihandler, Config &config, int fd)
 		{
+			(void)request;
+			(void)cgihandler;
+			(void)config;
+			(void)fd;
 		}
 		// response is sent, IS DONE
-		bool		isDone() const;
+		void		reset()
+		{
+			return;
+		}
+
+		bool		isDone() const
+		{
+			return true;
+		}
 		// keep alive or close
-		bool		isKeepAlive() const;
+		bool		isKeepAlive() const
+		{
+			return true;
+		}
 		// if response has cgi
-		bool		hasCgi() const;
+		bool		hasCgi() const
+		{
+			return false;
+		}
 		// get response status
-		statusCode	getStatus();
+		statusCode	getStatus()
+		{
+			return OK;
+		}
 
 		// returns response state (CGI_READ, CGI_WRITE, SOCKET_WRITE, DONE)
 		// use it to manage epoll events for this response, socket or cgi.
-		responseState getState() const;
+		responseState getState() const
+		{
+			return SOCKET_WRITE;
+		}
+		// void				reset()
+		// {
+		// 	return;
+		// }
 		
 
 		/// @brief resumes response processing. should be called on event notify.
@@ -78,6 +106,11 @@ class HTTPResponse
 		/// @return if should remove current event from list
 		bool resume(bool isCgiReady, bool isClientReady)
 		{
+			if (isCgiReady)
+				std::cout << "CGI READY" << std::endl;
+			if (isClientReady)
+				std::cout << "CLIENT READY" << std::endl;
+			return true;
 			// //
 			// // CGIProcess
 			// // 
@@ -109,6 +142,7 @@ class HTTPResponse
 			// int client_socket = handler.getresponsesocket(this);
 			// int cgi_process_socket;
 			// write(this->handler);
+			return true;
 		}
 
 

@@ -57,6 +57,7 @@ class HTTPRequest
 		bool				isMultipartForm() const;
 		bool				isComplete() const;
 		void				processHeaders();
+		void				reset();
 
 	private:
 		bool				_validateHeaders();
