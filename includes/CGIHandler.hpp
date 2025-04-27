@@ -38,8 +38,6 @@ struct CGIProcess {
   int client_fd;
   int cgi_sock;
 
-  // int fd_open;
-
   pid_t pid;
   std::string output;
   std::string input;

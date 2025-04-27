@@ -1,6 +1,7 @@
 #include "HTTPParseState.hpp"
 #include <iostream>
 #include <string>
+#include <sstream>
 
 bool	HTTPParseState::isComplete() const
 {
@@ -17,18 +18,34 @@ HTTPParseState::requestState	HTTPParseState::getState() const
 	return m_RequestState;
 }
 
+std::string HTTPParseState::getHeaderField() const
+{
+	return m_HeaderField;
+}
+
+std::string HTTPParseState::getHeaderValue() const
+{
+	return m_HeaderValue;
+}
+
 void	HTTPParseState::appendHeaderValue(const char *buff, size_t start, size_t end)
 {
 	if (start == end)
 		return;
-	m_HeaderValue.append(buff + start, end - start);
+	m_HeaderValue.append(buff, start, end - start);
 }
 
 void	HTTPParseState::appendHeaderField(const char *buff, size_t start, size_t end)
 {
 	if (start == end)
 		return;
-	m_HeaderField.append(buff + start, end - start);
+	m_HeaderField.append(buff, start, end - start);
+}
+
+void	HTTPParseState::clearHeader()
+{
+	m_HeaderField.clear();
+	m_HeaderValue.clear();
 }
 
 void	HTTPParseState::setState(HTTPParseState::requestState state)
@@ -46,6 +63,16 @@ char			HTTPParseState::getPrevChar() const
 	return m_PrevChar;
 }
 
+HTTPParseState::chunkState	HTTPParseState::getChunkState() const
+{
+	return m_ChunkState;
+}
+
+unsigned int	HTTPParseState::getchunkPos() const
+{
+	return m_chunkPos;
+}
+
 void			HTTPParseState::setPrevChar(const char c)
 {
 	m_PrevChar = c;
@@ -54,6 +81,39 @@ void			HTTPParseState::setPrevChar(const char c)
 char			*HTTPParseState::getMethod()
 {
 	return m_Method;
+}
+
+void	HTTPParseState::setChunkState(HTTPParseState::chunkState newState)
+{
+	m_ChunkSize = newState;
+}
+
+bool	HTTPParseState::isChunkComplete() const
+{
+	return m_ChunkSize == m_chunkPos;
+}
+
+size_t	HTTPParseState::getChunkSize() const
+{
+	return m_ChunkSize;
+}
+
+void	HTTPParseState::appendChunkSize(char c)
+{
+	m_ChunkSizeStr += c;
+}
+
+void	HTTPParseState::setError()
+{
+	m_RequestState = REQ_ERROR;
+}
+
+bool	HTTPParseState::validateChunkSize()
+{
+	std::stringstream ss(m_ChunkSizeStr);
+
+	ss << std::hex;
+	return ss >> m_ChunkSize && ss.eof();
 }
 
 unsigned int	HTTPParseState::getReadBytes() const

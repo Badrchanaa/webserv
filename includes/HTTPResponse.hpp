@@ -59,7 +59,6 @@ class HTTPResponse
 		void	init(HTTPRequest &request, CGIHandler &cgihandler, Config &config, int fd)
 		{
 		}
-
 		// response is sent, IS DONE
 		bool		isDone() const;
 		// keep alive or close

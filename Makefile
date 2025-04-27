@@ -92,7 +92,7 @@ $(NAME): $(OBJ_FILES)
 	@echo "\n\n\n   ${BOLD}${CUR}${LYELLOW}WEBSERV COMPILED ✨${DEF}${NOCOL}\n"
 
 http_test: $(HTTP_OBJ_FILES)
-	$(CC) -o $@ $(CFLAGS) $^
+	$(CC) $^ $(CFLAGS) -o $@ -g3 -fsanitize=address
 
 
 # #is used to redirect both standard output (stdout) and standard error (stderr) to /dev/null
