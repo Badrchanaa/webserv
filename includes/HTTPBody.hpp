@@ -18,6 +18,7 @@ class HTTPBody
 		~HTTPBody();
 
 		bool	append(const char *buffer, size_t len);
+		unsigned int	write(int fd);
 		void	flush();
 
 	private:

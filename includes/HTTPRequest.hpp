@@ -47,8 +47,11 @@ class HTTPRequest
 		void				appendToPath(const char *buff, size_t start, size_t len);
 		bool				appendBody(const char *buff, size_t len);
 		bool				validPath();
-		void				addHeader(std::string &key, std::string &value);
+		void				addHeader(std::string key, std::string value);
 		std::string			getHeader(std::string &key) const;
+		std::string			getHeader(const char *key) const;
+		inline bool			hasHeader(const char *key) const;
+		const HeaderMap&	getHeaders() const;
 		const std::string	&getPath() const;
 		bool				isTransferChunked() const;
 		bool				isMultipartForm() const;

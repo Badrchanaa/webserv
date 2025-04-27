@@ -18,18 +18,34 @@ HTTPParseState::requestState	HTTPParseState::getState() const
 	return m_RequestState;
 }
 
+std::string HTTPParseState::getHeaderField() const
+{
+	return m_HeaderField;
+}
+
+std::string HTTPParseState::getHeaderValue() const
+{
+	return m_HeaderValue;
+}
+
 void	HTTPParseState::appendHeaderValue(const char *buff, size_t start, size_t end)
 {
 	if (start == end)
 		return;
-	m_HeaderValue.append(buff + start, end - start);
+	m_HeaderValue.append(buff, start, end - start);
 }
 
 void	HTTPParseState::appendHeaderField(const char *buff, size_t start, size_t end)
 {
 	if (start == end)
 		return;
-	m_HeaderField.append(buff + start, end - start);
+	m_HeaderField.append(buff, start, end - start);
+}
+
+void	HTTPParseState::clearHeader()
+{
+	m_HeaderField.clear();
+	m_HeaderValue.clear();
 }
 
 void	HTTPParseState::setState(HTTPParseState::requestState state)
@@ -50,6 +66,11 @@ char			HTTPParseState::getPrevChar() const
 HTTPParseState::chunkState	HTTPParseState::getChunkState() const
 {
 	return m_ChunkState;
+}
+
+unsigned int	HTTPParseState::getchunkPos() const
+{
+	return m_chunkPos;
 }
 
 void			HTTPParseState::setPrevChar(const char c)

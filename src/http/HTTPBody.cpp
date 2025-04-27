@@ -21,7 +21,8 @@ bool	HTTPBody::_writeToFile(const char *buffer, size_t len)
 
 bool HTTPBody::_switchToFile()
 {
-	m_File.open(std::tmpnam(NULL), std::ios::in | std::ios::binary);
+	// m_File.open(std::tmpnam(NULL), std::ios::in | std::ios::binary);
+	m_File.open("body.http", std::ios::in | std::ios::binary);
 	if (!m_File.is_open())
 		return false;
 	m_File.write(&m_VectorBuffer[0], m_Size);

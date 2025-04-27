@@ -223,9 +223,10 @@ size_t	HTTPParser::_parseHeaderCrlf(HTTPRequest &request, char *buff, size_t sta
 				if (request.isComplete())
 					return i;
 				parseState.setState(HTTPParseState::REQ_BODY);
-				parseState.setState(HTTPParseState::REQ_ERROR);
+				// parseState.setState(HTTPParseState::REQ_ERROR);
 			break;
 		default:
+			std::cout << "err crlf header" << std::endl;
 			parseState.setState(HTTPParseState::REQ_ERROR);
 	}
 	parseState.setReadBytes(0);
@@ -260,12 +261,13 @@ size_t	HTTPParser::_parseHeaderField(HTTPRequest &request, char *buff, size_t st
 		i++;
 		count++;
 	}
-	parseState.appendHeaderField(buff, start, i);
 	parseState.setReadBytes(count);
+	parseState.appendHeaderField(buff, start, i);
 	if (i == len)
 		return i;
+	parseState.setReadBytes(0);
 	parseState.setState(HTTPParseState::REQ_HEADER_VALUE);
-	return i;
+	return i + 1;
 }
 
 size_t	HTTPParser::_parseHeaderValue(HTTPRequest &request, char *buff, size_t start, size_t len)
@@ -292,6 +294,7 @@ size_t	HTTPParser::_parseHeaderValue(HTTPRequest &request, char *buff, size_t st
 	if (i == len)
 		return i;
 	request.addHeader(parseState.getHeaderField(), parseState.getHeaderValue());
+	parseState.clearHeader();
 	parseState.setReadBytes(0);
 	parseState.setState(HTTPParseState::REQ_HEADER_CRLF);
 	return i;
@@ -424,6 +427,7 @@ size_t	HTTPParser::_parseBody(HTTPRequest &request, char *buff, size_t start, si
 	return _parseRawBody(request, buff, start, len);
 }
 
+const char	*getStateString(HTTPParseState::requestState state);
 void	HTTPParser::parse(HTTPRequest &request, char *buff, size_t len)
 {
 	HTTPParseState	&parseState = request.getParseState();
@@ -434,7 +438,7 @@ void	HTTPParser::parse(HTTPRequest &request, char *buff, size_t len)
 	while (offset < len)
 	{
 		state = parseState.getState();
-		std::cout << "parse state: " << state << std::endl;
+		std::cout << "parse state: " << getStateString(state) << std::endl;
 		switch(state)
 		{
 			case HTTPParseState::REQ_LINE_START:
@@ -469,6 +473,37 @@ void	HTTPParser::parse(HTTPRequest &request, char *buff, size_t len)
 			default:
 				return;
 		}
+	}
+}
+
+const char	*getStateString(HTTPParseState::requestState state)
+{
+	switch(state)
+	{
+			case HTTPParseState::REQ_LINE_START:
+				return "REQ_LINE_START";
+			case HTTPParseState::REQ_LINE_METHOD:
+				return "REQ_LINE_METHOD";
+			case HTTPParseState::REQ_LINE_TARGET:
+				return "REQ_LINE_TARGET";
+			case HTTPParseState::REQ_LINE_HTTP:
+				return "REQ_LINE_HTTP";
+			case HTTPParseState::REQ_LINE_VERSION_MINOR:
+			case HTTPParseState::REQ_LINE_VERSION_DOT:
+			case HTTPParseState::REQ_LINE_VERSION_MAJOR:
+				return "REQ_LINE_VERSION";
+			case HTTPParseState::REQ_HEADER_CRLF:
+				return "REQ_HEADER_CRLF";
+			case HTTPParseState::REQ_HEADER_FIELD:
+				return "REQ_HEADER_FIELD";
+			case HTTPParseState::REQ_HEADER_VALUE:
+				return "REQ_HEADER_VALUE";
+			case HTTPParseState::REQ_BODY:
+				return "REQ_BODY";
+			case HTTPParseState::REQ_ERROR:
+				return "REQ_ERROR";
+			default:
+				return "UNKNOWN_STATE";
 	}
 }
 

@@ -25,7 +25,7 @@ server:
  # test:
  #   uri: /
  location:
-   uri: /
+   uri: /app
    upload: uploads
    methods:
      - POST
@@ -40,3 +40,7 @@ server:
    cgi:
      - .py: /usr/bin/python3
      - .php: /usr/bin/php-cgi
+ location:
+   uri: /app/tw
+
+www/app/script.html     request uri app/tw/script.html
