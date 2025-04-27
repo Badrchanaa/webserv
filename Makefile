@@ -57,10 +57,15 @@ ifdef DEBUG
 endif
 
 # SOURCES
-CONFIG_PARSING_SOURCES = main.cpp ConfigFile.cpp  Methodes_Validates.cpp Utils.cpp
+# CONFIG_PARSING_SOURCES = main.cpp ConfigFile.cpp  Methodes_Validates.cpp Utils.cpp
+# CGI_SOURCES = main.cpp ConfigFile.cpp  Methodes_Validates.cpp Utils.cpp
+# SERVER_SOURCES = main.cpp ConfigFile.cpp  Methodes_Validates.cpp Utils.cpp
 
 HTTP_TEST_SOURCES = $(SRC_PATH)/http/test.cpp
 HTTP_SOURCES = $(filter-out $(HTTP_TEST_SOURCES), $(wildcard $(SRC_PATH)/http/*.cpp))
+CONFIG_SOURCES = $(filter-out $(HTTP_TEST_SOURCES), $(wildcard $(SRC_PATH)/Cgi/*.cpp))
+CGI_SOURCES = $(filter-out $(HTTP_TEST_SOURCES), $(wildcard $(SRC_PATH)/Multiplixing/*.cpp))
+SERVER_SOURCES = $(filter-out $(HTTP_TEST_SOURCES), $(wildcard $(SRC_PATH)/Parsing/*.cpp))
 
 ALL_SOURCES = $(CONFIG_PARSING_SOURCES)
 vpath %.cpp $(SRC_PATH)/Parsing 
@@ -68,12 +73,15 @@ vpath %.cpp $(SRC_PATH)/http
 vpath %.hpp includes/
 # OBJ_FILES = $(ALL_SOURCES:%.c=%.o)
 
-HTTP_OBJ_FILES = $(addprefix $(OBJ_PATH)/, $(HTTP_SOURCES:$(SRC_PATH)/http/%.cpp=%.o) $(HTTP_TEST_SOURCES:$(SRC_PATH)/http/%.cpp=%.o))
-OBJ_PARSING_FILES = $(CONFIG_PARSING_SOURCES:%.cpp=%.o)
+HTTP_OBJ_FILES = $(addprefix $(OBJ_PATH)/, $(HTTP_SOURCES:$(SRC_PATH)/http/%.cpp=%.o))
+CONFIG_OBJ = $(addprefix $(OBJ_PATH)/, $(CONFIG_SOURCES:$(SRC_PATH)/Parsing/%.cpp=%.o))
+CGI_OBJ = $(addprefix $(OBJ_PATH)/, $(CGI_SOURCES:$(SRC_PATH)/Cgi/%.cpp=%.o))
+SERVER_OBJ = $(addprefix $(OBJ_PATH)/, $(SERVER_SOURCES:$(SRC_PATH)/Multiplixing/%.cpp=%.o))
+# OBJ_PARSING_FILES = $(CONFIG_PARSING_SOURCES:%.cpp=%.o)
 
 # OBJ_PIPX_FILES = $(PIPX_SOURCES:%.c=%.o)
-OBJ_PARSING_FILES = $(CONFIG_PARSING_SOURCES:%.cpp=%.o)
-OBJ_FILES = $(addprefix $(OBJ_PATH)/, $(OBJ_PARSING_FILES))
+# OBJ_PARSING_FILES = $(CONFIG_PARSING_SOURCES:%.cpp=%.o)
+OBJ_FILES = $(HTTP_OBJ_FILES) $(SERVER_OBJ) $(CONFIG_OBJ) $(CGI_OBJ)
 
 all: $(NAME)
 $(NAME): $(OBJ_FILES)

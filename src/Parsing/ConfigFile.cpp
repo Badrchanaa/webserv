@@ -1,12 +1,33 @@
-#include "Parsing.hpp"
+#include "../../includes/Config.hpp"
 
-void ParseConfig::ResetParsingState() {
+ServerConfig Config::getServerByName(std::string name) {
+  for (size_t i = 0; i < servers.size(); ++i) {
+    const ServerConfig& server = servers[i];
+    for (size_t j = 0; j < server.server_names.size(); ++j) {
+      if (server.server_names[j] == name) {
+        return server;
+      }
+    }
+  }
+
+  if (!servers.empty()) {
+    return servers[0];
+  }
+  return servers[0];
+
+  // std::cerr << "No servers are configured." << std::endl;
+  // exit(EXIT_FAILURE);
+}
+
+
+
+void Config::ResetParsingState() {
   inServer = false;
   context.clear();
   currentServer = ServerConfig();
 }
 
-void ParseConfig::EnterServerContext() {
+void Config::EnterServerContext() {
   if (inServer) {
     this->FinalizeServer();
   }
@@ -15,7 +36,7 @@ void ParseConfig::EnterServerContext() {
   currentServer = ServerConfig();
 }
 
-void ParseConfig::ProcessPortValue(const std::string &value) {
+void Config::ProcessPortValue(const std::string &value) {
   std::istringstream iss(value);
   std::string port_str;
   while (iss >> port_str) {
@@ -27,7 +48,7 @@ void ParseConfig::ProcessPortValue(const std::string &value) {
   }
 }
 
-void ParseConfig::ProcessServerNameValue(const std::string &value) {
+void Config::ProcessServerNameValue(const std::string &value) {
   std::istringstream iss(value);
   std::string name;
   while (iss >> name) {
@@ -35,7 +56,7 @@ void ParseConfig::ProcessServerNameValue(const std::string &value) {
   }
 }
 
-void ParseConfig::ProcessServerKeyValue(const std::string &key,
+void Config::ProcessServerKeyValue(const std::string &key,
                                         const std::string &value) {
   if (key == "port") {
     this->ProcessPortValue(value);
@@ -48,7 +69,7 @@ void ParseConfig::ProcessServerKeyValue(const std::string &key,
   }
 }
 
-void ParseConfig::HandleIndentOne(const std::string &trimmed) {
+void Config::HandleIndentOne(const std::string &trimmed) {
   if (trimmed == "errors:") {
     context = "errors";
   } else if (trimmed == "location:") {
@@ -64,7 +85,7 @@ void ParseConfig::HandleIndentOne(const std::string &trimmed) {
   }
 }
 
-void ParseConfig::ProcessLocationKeyValue(const std::string &key,
+void Config::ProcessLocationKeyValue(const std::string &key,
                                           const std::string &value) {
   if (key == "uri") {
     currentServer.location.uri = value;
@@ -87,7 +108,7 @@ void ParseConfig::ProcessLocationKeyValue(const std::string &key,
   }
 }
 
-void ParseConfig::HandleIndentThree(const std::string &trimmed) {
+void Config::HandleIndentThree(const std::string &trimmed) {
   if (context == "methods" || context == "methods_cgi" || context == "cgi") {
     context = "location";
   }
@@ -103,7 +124,7 @@ void ParseConfig::HandleIndentThree(const std::string &trimmed) {
   }
 }
 
-void ParseConfig::HandleIndentFive(const std::string &trimmed) {
+void Config::HandleIndentFive(const std::string &trimmed) {
   if (context == "methods" || context == "methods_cgi") {
     this->ProcessMethodContext(trimmed);
   } else if (context == "cgi") {
@@ -117,7 +138,7 @@ void ParseConfig::HandleIndentFive(const std::string &trimmed) {
   }
 }
 
-void ParseConfig::FinalizeServer() {
+void Config::FinalizeServer() {
   if (!this->validate_server(currentServer)) {
     std::cerr << "Invalid server configuration" << std::endl;
     exit(EXIT_FAILURE);
@@ -127,7 +148,7 @@ void ParseConfig::FinalizeServer() {
   context.clear();
 }
 
-void ParseConfig::ProcessLines(std::ifstream &infile) {
+void Config::ProcessLines(std::ifstream &infile) {
   std::string line;
   while (std::getline(infile, line)) {
 
@@ -162,7 +183,7 @@ void ParseConfig::ProcessLines(std::ifstream &infile) {
   }
 }
 
-void ParseConfig::ParseConfigFile(const char *FileName) {
+void Config::ParseConfigFile(const char *FileName) {
   std::ifstream infile(FileName);
   if (!infile.is_open()) {
     std::cerr << "Failed to open config file: " << FileName << std::endl;
