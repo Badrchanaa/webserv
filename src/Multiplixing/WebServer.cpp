@@ -36,8 +36,7 @@ the queue, accept() fails with the error EAGAIN or EWOULDBLOCK.
 
 */
 
-
-// /*
+/*
 void WebServer::create_listener() {
   DEBUG_LOG("Initializing network stack...");
 
@@ -106,92 +105,112 @@ void WebServer::create_listener() {
 
   DEBUG_LOG("Listening on port " << PORT << " with backlog " << BACKLOG);
 }
-// */
+*/
 
-// void WebServer::create_listeners() {
-//   DEBUG_LOG("Initializing network stack for all servers...");
+void WebServer::create_listeners() {
+  DEBUG_LOG("Initializing network stack for all servers...");
 
-//   // Get all server configurations
-//   int server_count = config.ServersNumber();
-//   if (server_count == 0) {
-//     throw std::runtime_error("No server configurations found");
-//   }
+  // Get all server configurations
+  int server_count = config.ServersNumber();
+  if (server_count == 0) {
+    throw std::runtime_error("No server configurations found");
+  }
 
-//   for (int i = 0; i < server_count; ++i) {
-//     ServerConfig server = config.getServer(i);
+  for (int i = 0; i < server_count; ++i) {
+    ServerConfig server = config.getServer(i);
 
-//     for (size_t p = 0; p < server.ports.size(); ++p) {
-//       int port = server.ports[p];
-//       std::stringstream ss;
-//       ss << port;
-//       std::string port_str = ss.str();
-//       struct addrinfo hints, *res;
-//       memset(&hints, 0, sizeof hints);
-//       hints.ai_family = AF_UNSPEC;
-//       hints.ai_socktype = SOCK_STREAM;
-//       hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
+    for (size_t p = 0; p < server.ports.size(); ++p) {
+      int port = server.ports[p];
+      std::stringstream ss;
+      ss << port;
+      std::string port_str = ss.str();
+      struct addrinfo hints, *res;
+      memset(&hints, 0, sizeof hints);
+      hints.ai_family = AF_UNSPEC;
+      hints.ai_socktype = SOCK_STREAM;
+      hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
 
-//       DEBUG_LOG("Resolving addresses for port: " << port);
-//       int status =
-//           getaddrinfo(server.host.c_str(), port_str.c_str(), &hints, &res);
-//       if (status != 0) {
-//         DEBUG_LOG("Address resolution failed: " << gai_strerror(status));
-//         continue;
-//       }
+      DEBUG_LOG("Resolving addresses for port: " << port);
+      int status =
+          getaddrinfo(server.host.c_str(), port_str.c_str(), &hints, &res);
+      if (status != 0) {
+        DEBUG_LOG("Address resolution failed: " << gai_strerror(status));
+        continue;
+      }
 
-//       // Try all address candidates
-//       for (struct addrinfo *p = res; p != NULL; p = p->ai_next) {
-//         FileDescriptor temp_fd(socket(
-//             p->ai_family, p->ai_socktype | SOCK_NONBLOCK, p->ai_protocol));
+      for (struct addrinfo *p = res; p != NULL; p = p->ai_next) {
+        FileDescriptor temp_fd(socket(
+            p->ai_family, p->ai_socktype | SOCK_NONBLOCK, p->ai_protocol));
 
-//         if (temp_fd.fd == -1) {
-//           DEBUG_LOG("Socket creation failed: " << strerror(errno));
-//           continue;
-//         }
+        if (temp_fd.fd == -1) {
+          DEBUG_LOG("Socket creation failed: " << strerror(errno));
+          continue;
+        }
 
-//         // Set socket options
-//         int yes = 1;
-//         if (setsockopt(temp_fd.fd, SOL_SOCKET, SO_REUSEADDR, &yes,
-//                        sizeof(int)) == -1) {
-//           DEBUG_LOG("setsockopt failed: " << strerror(errno));
-//           continue;
-//         }
+        // Set socket options
+        int yes = 1;
+        if (setsockopt(temp_fd.fd, SOL_SOCKET, SO_REUSEADDR, &yes,
+                       sizeof(int)) == -1) {
+          DEBUG_LOG("setsockopt failed: " << strerror(errno));
+          continue;
+        }
 
-//         // Bind and listen
-//         if (bind(temp_fd.fd, p->ai_addr, p->ai_addrlen) == 0) {
-//           if (listen(temp_fd.fd, BACKLOG) == -1) {
-//             DEBUG_LOG("listen failed: " << strerror(errno));
-//             continue;
-//           }
+        // Bind and listen
+        if (bind(temp_fd.fd, p->ai_addr, p->ai_addrlen) == 0) {
+          if (listen(temp_fd.fd, BACKLOG) == -1) {
+            DEBUG_LOG("listen failed: " << strerror(errno));
+            continue;
+          }
 
-//           /* Store listener FD and config */
-//           listener_map[temp_fd.fd] = server;
-//           listener_descriptors.push_back(temp_fd);
-//           epoll.add_fd(temp_fd.fd, EPOLL_READ);
-//           DEBUG_LOG("Listening on port "
-//                     << port << " for server: " << server.server_names[0]);
-//           break;
-//         }
-//       }
-//       freeaddrinfo(res);
-//     }
-//   }
+          /* Store listener FD and config */
+          int fd = temp_fd.release();
+          listener_descriptors.push_back(new FileDescriptor(fd));
+          listener_map[fd] = server;
+          epoll.add_fd(fd, EPOLL_READ);
+          epoll.add_fd(temp_fd.fd, EPOLL_READ);
+          DEBUG_LOG("Listening on port "
+                    << port << " for server: " << server.server_names[0]);
+          break;
+        }
+      }
+      freeaddrinfo(res);
+    }
+  }
 
-//   if (listener_map.empty()) {
-//     throw std::runtime_error("All bind attempts failed");
-//   }
-// }
-void WebServer::setup_epoll() { epoll.add_fd(listen_fd, EPOLL_READ); }
+  if (listener_map.empty()) {
+    throw std::runtime_error("All bind attempts failed");
+  }
+}
+// void WebServer::setup_epoll() { epoll.add_fd(listen_fd, EPOLL_READ); }
 // void WebServer::setup_epoll() { epoll.add_fd(listen_fd, EPOLLIN | EPOLLET); }
 
 // dont forget init listen_fd and config and cgi ...etc
+// WebServer::WebServer() : running(true) {
+//   DEBUG_LOG("Initializing web server...");
+//
+//   create_listener();
+//
+//   setup_epoll();
+//   this->cgi.epoll_fd = this->listen_fd;
+//   DEBUG_LOG("Server initialized. Entering main event loop.");
+// }
+
+WebServer::~WebServer() {
+  for (std::vector<FileDescriptor *>::iterator it =
+           listener_descriptors.begin();
+       it != listener_descriptors.end(); ++it) {
+    delete *it;
+  }
+  for (std::list<Connection *>::iterator it = connections.begin();
+       it != connections.end(); ++it) {
+    delete *it;
+  }
+}
+
 WebServer::WebServer() : running(true) {
   DEBUG_LOG("Initializing web server...");
-
-  create_listener();
-
-  setup_epoll();
-  this->cgi.epoll_fd = this->listen_fd;
+  create_listeners();
+  this->cgi.epoll_fd = this->epoll.epfd;
   DEBUG_LOG("Server initialized. Entering main event loop.");
 }
 
@@ -210,9 +229,12 @@ Connection &WebServer::getClientConnection(int fd) {
     conn.socketEvent = true;
     return conn;
   } catch (const std::exception &e) {
+    // int client_fd = this->cgi.is_cgi_socket(fd);
+    // i think is_cgi_socket should return fd or cgi_sock not client_fd
     int client_fd = this->cgi.is_cgi_socket(fd);
     if (client_fd) {
-      Connection &conn = this->connection_ref(fd);
+      // Connection &conn = this->connection_ref(fd);
+      Connection &conn = this->connection_ref(client_fd);
       conn.cgiEvent = true;
       return conn;
     }
@@ -252,8 +274,9 @@ void WebServer::run() {
         // this->handle_client(events[i].data.fd, events[i].events);
       }
     }
-    for (std::list<Connection *>::iterator it = this->connections.begin();
-         it != connections.end(); ++it) {
+    std::list<Connection *> temp_connections(connections);
+    for (std::list<Connection *>::iterator it = temp_connections.begin();
+         it != temp_connections.end(); ++it) {
       if ((*it)->hasEvent) {
         this->handle_client(*(*it));
         (*it)->resetEvents();
@@ -274,13 +297,13 @@ void WebServer::accept_connections(int listen_fd) {
     throw std::runtime_error("accept failed");
   }
 
-  Connection *conn = new Connection(this->cgi, this->config, server_conf, new_fd);
+  Connection *conn =
+      new Connection(this->cgi, server_conf, this->config, new_fd);
   connections.push_back(conn);
   epoll.add_fd(new_fd, EPOLL_READ);
 
   log_connection(client_addr);
 }
-
 
 void WebServer::handle_client_response(Connection &conn) {
   HTTPResponse &response = conn.m_Response;

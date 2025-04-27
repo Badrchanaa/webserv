@@ -46,19 +46,18 @@
 
 class WebServer {
 
-  FileDescriptor listen_fd; // This is FileDescriptor of the socket
-  // FileDescriptor listen_fd;
   Config config;
   CGIHandler cgi;
   EpollManager epoll;
   std::list<Connection *> connections;
   volatile bool running;
 
-  std::vector<FileDescriptor> listener_descriptors;
-  std::map<int, ServerConfig> listener_map; // Maps listener FDs to their config
+  std::vector<FileDescriptor *> listener_descriptors;
+  std::map<int, ServerConfig> listener_map; /* Maps listener FDs to their config*/
 
 public:
   WebServer();
+  ~WebServer();
   void run();
 
   // private:
@@ -79,6 +78,11 @@ public:
   Connection *find_connection(int fd);
   void cleanup_connection(int fd);
   void set_nonblocking(int fd);
+
+
+  Connection &connection_ref(int fd);
+  Connection &getClientConnection(int fd);
+  int getCgiFdBasedOnClientFd(int client_fd);
 };
 
 #endif // !_test__

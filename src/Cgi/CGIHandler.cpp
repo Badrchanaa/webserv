@@ -2,7 +2,7 @@
 #include "../../includes/WebServer.hpp"
 
 void CGIHandler::cleanup_by_fd(int fd) {
-  auto it = processes.find(fd);
+  std::map<int, CGIProcess>::iterator it = processes.find(fd);
   if (it != processes.end()) {
     cleanup(it->second, true);
   }
@@ -61,18 +61,18 @@ void CGIHandler::spawn(const std::string &script,
   }
 }
 
-void CGIHandler::handle_cgi_request(int fd, uint32_t events) {
-  std::map<int, CGIProcess>::iterator it = processes.find(fd);
-  if (it == processes.end())
-    return;
-
-  if (events & EPOLL_WRITE)
-    handle_output(it->second);
-  if (events & EPOLL_READ)
-    handle_input(it->second);
-  if (events & (EPOLL_ERRORS))
-    cleanup(it->second, true);
-}
+// void CGIHandler::handle_cgi_request(int fd, uint32_t events) {
+//   std::map<int, CGIProcess>::iterator it = processes.find(fd);
+//   if (it == processes.end())
+//     return;
+//
+//   if (events & EPOLL_WRITE)
+//     handle_output(it->second);
+//   if (events & EPOLL_READ)
+//     handle_input(it->second);
+//   if (events & (EPOLL_ERRORS))
+//     cleanup(it->second, true);
+// }
 
 void CGIHandler::check_zombies() {
   int status;
@@ -106,38 +106,38 @@ void CGIHandler::setup_child(int sock, const std::string &script,
   execve(script.c_str(), (char *const *)argv, (char *const *)&envp[0]);
   exit(EXIT_FAILURE);
 }
+//
+// void CGIProcess::handle_output() {
+//   // Hello World + 5 >> World
+//   ssize_t sent = send(proc.cgi_sock, proc.input.c_str() + proc.written,
+//                       proc.input.size() - proc.written, MSG_NOSIGNAL);
+//
+//   if (sent > 0) {
+//     proc.written += sent;
+//     if (proc.written >= proc.input.size()) {
+//       struct epoll_event ev;
+//       ev.events = EPOLL_READ;
+//       ev.data.fd = proc.cgi_sock;
+//       epoll_ctl(epoll_fd, EPOLL_CTL_MOD, proc.cgi_sock, &ev);
+//       shutdown(proc.cgi_sock, SHUT_WR);
+//     }
+//   } else if (sent < 0) {
+//     cleanup(proc, true);
+//   }
+// }
 
-void CGIProcess::handle_output() {
-  // Hello World + 5 >> World
-  ssize_t sent = send(proc.cgi_sock, proc.input.c_str() + proc.written,
-                      proc.input.size() - proc.written, MSG_NOSIGNAL);
+// void CGIProcess::handle_input(CGIProcess &proc) {
+//   char buf[4096];
+//   ssize_t received = recv(proc.cgi_sock, buf, sizeof(buf), 0);
+//
+//   if (received > 0) {
+//     proc.output.append(buf, received);
+//   } else if (received <= 0 && errno != EAGAIN) {
+//     cleanup(proc, received < 0);
+//   }
+// }
 
-  if (sent > 0) {
-    proc.written += sent;
-    if (proc.written >= proc.input.size()) {
-      struct epoll_event ev;
-      ev.events = EPOLL_READ;
-      ev.data.fd = proc.cgi_sock;
-      epoll_ctl(epoll_fd, EPOLL_CTL_MOD, proc.cgi_sock, &ev);
-      shutdown(proc.cgi_sock, SHUT_WR);
-    }
-  } else if (sent < 0) {
-    cleanup(proc, true);
-  }
-}
-
-void CGIProcess::handle_input(CGIProcess &proc) {
-  char buf[4096];
-  ssize_t received = recv(proc.cgi_sock, buf, sizeof(buf), 0);
-
-  if (received > 0) {
-    proc.output.append(buf, received);
-  } else if (received <= 0 && errno != EAGAIN) {
-    cleanup(proc, received < 0);
-  }
-}
-
-void CGIHandler::cleanup(CGIProcess &proc, bool error) {
+void CGIHandler::cleanup(const CGIProcess &proc, bool error) {
   if (!proc.output.empty()) {
     send(proc.client_fd, proc.output.c_str(), proc.output.size(), 0);
   } else if (error) {
