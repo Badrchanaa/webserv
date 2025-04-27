@@ -5,6 +5,12 @@
 #define WRITE EPOLLOUT
 // #define ERROR EPOLLOUT | 
 
+#include "CGIHandler.hpp"
+#include "Config.hpp"
+#include "HTTPRequest.hpp"
+#include "CGIHandler.hpp"
+
+
 #include <string>
 /*
 POST /CGI/uploads
@@ -38,7 +44,7 @@ class HTTPResponse
 			OK = 200,
 			CREATED = 201,
 			NOT_FOUND = 404,
-		} statusCode
+		} statusCode;
 	
 	public:
 		HTTPResponse(void);
@@ -50,7 +56,7 @@ class HTTPResponse
 		/// @param request 
 		/// @param cgihandler 
 		/// @param fd 
-		void	init(HTTPRequest &request, CGIHandler *cgihandler, Config *config, int fd)
+		void	init(HTTPRequest &request, CGIHandler &cgihandler, Config &config, int fd)
 		{
 		}
 		// response is sent, IS DONE

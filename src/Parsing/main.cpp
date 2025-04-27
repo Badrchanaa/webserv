@@ -1,10 +1,10 @@
-#include "Parsing.hpp"
+#include "Config.hpp"
 // int main(int argc, char **argv) {
 int main() {
   // if (argc != 2)
   // else
   //   std::ifstream infile(argv[1]);
-  ParseConfig parse;
+  Config parse;
   parse.ParseConfigFile(DEFAULT_PATH);
 
   //+++++++++++++++++++++++++++++++++++++++++++++++++++++++
