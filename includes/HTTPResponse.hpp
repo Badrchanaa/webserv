@@ -10,7 +10,6 @@
 #include "HTTPRequest.hpp"
 #include "CGIHandler.hpp"
 
-
 #include <string>
 /*
 POST /CGI/uploads
@@ -47,10 +46,10 @@ class HTTPResponse
 		} statusCode;
 	
 	public:
-		HTTPResponse(void);
+		HTTPResponse(void){}
 		HTTPResponse(const HTTPResponse &other);
 		HTTPResponse& operator=(const HTTPResponse &other);
-		~HTTPResponse();
+		~HTTPResponse(){}
 
 		/// @brief initializes response from parsed request, spawns CGI process if 
 		/// @param request 
@@ -58,10 +57,10 @@ class HTTPResponse
 		/// @param fd 
 		void	init(HTTPRequest &request, CGIHandler &cgihandler, Config &config, int fd)
 		{
-			(void)request;
+			clientFd = fd;
+			this->request = &request;
 			(void)cgihandler;
 			(void)config;
-			(void)fd;
 		}
 		// response is sent, IS DONE
 		void		reset()
@@ -76,7 +75,7 @@ class HTTPResponse
 		// keep alive or close
 		bool		isKeepAlive() const
 		{
-			return true;
+			return false;
 		}
 		// if response has cgi
 		bool		hasCgi() const
@@ -95,6 +94,7 @@ class HTTPResponse
 		{
 			return SOCKET_WRITE;
 		}
+
 		// void				reset()
 		// {
 		// 	return;
@@ -106,11 +106,49 @@ class HTTPResponse
 		/// @return if should remove current event from list
 		bool resume(bool isCgiReady, bool isClientReady)
 		{
+			std::stringstream responseStream;
 			if (isCgiReady)
 				std::cout << "CGI READY" << std::endl;
 			if (isClientReady)
 				std::cout << "CLIENT READY" << std::endl;
-			return true;
+			responseStream << "<html><body>";
+			responseStream << "<style>td{padding: 10;border: 2px solid black;background: #ababed;font-size:16;font-style:italic;}</style>";
+			responseStream << "request.path: '" << request->getPath() << "'" << std::endl;
+			responseStream << "<table>";
+			responseStream << "<h1>REQUEST HEADERS</h1>";
+			HTTPRequest::HeaderMap headers = request->getHeaders();
+			for (HTTPRequest::HeaderMap::iterator it = headers.begin(); it != headers.end(); it++)
+			{
+				responseStream << "<tr>";
+				responseStream << "<td>" << it->first << "</td>";
+				responseStream << "<td>" << it->second << "</td>";
+				responseStream << "</tr>";
+			}
+			responseStream << "</table>";
+			responseStream << "</body></html>";
+			responseStream << "<h1>REQUEST BODY:</h1>";
+
+			std::string res;
+			size_t	resLen = responseStream.str().length();
+
+			std::stringstream ss;
+
+			ss << resLen;
+			std::string resLenStr;
+			ss >> resLenStr;
+			res += "HTTP/1.1 200 OK\r\n";
+			res += "Content-length:";
+			res += resLenStr;
+			res += "\r\n";
+			res += "\r\n";
+			res += responseStream.str();
+
+			
+			size_t bufflen = res.length();
+			const char *buff = res.c_str();
+			write(clientFd, buff, bufflen);
+			std::cout << "RESPONSE SENT" << std::endl;
+			
 			// //
 			// // CGIProcess
 			// // 
@@ -147,7 +185,9 @@ class HTTPResponse
 
 
 	private:
+		int	clientFd;
 		int	status_code;
+		HTTPRequest *request;
 		CGIProcess		*cgi;
 		responseState	m_State;
 		bool has_cgi;

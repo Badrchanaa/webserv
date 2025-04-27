@@ -67,7 +67,7 @@ public:
                    const std::vector<std::string> &env);
   // read(index.html);
   void cleanup_by_fd(int fd);
-  void cleanup(CGIProcess &proc, bool error);
+  void cleanup(const CGIProcess &proc, bool error);
 };
 
 #endif // !__cgi__
