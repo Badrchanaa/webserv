@@ -55,6 +55,8 @@ class HTTPParseState
 		bool			isError() const;
 		void			appendHeaderField(const char *buff, size_t start, size_t end);
 		void			appendHeaderValue(const char *buff, size_t start, size_t end);
+		void			clearHeader();
+
 		std::string		getHeaderField() const;
 		std::string		getHeaderValue() const;
 

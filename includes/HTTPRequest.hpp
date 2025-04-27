@@ -2,12 +2,20 @@
 # define __HTTPREQUEST_HPP__
 
 #include "HTTPParseState.hpp"
+#include "HTTPMultipartForm.hpp"
+#include "HTTPBody.hpp"
 #include <map>
 #include <vector>
 #include <string>
 #include <stdint.h>
 
-typedef enum
+typedef enum transferEncoding
+{
+	DEFAULT,
+	CHUNKED,
+} transferEncoding;
+
+typedef enum requestError
 {
 	ERR_NONE,
 	ERR_INVALID_HOST,
@@ -15,7 +23,7 @@ typedef enum
 	ERR_INVALID_PATH,
 	ERR_INVALID_CONTENT_LENGTH,
 
-} RequestError;
+} requestError;
 
 class HTTPRequest
 {
@@ -28,33 +36,42 @@ class HTTPRequest
 			PUT,
 			DELETE,
 		} httpMethod;
+
 	public:
 		HTTPRequest(void);
 		HTTPRequest(const HTTPRequest &other);
 		HTTPRequest& operator=(const HTTPRequest &other);
 		~HTTPRequest();
-		HTTPParseState	&getParseState();
-		void			setMethod(char *method_cstr);
-		void			appendToPath(char *buff, size_t start, size_t len);
-		bool			validPath();
-		void			addHeader(std::string &key, std::string &value);
-		std::string		getHeader(std::string &key) const;
+		HTTPParseState		&getParseState();
+		void				setMethod(const char *method_cstr);
+		void				appendToPath(const char *buff, size_t start, size_t len);
+		bool				appendBody(const char *buff, size_t len);
+		bool				validPath();
+		void				addHeader(std::string key, std::string value);
+		std::string			getHeader(std::string &key) const;
+		std::string			getHeader(const char *key) const;
+		inline bool			hasHeader(const char *key) const;
+		const HeaderMap&	getHeaders() const;
 		const std::string	&getPath() const;
-		bool			isChunked();
-	private:
-		bool			_validateHeaders();
-		bool			_preBody();
+		bool				isTransferChunked() const;
+		bool				isMultipartForm() const;
+		bool				isComplete() const;
+		void				processHeaders();
 
+	private:
+		bool				_validateHeaders();
+		bool				_preBody();
+
+		httpMethod			m_Method;
 		HTTPParseState		m_ParseState;
-		RequestError		m_Error;
+		requestError		m_Error;
 		HeaderMap			m_Headers;
-		std::vector<char>	m_Body;
+		HTTPBody			m_Body;
 		std::string			m_Host;
 		std::string			m_Path;
 		uint64_t			m_ContentLength;
-		bool				m_TransferChunked;
-		// httpMethod			m_Method;
-		// size_t				m_ContentLength;
+		transferEncoding	m_TransferEncoding;
+		HTTPMultipartForm	*m_MultipartForm;
 };
 
 #endif
