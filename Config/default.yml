@@ -13,7 +13,7 @@ server:
  #
  #    nginx versions up to 0.8.48 used the machine’s hostname as the server name in this case. 
 
- server_name: localhost www.youssef.com ""
+ server_name: localhost www.youssef.com
  body_size: 4000M 
  errors:
    "500": errors/500.html
@@ -32,7 +32,6 @@ server:
      - GET
      - DELETE
    root: www
-   index: index.html
    autoindex: off
    methods_cgi:
      - POST
@@ -40,7 +39,3 @@ server:
    cgi:
      - .py: /usr/bin/python3
      - .php: /usr/bin/php-cgi
- location:
-   uri: /app/tw
-
-www/app/script.html     request uri app/tw/script.html

@@ -23,6 +23,7 @@ const uint8_t HTTPParser::TOKEN_ALLOWED_CHARS[128] = {
 			1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, // 112-127 (p-z, |, ~)
 };
 
+const char	*getStateString(HTTPParseState::requestState state);
 inline bool	HTTPParser::_isCrlf(char current, char previous = LF)
 {
 	return ((current == CR || current == LF) && previous != current);
@@ -205,8 +206,7 @@ size_t	HTTPParser::_parseHeaderCrlf(HTTPRequest &request, char *buff, size_t sta
 	size_t	i;
 
 	i = _skipCrlf(parseState, buff, start, len);
-	if (i == len)
-		return i;
+	// std::cout << buff << std::endl;
 	size_t	readBytes = parseState.getReadBytes();
 	if (readBytes == 1 || parseState.getPrevChar() == CR)
 	{
@@ -219,17 +219,18 @@ size_t	HTTPParser::_parseHeaderCrlf(HTTPRequest &request, char *buff, size_t sta
 			parseState.setState(HTTPParseState::REQ_HEADER_FIELD);
 			break;
 		case 2:
-				request.processHeaders();
-				if (request.isComplete())
-					return i;
-				parseState.setState(HTTPParseState::REQ_BODY);
-				// parseState.setState(HTTPParseState::REQ_ERROR);
+			request.processHeaders();
+			if (request.isComplete())
+				return i;
+			parseState.setState(HTTPParseState::REQ_BODY);
+			// parseState.setState(HTTPParseState::REQ_ERROR);
 			break;
 		default:
 			std::cout << "err crlf header" << std::endl;
 			parseState.setState(HTTPParseState::REQ_ERROR);
 	}
 	parseState.setReadBytes(0);
+	// std::cout << getStateString(parseState.getState()) << std::endl;
 	return i;
 }
 
@@ -407,13 +408,19 @@ size_t	HTTPParser::_parseMultipartForm(HTTPRequest &request, char *buff, size_t 
 
 size_t	HTTPParser::_parseRawBody(HTTPRequest &request, char *buff, size_t start, size_t len)
 {
-	// HTTPParseState	&parseState = request.getParseState();
-	// size_t			count = parseState.getReadBytes();
+	HTTPParseState	&parseState = request.getParseState();
+	size_t			count = parseState.getReadBytes();
 	// size_t			remaining;
 	size_t				end;
 
 	end = len; //std::min(len, remaining);
+	count += end - start;
 	request.appendBody(buff + start, end);	
+	
+	if (count == request.getContentLength())
+		parseState.setState(HTTPParseState::REQ_DONE);
+	else
+		std::cout << "not yet" << std::endl;
 	return end;
 }
 
@@ -427,7 +434,6 @@ size_t	HTTPParser::_parseBody(HTTPRequest &request, char *buff, size_t start, si
 	return _parseRawBody(request, buff, start, len);
 }
 
-const char	*getStateString(HTTPParseState::requestState state);
 void	HTTPParser::parse(HTTPRequest &request, char *buff, size_t len)
 {
 	HTTPParseState	&parseState = request.getParseState();
