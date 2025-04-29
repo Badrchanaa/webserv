@@ -61,7 +61,6 @@ size_t	HTTPParser::_parseStart(HTTPRequest &request, char *buff, size_t start, s
 	i = _skipCrlf(parseState, buff, start, len);
 	if (i == len)
 		return i;
-
 	if (parseState.getPrevChar() == CR || parseState.getReadBytes() > MAX_CRLF_BYTES)
 		parseState.setState(HTTPParseState::REQ_ERROR);
 	else
@@ -96,6 +95,8 @@ size_t	HTTPParser::_parseMethod(HTTPRequest &request, char *buff, size_t start, 
 	}
 	method[methodSize] = '\0';
 	request.setMethod(method);
+	if (request.isError())
+		return i;
 	parseState.advance();
 	return i + 1;
 }
@@ -208,17 +209,20 @@ size_t	HTTPParser::_parseHeaderCrlf(HTTPRequest &request, char *buff, size_t sta
 	i = _skipCrlf(parseState, buff, start, len);
 	// std::cout << buff << std::endl;
 	size_t	readBytes = parseState.getReadBytes();
-	if (readBytes == 1 || parseState.getPrevChar() == CR)
+	if (readBytes < 4 && i == len)
+		return i;
+	if (parseState.getPrevChar() == CR)
 	{
 		parseState.setState(HTTPParseState::REQ_ERROR);
+		std::cout << "header crlf error, readbytes: " << readBytes << " prev: " << parseState.getPrevChar() << std::endl;
 		return i;
 	}
-	switch(readBytes >> 1)
+	switch(readBytes)
 	{
-		case 1:
+		case 2:
 			parseState.setState(HTTPParseState::REQ_HEADER_FIELD);
 			break;
-		case 2:
+		case 4:
 			request.processHeaders();
 			if (request.isComplete())
 				return i;
@@ -415,12 +419,17 @@ size_t	HTTPParser::_parseRawBody(HTTPRequest &request, char *buff, size_t start,
 
 	end = len; //std::min(len, remaining);
 	count += end - start;
-	request.appendBody(buff + start, end);	
+	request.appendBody(buff + start, end - start);	
 	
 	if (count == request.getContentLength())
+	{
 		parseState.setState(HTTPParseState::REQ_DONE);
+		std::cout << "body done" << std::endl;
+	}
 	else
-		std::cout << "not yet" << std::endl;
+	{
+		parseState.setReadBytes(count);
+	}
 	return end;
 }
 
@@ -506,6 +515,8 @@ const char	*getStateString(HTTPParseState::requestState state)
 				return "REQ_HEADER_VALUE";
 			case HTTPParseState::REQ_BODY:
 				return "REQ_BODY";
+			case HTTPParseState::REQ_DONE:
+				return "REQ_DONE";
 			case HTTPParseState::REQ_ERROR:
 				return "REQ_ERROR";
 			default:

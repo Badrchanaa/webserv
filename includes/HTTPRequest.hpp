@@ -44,8 +44,10 @@ class HTTPRequest
 		~HTTPRequest();
 		HTTPParseState		&getParseState();
 		void				setMethod(const char *method_cstr);
+		const char*			getMethodStr() const;
 		void				appendToPath(const char *buff, size_t start, size_t len);
 		bool				appendBody(const char *buff, size_t len);
+		const HTTPBody&		getBody() const;
 		bool				validPath();
 		size_t				getContentLength() const;
 		void				addHeader(std::string key, std::string value);
@@ -58,6 +60,7 @@ class HTTPRequest
 		bool				isTransferChunked() const;
 		bool				isMultipartForm() const;
 		bool				isComplete() const;
+		bool				isError() const;
 		void				processHeaders();
 		void				reset();
 

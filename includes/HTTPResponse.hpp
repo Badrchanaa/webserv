@@ -46,22 +46,48 @@ class HTTPResponse
 		} statusCode;
 	
 	public:
-		HTTPResponse(void){}
+		HTTPResponse(void){
+			m_BodyProcessed = false;
+			m_BodySent = false;
+			m_CursorPos = 0;
+			m_HeadersSent = false;
+		}
 		HTTPResponse(const HTTPResponse &other);
 		HTTPResponse& operator=(const HTTPResponse &other);
 		~HTTPResponse(){}
 
-		/// @brief initializes response from parsed request, spawns CGI process if 
+		/// @brief initializes response from parsed request
 		/// @param request 
 		/// @param cgihandler 
 		/// @param fd 
 		void	init(HTTPRequest &request, CGIHandler &cgihandler, Config &config, int fd)
 		{
-			clientFd = fd;
+			m_ClientFd = fd;
 			this->request = &request;
 			(void)cgihandler;
 			(void)config;
 		}
+
+		void	appendBody(const char *buff, size_t start, size_t end)
+		{
+			m_Body.append(buff + start, end);	
+		}
+
+		void	appendBody(const std::string str)
+		{
+			size_t		size;
+			const char	*strBuff;
+
+			size = str.length();
+			strBuff = str.c_str();
+			m_Body.append(strBuff , size);
+		}
+
+		void	appendBody(const std::vector<char>& vec)
+		{
+			m_Body.append(&vec[0], vec.size());
+		}
+
 		// response is sent, IS DONE
 		void		reset()
 		{
@@ -70,7 +96,7 @@ class HTTPResponse
 
 		bool		isDone() const
 		{
-			return true;
+			return m_BodySent;
 		}
 		// keep alive or close
 		bool		isKeepAlive() const
@@ -99,21 +125,36 @@ class HTTPResponse
 		// {
 		// 	return;
 		// }
-		
 
-		/// @brief resumes response processing. should be called on event notify.
-		/// @param event EpollManager event.
-		/// @return if should remove current event from list
-		bool resume(bool isCgiReady, bool isClientReady)
+		void	sendHeaders()
 		{
+			std::string res;
+			std::stringstream ss;
+
+			ss << m_Body.getSize();
+			std::string resLenStr;
+			ss >> resLenStr;
+			res += "HTTP/1.1 200 OK\r\n";
+			res += "Content-length:";
+			res += resLenStr;
+			res += "\r\n";
+			res += "\r\n";
+			write(m_ClientFd, res.c_str(), res.length());
+			m_HeadersSent = true;
+		}
+
+		void	processBody()
+		{
+			m_CursorPos = 0;
 			std::stringstream responseStream;
-			if (isCgiReady)
-				std::cout << "CGI READY" << std::endl;
-			if (isClientReady)
-				std::cout << "CLIENT READY" << std::endl;
 			responseStream << "<html><body>";
 			responseStream << "<style>td{padding: 10;border: 2px solid black;background: #ababed;font-size:16;font-style:italic;}</style>";
-			responseStream << "request.path: '" << request->getPath() << "'" << std::endl;
+			if (request->isError())
+				responseStream << "<h4>PARSE ERROR</h4>";
+			else
+				responseStream << "<h4>PARSE SUCCESS</h4>";
+			responseStream << "<h4>method: " << request->getMethodStr() << "<h4>";
+			responseStream << "request path: '" << request->getPath() << "'" << std::endl;
 			responseStream << "<table>";
 			responseStream << "<h1>REQUEST HEADERS</h1>";
 			HTTPRequest::HeaderMap headers = request->getHeaders();
@@ -127,70 +168,77 @@ class HTTPResponse
 			responseStream << "</table>";
 			responseStream << "</body></html>";
 			responseStream << "<h1>REQUEST BODY:</h1>";
+			appendBody(responseStream.str());
+			if (!request->isError())
+			{
+			appendBody(request->getBody().getBuffer());
+			std::cout << "BODY PROCESSING END (size:" << m_Body.getSize() << ")" << std::endl;
+			}
+			m_BodyProcessed = true;
+		}
 
-			std::string res;
-			size_t	resLen = responseStream.str().length();
+		void	sendBody()
+		{
+			const std::vector<char>	&bodyBuffer = m_Body.getBuffer();
+			const char * buff = static_cast<const char *>(&bodyBuffer[m_CursorPos]);
+			std::size_t	size = bodyBuffer.size();
+			// write(1, buff, size);
 
-			std::stringstream ss;
+			ssize_t	bytesWritten = send(m_ClientFd, buff, size - m_CursorPos, 0);
+			if (bytesWritten < 0)
+			{
+				 std::cout << "ERROR WRITE" << std::endl;
+				 m_BodySent = true;
+				 return ;
+			}
+			std::cout << "written: " << bytesWritten << " cursorPos: " << m_CursorPos << std::endl;
+			if (bytesWritten + m_CursorPos < size)
+			{
+				m_CursorPos = bytesWritten;
+				std::cout << "written: " << bytesWritten << " cursorPos: " << m_CursorPos << std::endl;
+			}
+			else
+				m_BodySent = true;
+		}
 
-			ss << resLen;
-			std::string resLenStr;
-			ss >> resLenStr;
-			res += "HTTP/1.1 200 OK\r\n";
-			res += "Content-length:";
-			res += resLenStr;
-			res += "\r\n";
-			res += "\r\n";
-			res += responseStream.str();
-
-			
-			size_t bufflen = res.length();
-			const char *buff = res.c_str();
-			write(clientFd, buff, bufflen);
-			std::cout << "RESPONSE SENT" << std::endl;
-			
-			// //
-			// // CGIProcess
-			// // 
-			// if (this.has_cgi)
-			// {
-			// 	CGIProcess *cgi = handler.spawn(script, env, client_fd);
-			// }
-			// //	
-			// manager.subscribe(fd, type, this, flags);
-			// if (request.has_file() )
-			// {
-			// 	state = READ_FILE;
-			// 	return;
-			// 	// EPOLL ???
-			// 	buffer[20];
-			// 	int filefd = open(filename);
-			// 	handler.edit_fd(fd, READ | EPOLLOUT, RSPONSE_NORMAL);
-			// 	return;
-			// 	// handler.add_read_epp(fd, READ);
-			// 	/// ///
-			// 	int bytes = read(filefd);
-			// 	read_file();
-			// 	response
-				
-			// }
-			// // EPOLL ?????
-			// 	cgi.handle_output();
-
-			// int client_socket = handler.getresponsesocket(this);
-			// int cgi_process_socket;
-			// write(this->handler);
-			return true;
+		/// @brief resumes response processing. should be called on event notify.
+		/// @param event EpollManager event.
+		/// @return if should remove current event from list
+		bool resume(bool isCgiReady, bool isClientReady)
+		{
+			if (isCgiReady)
+				std::cout << "CGI READY" << std::endl;
+			if (isClientReady)
+				std::cout << "CLIENT READY" << std::endl;
+			if (!m_BodyProcessed)
+				processBody();
+			if (isClientReady && !m_HeadersSent)
+			{
+				sendHeaders();
+				return false;
+			}
+			if (isClientReady && !m_BodySent)
+				sendBody();
+			if (m_BodySent)
+				std::cout << "RESPONSE COMPLETE" << std::endl;	
+			else
+				std::cout << "RESPONSE ONGOING" << std::endl;	
+			return m_BodySent;
 		}
 
 
 	private:
-		int	clientFd;
-		int	status_code;
-		HTTPRequest *request;
-		CGIProcess		*cgi;
+		int			m_ClientFd;
+		int			m_StatusCode;
+		size_t		m_CursorPos;
+		HTTPBody	m_Body;
+		HTTPRequest	*request;
+		CGIProcess	*cgi;
 		responseState	m_State;
-		bool has_cgi;
+		bool	m_HasCgi;
+		bool	m_HeadersSent;
+		bool	m_BodyProcessed;
+		bool	m_BodySent;
 		// int client_fd;
 
 };
