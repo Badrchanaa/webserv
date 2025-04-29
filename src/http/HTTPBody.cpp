@@ -1,15 +1,27 @@
 #include "HTTPBody.hpp"
 #include <iostream>
+#include <unistd.h>
 #include <string>
 
 HTTPBody::HTTPBody(void)
 {
-	m_VectorBuffer.reserve(1024);
+	m_IsFile = false;
+	m_Size = 0;
 }
 
 HTTPBody::HTTPBody(char *buffer, size_t len)
 {
 	this->append(buffer, len);
+}
+
+size_t	HTTPBody::getSize() const
+{
+	return m_VectorBuffer.size();
+}
+
+const std::vector<char>&	HTTPBody::getBuffer() const
+{
+	return m_VectorBuffer;
 }
 
 bool	HTTPBody::_writeToFile(const char *buffer, size_t len)

@@ -166,7 +166,8 @@ void WebServer::create_listeners() {
           int fd = temp_fd.release();
           listener_descriptors.push_back(new FileDescriptor(fd));
           listener_map[fd] = server;
-          epoll.add_fd(fd, EPOLL_READ);
+          // epoll.add_fd(fd, EPOLL_READ);
+          epoll.add_fd(fd, EPOLL_READ | EPOLL_WRITE);
           // epoll.add_fd(temp_fd.fd, EPOLL_READ);
           DEBUG_LOG("Listening on port "
                     << port << " for server: " << server.server_names[0]);
@@ -301,7 +302,8 @@ void WebServer::accept_connections(int listen_fd) {
   Connection *conn =
       new Connection(this->cgi, server_conf, this->config, new_fd);
   connections.push_back(conn);
-  epoll.add_fd(new_fd, EPOLL_READ);
+  // epoll.add_fd(new_fd, EPOLL_READ);
+  epoll.add_fd(new_fd, EPOLL_READ | EPOLL_WRITE);
 
   log_connection(client_addr);
 }
@@ -314,8 +316,10 @@ void WebServer::handle_client_response(Connection &conn) {
   if (response.isDone()) {
     if (!response.isKeepAlive()) {
       cleanup_connection(conn.client_fd);
+      std::cout << "cleanup conn" << std::endl;
     } else {
       conn.m_State = Connection::REQUEST_PARSING;
+      std::cout << "reset same conn" << std::endl;
       /// nots this///
       epoll.mod_fd(conn.client_fd, EPOLL_READ | EPOLL_WRITE);
       conn.reset();

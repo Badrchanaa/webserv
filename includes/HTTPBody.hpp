@@ -17,9 +17,11 @@ class HTTPBody
 		HTTPBody(char *buffer, size_t len);
 		~HTTPBody();
 
-		bool	append(const char *buffer, size_t len);
-		unsigned int	write(int fd);
-		void	flush();
+		bool						append(const char *buffer, size_t len);
+		// unsigned int				write(int fd);
+		const std::vector<char>&	getBuffer() const;
+		void						flush();
+		size_t						getSize() const;
 
 	private:
 		bool	_switchToFile();

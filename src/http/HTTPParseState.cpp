@@ -125,7 +125,7 @@ HTTPParseState::requestState	HTTPParseState::advance(bool resetReadBytes)
 {
 	if (resetReadBytes)
 		m_ReadBytes = 0;
-	if (m_RequestState != REQ_DONE)
+	if (m_RequestState != REQ_DONE && m_RequestState != REQ_ERROR)
 		m_RequestState = static_cast<requestState>(m_RequestState + 1);
 	return m_RequestState;
 }
