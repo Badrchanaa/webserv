@@ -64,7 +64,7 @@ bool Config::validate_error_paths(
   return true;
 }
 
-bool Config::validate_server(const ServerConfig &config) {
+bool Config::validate_server(const ConfigServer &config) {
   for (std::vector<int>::const_iterator it = config.ports.begin();
        it != config.ports.end(); it++) {
     if (!validate_port(*it)) {

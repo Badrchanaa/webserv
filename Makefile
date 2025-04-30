@@ -89,7 +89,7 @@ all: $(NAME)
 $(NAME): $(OBJ_FILES)
 	@echo "\n"
 # @echo "i am here\n"
-	@$(CC) $^ -o $@ $(CFLAGS) #-fsanitize=address
+	@$(CC) $^ -o $@ $(CFLAGS) -fsanitize=address -g3
 # @echo "i am here\n"
 	@echo "\n\n\n   ${BOLD}${CUR}${LYELLOW}WEBSERV COMPILED ✨${DEF}${NOCOL}\n"
 

@@ -53,7 +53,7 @@ class WebServer {
   volatile bool running;
 
   std::vector<FileDescriptor *> listener_descriptors;
-  std::map<int, ServerConfig> listener_map; /* Maps listener FDs to their config*/
+  std::map<int, std::vector<ConfigServer> > listener_map;/* Maps listener FDs to their config*/
 
 public:
   WebServer();
@@ -69,14 +69,14 @@ public:
   void accept_connections(int listen_fd);
 
   void setup_epoll();
-  void handle_client_request(Connection &conn);
-  void handle_client_response(Connection &conn);
+  bool handle_client_request(Connection &conn);
+  bool handle_client_response(Connection &conn);
   // void handle_client(int fd, uint32_t events);
-  void handle_client(Connection &conn);
+  bool handle_client(Connection &conn);
   void log_connection(const struct sockaddr_storage &addr);
   void log_request(const Connection &conn);
   Connection *find_connection(int fd);
-  void cleanup_connection(int fd);
+  void cleanup_connection(std::list<Connection *>::iterator &it);
   void set_nonblocking(int fd);
 
 

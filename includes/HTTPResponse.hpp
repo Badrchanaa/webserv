@@ -46,7 +46,7 @@ class HTTPResponse
 		} statusCode;
 	
 	public:
-		HTTPResponse(void){
+		HTTPResponse() {
 			m_BodyProcessed = false;
 			m_BodySent = false;
 			m_CursorPos = 0;
@@ -60,12 +60,12 @@ class HTTPResponse
 		/// @param request 
 		/// @param cgihandler 
 		/// @param fd 
-		void	init(HTTPRequest &request, CGIHandler &cgihandler, Config &config, int fd)
+		void	init(HTTPRequest &request, CGIHandler &cgihandler, ConfigServer *configServer, int fd)
 		{
 			m_ClientFd = fd;
 			this->request = &request;
 			(void)cgihandler;
-			(void)config;
+			(void)configServer;
 		}
 
 		void	appendBody(const char *buff, size_t start, size_t end)
@@ -187,7 +187,6 @@ class HTTPResponse
 			ssize_t	bytesWritten = send(m_ClientFd, buff, size - m_CursorPos, 0);
 			if (bytesWritten < 0)
 			{
-				 std::cout << "ERROR WRITE" << std::endl;
 				 m_BodySent = true;
 				 return ;
 			}
@@ -235,6 +234,7 @@ class HTTPResponse
 		HTTPRequest	*request;
 		CGIProcess	*cgi;
 		responseState	m_State;
+		ConfigServer	*m_ConfigServer;
 		bool	m_HasCgi;
 		bool	m_HeadersSent;
 		bool	m_BodyProcessed;

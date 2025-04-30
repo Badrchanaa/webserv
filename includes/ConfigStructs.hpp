@@ -32,13 +32,14 @@ struct Location {
   Location() : allowed_methods(METHOD_NONE), allowed_cgi_methods(METHOD_NONE) {}
 };
 
-struct ServerConfig {
+struct ConfigServer {
   std::string host;
   std::vector<int> ports;
   std::vector<std::string> server_names;
   std::string body_size;
   std::map<std::string, std::string> errors;
   Location location;
+  ~ConfigServer(){}
 };
 
 #endif // !DEBUG

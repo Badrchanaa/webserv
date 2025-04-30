@@ -1,12 +1,16 @@
 #ifndef __FileDescriptor__
 #define __FileDescriptor__
 
+#include <iostream>
+
 class FileDescriptor {
 public:
   int fd;
 
   explicit FileDescriptor(int fd = -1);
-  ~FileDescriptor();
+  ~FileDescriptor(){
+    this->reset();
+  }
 
   void reset(int newfd = -1);
   int release();
