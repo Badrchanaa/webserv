@@ -404,9 +404,11 @@ size_t	HTTPParser::_parseChunkData(HTTPRequest &request, char *buff, size_t star
 
 size_t	HTTPParser::_parseMultipartForm(HTTPRequest &request, char *buff, size_t start, size_t len)
 {
+	HTTPParseState	&parseState = request.getParseState();
 	(void) request;
 	(void) buff;
 	(void) start;
+	parseState.setState(HTTPParseState::REQ_DONE);
 	return len;
 }
 

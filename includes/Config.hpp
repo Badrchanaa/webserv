@@ -30,9 +30,8 @@ const MethodPair valid_methods[] = {
     {"GET", GET}, {"POST", POST}, {"DELETE", DELETE}};
 class Config {
 private:
-  std::vector<ServerConfig> servers;
-
-  ServerConfig currentServer;
+  std::vector<ConfigServer> servers;
+  ConfigServer currentServer;
   std::string context;
   bool inServer;
 
@@ -56,7 +55,7 @@ private:
   bool validate_error_paths(const std::map<std::string, std::string> &errors);
   HttpMethod get_method_bit(const std::string &method);
   bool validate_port(int port);
-  bool validate_server(const ServerConfig &config);
+  bool validate_server(const ConfigServer &config);
 
 public:
   Config() {}
@@ -68,13 +67,13 @@ public:
   }
   /// Geters
   int ServersNumber() { return this->servers.size(); }
-  ServerConfig getServer(int index) { return this->servers[index]; }
+  ConfigServer &getServer(int index) { return this->servers[index]; }
 
   // returns serverconfig based on name parameter
-  ServerConfig getServerByName(std::string name);
+  static const ConfigServer &getServerByName(std::vector<ConfigServer> &servers, std::string name);
 
   /// Seters
-  void AddServer(ServerConfig &ref) { this->servers.push_back(ref); }
+  void AddServer(ConfigServer &ref) { this->servers.push_back(ref); }
   /// Main
   void ParseConfigFile(const char *FileName);
 

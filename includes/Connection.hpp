@@ -26,7 +26,7 @@ public:
   connectionState m_State;
 
   /// Added by regex33
-  Config &config;
+  // Config &config;
   CGIHandler &Cgihandler;
   FileDescriptor client_fd;
   HTTPRequest m_Request;
@@ -37,9 +37,13 @@ public:
   uint32_t events;
 
   /* Reference to specific server config */
-  ServerConfig &server_config; 
+  // ConfigServer &config_server; 
                                
-  Connection(CGIHandler &cgihandler, ServerConfig &server, Config &conf, int f);
+  // Connection(CGIHandler &cgihandler, std::vector<ConfigServer> &server, Config &conf, int f);
+  Connection(CGIHandler &cgihandler, std::vector<ConfigServer> &server, int f);
+  ~Connection()
+  {
+  } 
   // Connection(CGIHandler &cgihandler, Config &conf, ServerConfig &server ,int f);
   // int getCgiSocket() const;
   // Connection(CGIHandler &cgihandler, Config &conf, int f,

@@ -36,76 +36,6 @@ the queue, accept() fails with the error EAGAIN or EWOULDBLOCK.
 
 */
 
-/*
-void WebServer::create_listener() {
-  DEBUG_LOG("Initializing network stack...");
-
-
-  struct addrinfo hints, *res;
-  memset(&hints, 0, sizeof hints);
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
-
-  DEBUG_LOG("Resolving addresses...");
-  int status = getaddrinfo(NULL, PORT, &hints, &res);
-  if (status != 0)
-    throw std::runtime_error(gai_strerror(status));
-
-  for (struct addrinfo *p = res; p != NULL; p = p->ai_next) {
-    char ipstr[INET6_ADDRSTRLEN];
-    void *addr;
-    int port;
-    const char *ipver;
-
-    if (p->ai_family == AF_INET) {
-      struct sockaddr_in *ipv4 = (struct sockaddr_in *)p->ai_addr;
-      addr = &(ipv4->sin_addr);
-      port = ntohs(ipv4->sin_port);
-      ipver = "IPv4";
-    } else {
-      struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)p->ai_addr;
-      addr = &(ipv6->sin6_addr);
-      port = ntohs(ipv6->sin6_port);
-      ipver = "IPv6";
-    }
-
-    inet_ntop(p->ai_family, addr, ipstr, sizeof ipstr);
-    DEBUG_LOG("Attempting to bind to " << ipver << " " << ipstr << ":" << port);
-
-    FileDescriptor temp_fd(
-        socket(p->ai_family, p->ai_socktype | SOCK_NONBLOCK, p->ai_protocol));
-    if (temp_fd.fd == -1) {
-      DEBUG_LOG("Socket creation failed: " << strerror(errno));
-      continue;
-    }
-
-    int yes = 1;
-    if (setsockopt(temp_fd.fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) ==
-        -1) {
-      DEBUG_LOG("setsockopt failed: " << strerror(errno));
-      continue;
-    }
-
-    if (bind(temp_fd.fd, p->ai_addr, p->ai_addrlen) == 0) {
-      DEBUG_LOG("Successfully bound to " << ipver << " interface");
-      listen_fd.reset(temp_fd.release());
-      break;
-    } else {
-      DEBUG_LOG("Bind failed: " << strerror(errno));
-    }
-  }
-
-  freeaddrinfo(res);
-  if (listen_fd.fd == -1)
-    throw std::runtime_error("All bind attempts failed");
-
-  if (listen(listen_fd.fd, BACKLOG) == -1)
-    throw std::runtime_error("listen failed");
-
-  DEBUG_LOG("Listening on port " << PORT << " with backlog " << BACKLOG);
-}
-*/
 
 void WebServer::create_listeners() {
   DEBUG_LOG("Initializing network stack for all servers...");
@@ -117,7 +47,7 @@ void WebServer::create_listeners() {
   }
 
   for (int i = 0; i < server_count; ++i) {
-    ServerConfig server = config.getServer(i);
+    ConfigServer &server = config.getServer(i);
 
     for (size_t p = 0; p < server.ports.size(); ++p) {
       int port = server.ports[p];
@@ -155,7 +85,6 @@ void WebServer::create_listeners() {
           continue;
         }
 
-        // Bind and listen
         if (bind(temp_fd.fd, p->ai_addr, p->ai_addrlen) == 0) {
           if (listen(temp_fd.fd, BACKLOG) == -1) {
             DEBUG_LOG("listen failed: " << strerror(errno));
@@ -165,7 +94,7 @@ void WebServer::create_listeners() {
           /* Store listener FD and config */
           int fd = temp_fd.release();
           listener_descriptors.push_back(new FileDescriptor(fd));
-          listener_map[fd] = server;
+          listener_map[fd].push_back(server);
           // epoll.add_fd(fd, EPOLL_READ);
           epoll.add_fd(fd, EPOLL_READ | EPOLL_WRITE);
           // epoll.add_fd(temp_fd.fd, EPOLL_READ);
@@ -202,9 +131,10 @@ WebServer::~WebServer() {
        it != listener_descriptors.end(); ++it) {
     delete *it;
   }
-  for (std::list<Connection *>::iterator it = connections.begin();
-       it != connections.end(); ++it) {
-    delete *it;
+  for (std::list<Connection *>::iterator it = connections.begin(); it != connections.end(); ++it)
+  {
+      delete *it;
+      this->connections.erase(it);
   }
 }
 
@@ -276,13 +206,21 @@ void WebServer::run() {
         // this->handle_client(events[i].data.fd, events[i].events);
       }
     }
-    std::list<Connection *> temp_connections(connections);
-    for (std::list<Connection *>::iterator it = temp_connections.begin();
-         it != temp_connections.end(); ++it) {
+
+    for (std::list<Connection *>::iterator it = this->connections.begin();
+         it != connections.end();) {
       if ((*it)->hasEvent) {
-        this->handle_client(*(*it));
-        (*it)->resetEvents();
+        bool connectionDeleted = this->handle_client(*(*it));
+        if (!connectionDeleted)
+        {
+          (*it)->resetEvents();
+          it++;
+        }
+        else
+          cleanup_connection(it);
       }
+      else
+        it++;
     }
   }
 }
@@ -290,7 +228,9 @@ void WebServer::run() {
 void WebServer::accept_connections(int listen_fd) {
   struct sockaddr_storage client_addr;
   socklen_t addr_size = sizeof(client_addr);
-  ServerConfig &server_conf = listener_map[listen_fd];
+  std::vector<ConfigServer> &server_conf = this->listener_map[listen_fd];
+
+  // map<fd, vector<server>>
 
   int new_fd = accept(listen_fd, (struct sockaddr *)&client_addr, &addr_size);
   if (new_fd == -1) {
@@ -300,26 +240,28 @@ void WebServer::accept_connections(int listen_fd) {
   }
 
   Connection *conn =
-      new Connection(this->cgi, server_conf, this->config, new_fd);
+      new Connection(this->cgi, server_conf, new_fd);
   connections.push_back(conn);
-  // epoll.add_fd(new_fd, EPOLL_READ);
-  epoll.add_fd(new_fd, EPOLL_READ | EPOLL_WRITE);
+  epoll.add_fd(new_fd, EPOLL_READ);
+  // epoll.add_fd(new_fd, EPOLL_READ | EPOLL_WRITE);
 
   log_connection(client_addr);
 }
 
-void WebServer::handle_client_response(Connection &conn) {
+bool WebServer::handle_client_response(Connection &conn) {
   HTTPResponse &response = conn.m_Response;
 
+  bool isDeleted;
+
+  isDeleted = false;
   response.resume(conn.cgiEvent, conn.socketEvent);
 
   if (response.isDone()) {
     if (!response.isKeepAlive()) {
-      cleanup_connection(conn.client_fd);
-      std::cout << "cleanup conn" << std::endl;
+      // cleanup_connection(conn.client_fd);
+      isDeleted = true;
     } else {
       conn.m_State = Connection::REQUEST_PARSING;
-      std::cout << "reset same conn" << std::endl;
       /// nots this///
       epoll.mod_fd(conn.client_fd, EPOLL_READ | EPOLL_WRITE);
       conn.reset();
@@ -349,12 +291,15 @@ void WebServer::handle_client_response(Connection &conn) {
       epoll.mod_fd(conn.client_fd, EPOLL_READ | EPOLL_WRITE);
     }
   }
+  return isDeleted;
 }
 
-void WebServer::handle_client_request(Connection &connection) {
+bool WebServer::handle_client_request(Connection &connection) {
   char buffer[BUFFER_SIZE];
   ssize_t bytes_received;
+  bool isDeleted;
 
+  isDeleted = false;
   bytes_received = recv(connection.client_fd, buffer, sizeof(buffer), 0);
   if (bytes_received == 0) {
     // Should send response ??
@@ -362,12 +307,13 @@ void WebServer::handle_client_request(Connection &connection) {
     handle_client_response(connection);
     DEBUG_LOG("Connection closed by client (fd: " << connection.client_fd
                                                   << ")");
-    cleanup_connection(connection.client_fd);
+    // cleanup_connection(connection.client_fd);
+    return true;
     // log_request(*conn);
   } else if (bytes_received == -1) {
     DEBUG_LOG("Receive error on fd " << connection.client_fd);
-    cleanup_connection(connection.client_fd);
-    return;
+    // cleanup_connection(connection.client_fd);
+    return true;
   }
   DEBUG_LOG("Received " << bytes_received
                         << " bytes from fd: " << connection.client_fd);
@@ -377,23 +323,28 @@ void WebServer::handle_client_request(Connection &connection) {
   if (request.isComplete()) {
     connection.m_State = Connection::RESPONSE_PROCESSING;
     connection.init_response();
-    this->handle_client_response(connection);
+    isDeleted = this->handle_client_response(connection);
   }
+  return isDeleted;
 }
 
-void WebServer::handle_client(Connection &conn) {
+bool  WebServer::handle_client(Connection &conn) {
 
+  bool isDeleted;
+
+  isDeleted = false;
   if (conn.events & EPOLL_ERRORS) {
     int fd = this->getCgiFdBasedOnClientFd(conn.client_fd);
     if (conn.cgiEvent && cgi.is_cgi_socket(fd)) {
       cgi.cleanup_by_fd(fd);
     } else if (conn.socketEvent) {
-      cleanup_connection(conn.client_fd);
+      // cleanup_connection(conn.client_fd);
       fd = conn.client_fd;
+      isDeleted = true;
     }
     DEBUG_LOG("Connection closed by client (fd: "
               << fd << ")" << this->epoll.format_events(conn.events));
-    return; // hadle errors don't forget
+    return isDeleted; // hadle errors don't forget
   }
 
   if (conn.m_State == Connection::REQUEST_PARSING &&
@@ -401,8 +352,10 @@ void WebServer::handle_client(Connection &conn) {
     this->handle_client_request(conn);
   } else if (conn.m_State == Connection::RESPONSE_PROCESSING &&
              (conn.events & EPOLL_WRITE)) {
-    this->handle_client_response(conn);
+    isDeleted = this->handle_client_response(conn);
   }
+
+  return isDeleted;
 }
 
 void WebServer::log_connection(const struct sockaddr_storage &addr) {
@@ -431,28 +384,26 @@ Connection *WebServer::find_connection(int fd) {
   return NULL;
 }
 
-void WebServer::cleanup_connection(int fd) {
-  DEBUG_LOG("[Cleanup] Starting cleanup for fd: " << fd);
+void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
+    DEBUG_LOG("[Cleanup] Starting cleanup for ");
 
-  for (std::list<Connection *>::iterator it = connections.begin();
-       it != connections.end(); ++it) {
-    if ((*it)->client_fd == fd) {
-      DEBUG_LOG("[Cleanup] Removing fd " << fd << " from epoll");
-      try {
-        epoll.remove_fd(fd); // Remove from epoll FIRST
-      } catch (const std::exception &e) {
-        DEBUG_LOG("[Cleanup] Error removing fd " << fd << ": " << e.what());
-      }
-
-      DEBUG_LOG("[Cleanup] Deleting connection object for fd: " << fd);
-      delete *it; // This closes the fd via FileDescriptor destructor
-      connections.erase(it);
-
-      DEBUG_LOG("[Cleanup] Completed for fd: " << fd);
-      return;
+    Connection *connection = *it;
+    // DEBUG_LOG("[Cleanup] Removing fd " << fd << " from epoll");
+    try {
+      epoll.remove_fd(connection->client_fd); // Remove from epoll FIRST
+    } catch (const std::exception &e) {
+      // DEBUG_LOG("[Cleanup] Error removing fd " << fd << ": " << e.what());
     }
-  }
-  DEBUG_LOG("[Cleanup] FD " << fd << " not found in connections");
+
+    // DEBUG_LOG("[Cleanup] Deleting connection object for fd: " << fd);
+    delete connection; // Connection
+
+    it = connections.erase(it);
+    std::cout << "NUMBER OF CONNECTIONS: " << connections.size() << std::endl;
+
+    // DEBUG_LOG("[Cleanup] Completed for fd: " << fd);
+    return;
+  // DEBUG_LOG("[Cleanup] FD " << fd << " not found in connections");
 }
 
 int main() {

@@ -54,7 +54,7 @@ public:
   ///
   int epoll_fd;
   // CGIHandler(int efd);
-  CGIHandler(int ep_fd = -1) : epoll_fd(ep_fd) {}
+  CGIHandler(int ep_fd = -1) : epoll_fd(ep_fd) { }
   // explicit  CGIHandler(int ep_fd = 0) : epoll_fd(ep_fd) {}
   // bool is_cgi_socket(int fd) const;
   int is_cgi_socket(int fd) const;

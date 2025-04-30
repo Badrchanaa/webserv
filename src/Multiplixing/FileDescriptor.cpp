@@ -9,11 +9,10 @@ int FileDescriptor::release() {
 }
 
 FileDescriptor::FileDescriptor(int f) : fd(f) {
-
 }
-FileDescriptor::~FileDescriptor() {
-  this->reset();
-}
+// FileDescriptor::~FileDescriptor() {
+//   this->reset();
+// }
 
 void FileDescriptor::reset(int newfd) {
   if (fd != -1)

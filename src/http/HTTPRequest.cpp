@@ -8,9 +8,16 @@ HTTPParseState &HTTPRequest::getParseState()
 	return m_ParseState;
 }
 
-HTTPRequest::HTTPRequest(void): m_Error(ERR_NONE), m_ContentLength(0), m_TransferEncoding(DEFAULT), m_MultipartForm(NULL)
+// HTTPRequest::HTTPRequest(std::vector<ConfigServer> &servers): m_Error(ERR_NONE), m_ContentLength(0), m_TransferEncoding(DEFAULT), m_MultipartForm(NULL), m_ConfigServers(servers)
+HTTPRequest::HTTPRequest(std::vector<ConfigServer> &servers): m_Error(ERR_NONE), m_ContentLength(0), m_TransferEncoding(DEFAULT), m_MultipartForm(NULL), m_ConfigServers(servers)
 {
+	// std::cout << "sir tn3s" << std::endl;
 	m_ParseState.setPrevChar('\n');
+}
+
+ConfigServer*	HTTPRequest::getServer() const
+{
+	return m_ConfigServer;
 }
 
 bool	HTTPRequest::isTransferChunked() const
@@ -78,8 +85,27 @@ size_t		HTTPRequest::getContentLength() const
 	Process and validate request headers (Host, Content-length, etc..)
 	returns if headers are valid.
 */
+
+bool	HTTPRequest::_checkTransferChunked()
+{
+	HeaderMap::const_iterator	it;
+	size_t						pos;
+
+	it = m_Headers.find("transfer-encoding");
+	if (it == m_Headers.end())
+		return false;
+	std::string transferEncoding = it->second;
+	pos = transferEncoding.find_first_not_of(" ");
+	pos = transferEncoding.find_last_not_of(" ");
+
+	if (pos == std::string::npos)
+		return transferEncoding == "chunked";
+	return true;
+}
+
 bool	HTTPRequest::_validateHeaders()
 {
+	bool						isChunked;
 	HeaderMap::const_iterator	it;
 	std::istringstream			iss;
 
@@ -89,10 +115,12 @@ bool	HTTPRequest::_validateHeaders()
 		m_Error = ERR_INVALID_HOST;
 		return false;
 	}
+	isChunked = _checkTransferChunked();
 	m_Host = it->second;
 	it = m_Headers.find("content-length");
-	if (it == m_Headers.end() && !hasHeader("transfer-encoding"))
+	if (m_Method != GET && it == m_Headers.end() && !isChunked)
 	{
+		std::cout << "CONTENT LENGTH NOT FOUND" << std::endl;
 		m_Error = ERR_INVALID_CONTENT_LENGTH;
 		return false;
 	}
@@ -101,6 +129,7 @@ bool	HTTPRequest::_validateHeaders()
 	iss.str(it->second);
 	if (!(iss >> m_ContentLength) || !iss.eof())
 	{
+		std::cout << "STREAM FAILURE: CONTENT LENGTH" << std::endl;
 		m_Error = ERR_INVALID_CONTENT_LENGTH;
 		return false;
 	}
@@ -196,10 +225,10 @@ void	HTTPRequest::appendToPath(const char *buff, size_t start, size_t len)
 	m_Path.append(buff, start, len - start);
 }
 
-HTTPRequest::HTTPRequest(const HTTPRequest &other)
-{
-	(void)other;
-}
+// HTTPRequest::HTTPRequest(const HTTPRequest &other)
+// {
+// 	(void)other;
+// }
 
 const std::string		&HTTPRequest::getPath() const
 {

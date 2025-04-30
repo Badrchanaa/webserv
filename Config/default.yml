@@ -13,7 +13,7 @@ server:
  #
  #    nginx versions up to 0.8.48 used the machine’s hostname as the server name in this case. 
 
- server_name: localhost www.youssef.com
+ server_name: ewofweo.com
  body_size: 4000M 
  errors:
    "500": errors/500.html

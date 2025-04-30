@@ -1,8 +1,9 @@
 #include "Config.hpp"
 
-ServerConfig Config::getServerByName(std::string name) {
+const ConfigServer &Config::getServerByName(std::vector<ConfigServer> &servers, std::string name)
+{
   for (size_t i = 0; i < servers.size(); ++i) {
-    const ServerConfig& server = servers[i];
+    const ConfigServer& server = servers[i];
     for (size_t j = 0; j < server.server_names.size(); ++j) {
       if (server.server_names[j] == name) {
         return server;
@@ -24,7 +25,7 @@ ServerConfig Config::getServerByName(std::string name) {
 void Config::ResetParsingState() {
   inServer = false;
   context.clear();
-  currentServer = ServerConfig();
+  currentServer = ConfigServer();
 }
 
 void Config::EnterServerContext() {
@@ -33,7 +34,7 @@ void Config::EnterServerContext() {
   }
   inServer = true;
   context = "server";
-  currentServer = ServerConfig();
+  currentServer = ConfigServer();
 }
 
 void Config::ProcessPortValue(const std::string &value) {

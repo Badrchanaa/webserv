@@ -8,6 +8,8 @@
 #include <vector>
 #include <string>
 #include <stdint.h>
+#include <list>
+#include "Config.hpp"
 
 typedef enum transferEncoding
 {
@@ -38,8 +40,8 @@ class HTTPRequest
 		} httpMethod;
 
 	public:
-		HTTPRequest(void);
-		HTTPRequest(const HTTPRequest &other);
+		HTTPRequest(std::vector<ConfigServer> &servers);
+		// HTTPRequest(const HTTPRequest &other);
 		HTTPRequest& operator=(const HTTPRequest &other);
 		~HTTPRequest();
 		HTTPParseState		&getParseState();
@@ -62,10 +64,12 @@ class HTTPRequest
 		bool				isComplete() const;
 		bool				isError() const;
 		void				processHeaders();
+		ConfigServer		*getServer() const;
 		void				reset();
 
 	private:
 		bool				_validateHeaders();
+		bool				_checkTransferChunked();
 		bool				_preBody();
 
 		httpMethod			m_Method;
@@ -78,6 +82,11 @@ class HTTPRequest
 		size_t				m_ContentLength;
 		transferEncoding	m_TransferEncoding;
 		HTTPMultipartForm	*m_MultipartForm;
+		/*
+			TODO: remove ConfigServers from constructor, get them from config after header parsing
+		*/
+		std::vector<ConfigServer>		&m_ConfigServers;
+		ConfigServer		*m_ConfigServer;
 };
 
 #endif
