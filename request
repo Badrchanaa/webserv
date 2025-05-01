@@ -1,6 +1,0 @@
-GET /path/to/resource HTTP/1.1
-host:test
-content-length:10
-transfer-encoding:           something ; this
-
-body of some type
