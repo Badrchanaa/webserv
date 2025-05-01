@@ -68,9 +68,20 @@ HTTPParseState::chunkState	HTTPParseState::getChunkState() const
 	return m_ChunkState;
 }
 
-unsigned int	HTTPParseState::getchunkPos() const
+unsigned int	HTTPParseState::getChunkPos() const
 {
 	return m_chunkPos;
+}
+
+void	HTTPParseState::incrementChunkPos(unsigned int n)
+{
+	m_chunkPos += n;
+}
+
+void	HTTPParseState::resetChunk()
+{
+	m_chunkPos = 0;
+	m_ChunkSize = 0;
 }
 
 void			HTTPParseState::setPrevChar(const char c)
@@ -85,7 +96,7 @@ char			*HTTPParseState::getMethod()
 
 void	HTTPParseState::setChunkState(HTTPParseState::chunkState newState)
 {
-	m_ChunkSize = newState;
+	m_ChunkState = newState;
 }
 
 bool	HTTPParseState::isChunkComplete() const
@@ -110,10 +121,13 @@ void	HTTPParseState::setError()
 
 bool	HTTPParseState::validateChunkSize()
 {
-	std::stringstream ss(m_ChunkSizeStr);
+	std::cout << "chunk size string: " << m_ChunkSizeStr << std::endl;
+	std::stringstream ss;
 
+	ss << m_ChunkSizeStr;
 	ss << std::hex;
-	return ss >> m_ChunkSize && ss.eof();
+	m_ChunkSizeStr.clear();
+	return (ss >> m_ChunkSize) && ss.eof();
 }
 
 unsigned int	HTTPParseState::getReadBytes() const
@@ -130,7 +144,7 @@ HTTPParseState::requestState	HTTPParseState::advance(bool resetReadBytes)
 	return m_RequestState;
 }
 
-HTTPParseState::HTTPParseState(void): m_RequestState(REQ_LINE_START), m_ReadBytes(0)
+HTTPParseState::HTTPParseState(void): m_RequestState(REQ_LINE_START), m_ReadBytes(0), m_ChunkSizeStr(), m_chunkPos(0), m_ChunkState(CHUNK_SIZE)
 {
 }
 

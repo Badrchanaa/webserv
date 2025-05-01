@@ -20,6 +20,7 @@ typedef enum transferEncoding
 typedef enum requestError
 {
 	ERR_NONE,
+	ERR_UNIMPLEMENTED_TE,
 	ERR_INVALID_HOST,
 	ERR_INVALID_METHOD,
 	ERR_INVALID_PATH,

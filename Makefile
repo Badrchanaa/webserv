@@ -51,7 +51,6 @@ SRCS_PRCT = ${shell expr 100 \* ${SRCS_COUNT} / ${SRCS_TOT}}
 #determine the length of the progress bar.
 BAR =  ${shell expr 23 \* ${SRCS_COUNT} / ${SRCS_TOT}}
 
-
 ifdef DEBUG
 	CFLAGS += -fsanitize=address -g3
 endif
@@ -66,6 +65,7 @@ HTTP_SOURCES = $(filter-out $(HTTP_TEST_SOURCES), $(wildcard $(SRC_PATH)/http/*.
 CGI_SOURCES = $(wildcard $(SRC_PATH)/Cgi/*.cpp)
 SERVER_SOURCES = $(wildcard $(SRC_PATH)/Multiplixing/*.cpp)
 CONFIG_SOURCES = $(wildcard $(SRC_PATH)/Parsing/*.cpp)
+HEADER_FILES = $(wildcard includes/*.hpp)
 
 # ALL_SOURCES = $(CONFIG_PARSING_SOURCES)
 vpath %.cpp $(SRC_PATH)/Parsing 
@@ -86,14 +86,17 @@ SERVER_OBJ = $(addprefix $(OBJ_PATH)/, $(SERVER_SOURCES:$(SRC_PATH)/Multiplixing
 OBJ_FILES = $(HTTP_OBJ_FILES) $(SERVER_OBJ) $(CONFIG_OBJ) $(CGI_OBJ)
 
 all: $(NAME)
-$(NAME): $(OBJ_FILES)
-	@echo "\n"
+$(NAME): $(OBJ_FILES) $(HEADER_FILES)
+	@${eval SRCS_COUNT = ${shell expr ${SRCS_COUNT} + 1}}
 # @echo "i am here\n"
-	@$(CC) $^ -o $@ $(CFLAGS) -fsanitize=address -g3
+	@$(CC) $(OBJ_FILES) -o $@ $(CFLAGS) #-fsanitize=address -g3
+	@echo ""
+	@echo " ${BOLD}${CUR}${BEIGE}-> Compiling ${DEF}${BOLD}${LYELLOW}[WEBSERV]${DEF}"
+	@printf " ${BEIGE}   [${LGREEN}%-23.${BAR}s${BEIGE}] [%d/%d (%d%%)]${DEF}" "***********************" ${SRCS_COUNT} ${SRCS_TOT} ${SRCS_PRCT}
 # @echo "i am here\n"
 	@echo "\n\n\n   ${BOLD}${CUR}${LYELLOW}WEBSERV COMPILED ✨${DEF}${NOCOL}\n"
 
-http_test: $(HTTP_OBJ_FILES)
+http_test: $(HTTP_OBJ_FILES) $(HEADER_FILES)
 	$(CC) $^ $(CFLAGS) -o $@ -g3 -fsanitize=address
 
 

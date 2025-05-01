@@ -392,7 +392,7 @@ void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
     try {
       epoll.remove_fd(connection->client_fd); // Remove from epoll FIRST
     } catch (const std::exception &e) {
-      // DEBUG_LOG("[Cleanup] Error removing fd " << fd << ": " << e.what());
+      DEBUG_LOG("[Cleanup] Error removing fd " << connection->client_fd << ": " << e.what());
     }
 
     // DEBUG_LOG("[Cleanup] Deleting connection object for fd: " << fd);

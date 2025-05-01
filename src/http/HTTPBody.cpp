@@ -65,7 +65,7 @@ bool	HTTPBody::append(const char *buffer, size_t len)
 		return _writeToFile(buffer, len);
 	}
 	_writeToBuffer(buffer, len);
-		return true;
+	return true;
 }
 
 HTTPBody::~HTTPBody(void)

@@ -8,10 +8,10 @@ HTTPParseState &HTTPRequest::getParseState()
 	return m_ParseState;
 }
 
-// HTTPRequest::HTTPRequest(std::vector<ConfigServer> &servers): m_Error(ERR_NONE), m_ContentLength(0), m_TransferEncoding(DEFAULT), m_MultipartForm(NULL), m_ConfigServers(servers)
-HTTPRequest::HTTPRequest(std::vector<ConfigServer> &servers): m_Error(ERR_NONE), m_ContentLength(0), m_TransferEncoding(DEFAULT), m_MultipartForm(NULL), m_ConfigServers(servers)
+HTTPRequest::HTTPRequest(std::vector<ConfigServer> &servers): 
+	m_Error(ERR_NONE), m_ContentLength(0), m_TransferEncoding(DEFAULT),
+	m_MultipartForm(NULL), m_ConfigServers(servers)
 {
-	// std::cout << "sir tn3s" << std::endl;
 	m_ParseState.setPrevChar('\n');
 }
 
@@ -89,17 +89,40 @@ size_t		HTTPRequest::getContentLength() const
 bool	HTTPRequest::_checkTransferChunked()
 {
 	HeaderMap::const_iterator	it;
-	size_t						pos;
+	size_t						start;
+	size_t						end;
+	const std::string			chunkedStr = "chunked";
 
 	it = m_Headers.find("transfer-encoding");
 	if (it == m_Headers.end())
 		return false;
 	std::string transferEncoding = it->second;
-	pos = transferEncoding.find_first_not_of(" ");
-	pos = transferEncoding.find_last_not_of(" ");
-
-	if (pos == std::string::npos)
-		return transferEncoding == "chunked";
+	start = transferEncoding.find_first_not_of(" ");
+	if (start == std::string::npos)
+	{
+		m_Error = ERR_UNIMPLEMENTED_TE;
+		m_ParseState.setError();
+		return false;
+	}
+	end = transferEncoding.find_last_not_of(" ");
+	transferEncoding = transferEncoding.substr(start, end + 1);
+	if (chunkedStr.size() != transferEncoding.size())
+	{
+		std::cout << "here" <<std::endl;
+		m_Error = ERR_UNIMPLEMENTED_TE;
+		m_ParseState.setError();
+		return false;
+	}
+	for (size_t i = 0; i < chunkedStr.length(); i++)
+	{
+		if (std::tolower(chunkedStr[i]) != std::tolower(transferEncoding[i]))
+		{
+			m_Error = ERR_UNIMPLEMENTED_TE;
+			m_ParseState.setError();
+			return false;
+		}
+	}
+	m_TransferEncoding = CHUNKED;
 	return true;
 }
 
@@ -116,8 +139,15 @@ bool	HTTPRequest::_validateHeaders()
 		return false;
 	}
 	isChunked = _checkTransferChunked();
+	if (isChunked)
+		std::cout << "TRANSFER IS CHUNKED" << std::endl;
 	m_Host = it->second;
 	it = m_Headers.find("content-length");
+	if (it != m_Headers.end() && isChunked) // has both content-length and chunked, should reject
+	{
+		m_Error = ERR_INVALID_CONTENT_LENGTH;
+		return false;
+	}
 	if (m_Method != GET && it == m_Headers.end() && !isChunked)
 	{
 		std::cout << "CONTENT LENGTH NOT FOUND" << std::endl;
@@ -129,7 +159,6 @@ bool	HTTPRequest::_validateHeaders()
 	iss.str(it->second);
 	if (!(iss >> m_ContentLength) || !iss.eof())
 	{
-		std::cout << "STREAM FAILURE: CONTENT LENGTH" << std::endl;
 		m_Error = ERR_INVALID_CONTENT_LENGTH;
 		return false;
 	}
