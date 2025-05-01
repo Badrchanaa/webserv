@@ -36,7 +36,7 @@
 #define CLIENT_LOG(msg) std::cerr << "[Client] " << msg << std::end
 
 #define MAX_EVENTS 1024
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 350
 #define BACKLOG 128
 #define PORT "1337"
 

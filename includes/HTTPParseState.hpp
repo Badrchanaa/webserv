@@ -65,8 +65,9 @@ class HTTPParseState
 		bool			isChunkComplete() const;
 		char*			getMethod();
 		size_t			getChunkSize() const;
-		unsigned int	getchunkPos() const;
-		void			setchunkPos(unsigned int n);
+		unsigned int	getChunkPos() const;
+		void			incrementChunkPos(unsigned int n);
+		void			resetChunk();
 		~HTTPParseState();
 	private:
 		std::string			m_HeaderField;
@@ -76,10 +77,10 @@ class HTTPParseState
 		char				m_Method[10];
 		unsigned int		m_ReadBytes;
 		char				m_PrevChar;
-		chunkState			m_ChunkState;
 		std::string			m_ChunkSizeStr;
 		unsigned int		m_chunkPos;
 		size_t				m_ChunkSize;
+		chunkState			m_ChunkState;
 
 };
 

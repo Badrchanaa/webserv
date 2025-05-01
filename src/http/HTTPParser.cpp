@@ -314,8 +314,10 @@ size_t	HTTPParser::_parseChunk(HTTPRequest &request, char *buff, size_t start, s
 	char			c;
 
 	state = parseState.getChunkState();
+	// std::cout << "enter state: " << state << std::endl;
 	for (i = start; i < len; i++)
 	{
+		std::cout << "loop i " << i << " char : " << buff[i] << std::endl;
 		if (count + (i - start) > HTTPParser::MAX_BODY_SIZE)
 			return (parseState.setError(), i);
 		c = buff[i];
@@ -339,7 +341,8 @@ size_t	HTTPParser::_parseChunk(HTTPRequest &request, char *buff, size_t start, s
 			case HTTPParseState::CHUNK_CRLF:
 				if (c == LF)
 				{
-					if (parseState.validateChunkSize())
+					std::cout << "IN CHUNK CRLF i: " << i << std::endl;
+					if ( not parseState.validateChunkSize())
 						return (parseState.setError(), i);
 					state = HTTPParseState::CHUNK_DATA;
 					// parseState.setchunkPos(0);
@@ -348,21 +351,44 @@ size_t	HTTPParser::_parseChunk(HTTPRequest &request, char *buff, size_t start, s
 					return (parseState.setError(), i);
 				break;
 			case HTTPParseState::CHUNK_DATA:
-				i = _parseChunkData(request, buff, start, len);
-				if (parseState.getChunkSize() == parseState.getchunkPos() && buff[i] != CR)
-					return (parseState.setError(), i);
+				std::cout << "PARSE CHUNK DATA SIZE: " << parseState.getChunkSize() << std::endl;
+				i = _parseChunkData(request, buff, i, len);
+				if (i == len)
+					break;
+				std::cout << "AFTER CHUNK DATA i: " << i << std::endl;
+				
+				if (parseState.getChunkSize() == 0)
+					state = HTTPParseState::CHUNK_END;
+				else if (parseState.getChunkSize() ==parseState.getChunkPos())
+				{
+					std::cout << "CHUNK COMPLETE" << std::endl;
+					if (buff[i] != CR)
+						return (parseState.setError(), i);
+					state = HTTPParseState::CHUNK_DATA_CRLF;
+				}
 				// else ??
 				break;
 			case HTTPParseState::CHUNK_DATA_CRLF:
+				std::cout  <<  "CHUNK DATA CRLF" << std::endl;
 				if (c == LF)
 					state = HTTPParseState::CHUNK_SIZE;
 				else
 					return (parseState.setError(), i);
+				parseState.resetChunk();
 				break;
-			default:
+			case HTTPParseState::CHUNK_END:
+				std::cout << "REQUEST DONEE CHUNK" << std::endl;
+				if (c != LF)
+					return (parseState.setError(), i);
+				parseState.setState(HTTPParseState::REQ_DONE);
+				std::cout << "REQUEST DONEE CHUNK" << std::endl;
 				return i;
+			default:
+				std::cout << "Unexpected Chunk State" << std::endl;
+				return (parseState.setError(), i);
 		}
 	}
+	// std::cout << "leave state: " << state << std::endl;
 	parseState.setChunkState(state);
 	parseState.setReadBytes(count + i - start);
 	return i;
@@ -371,15 +397,17 @@ size_t	HTTPParser::_parseChunk(HTTPRequest &request, char *buff, size_t start, s
 size_t	HTTPParser::_parseChunkData(HTTPRequest &request, char *buff, size_t start, size_t len)
 {
 	HTTPParseState	&parseState = request.getParseState();
-	// size_t			count = parseState.getReadBytes();
 	size_t			chunkSize;
 	size_t			chunkPos;
 	size_t			remainingBytes;
+	size_t			bytesToRead;
 
-	chunkPos = parseState.getchunkPos();
+	chunkPos = parseState.getChunkPos();
 	chunkSize = parseState.getChunkSize();
 	remainingBytes = chunkSize - chunkPos;
 
+	if (remainingBytes == 0)
+		return start;
 	#ifdef DEBUG
 	assert(remainingBytes >= 0);
 	#endif
@@ -387,19 +415,24 @@ size_t	HTTPParser::_parseChunkData(HTTPRequest &request, char *buff, size_t star
 	if (chunkSize == 0) // end chunk
 	{
 		if (buff[start] != CR)
-			parseState.setError();
-		return start + 1;
+		{
+			std::cout << "is not cr" <<std::endl;
+			return (parseState.setError(), start);
+		}
+		return start;
 	}
 	// if (count + remainingBytes > HTTPParser::MAX_BODY_SIZE)
 	// 	return (parseState.setError(), start);
 	if (start == len)
 		return start;
-	len = std::min(len, remainingBytes);
+	bytesToRead = std::min(len - start, remainingBytes);
 	if (request.isMultipartForm())
-		return _parseMultipartForm(request, buff, start, len);
-	if (!request.appendBody(buff + start, len))
+		return _parseMultipartForm(request, buff, start, start + bytesToRead);
+	if (!request.appendBody(buff + start, bytesToRead))
 		parseState.setError();
-	return len;
+
+	parseState.incrementChunkPos(bytesToRead);
+	return start + bytesToRead;
 }
 
 size_t	HTTPParser::_parseMultipartForm(HTTPRequest &request, char *buff, size_t start, size_t len)
@@ -416,27 +449,27 @@ size_t	HTTPParser::_parseRawBody(HTTPRequest &request, char *buff, size_t start,
 {
 	HTTPParseState	&parseState = request.getParseState();
 	size_t			count = parseState.getReadBytes();
+	size_t			bytesToRead;
 	// size_t			remaining;
-	size_t				end;
+	size_t			contentLength = request.getContentLength();
 
-	end = len; //std::min(len, remaining);
-	count += end - start;
-	request.appendBody(buff + start, end - start);	
+	bytesToRead = std::min(contentLength - count, len - start); //std::min(len, remaining);
+	count += bytesToRead;
+	request.appendBody(buff + start, bytesToRead);	
 	
-	if (count == request.getContentLength())
+	if (count == contentLength)
 	{
 		parseState.setState(HTTPParseState::REQ_DONE);
 		std::cout << "body done" << std::endl;
 	}
 	else
-	{
 		parseState.setReadBytes(count);
-	}
-	return end;
+	return start + bytesToRead;
 }
 
 size_t	HTTPParser::_parseBody(HTTPRequest &request, char *buff, size_t start, size_t len)
 {
+	std::cout << "IN PARSE BODY" << std::endl;
 	if (request.isTransferChunked())
 		return _parseChunk(request, buff, start, len);
 	if (request.isMultipartForm())
