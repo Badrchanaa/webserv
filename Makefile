@@ -108,7 +108,7 @@ $(OBJ_PATH):
 $(OBJ_PATH)/%.o: %.cpp | $(OBJ_PATH)
 #The eval command allows you to perform dynamic evaluation and assignment within the Makefile.
 	@${eval SRCS_COUNT = ${shell expr ${SRCS_COUNT} + 1}}
-	@$(CC) $(CFLAGS) -c $< -o $@
+	@$(CC) $(CFLAGS) -c $< -o $@ #-fsanitize=address -g3
 	@echo ""
 	@echo " ${BOLD}${CUR}${BEIGE}-> Compiling ${DEF}${BOLD}${LYELLOW}[WEBSERV]${DEF}"
 	@printf " ${BEIGE}   [${LGREEN}%-23.${BAR}s${BEIGE}] [%d/%d (%d%%)]${DEF}" "***********************" ${SRCS_COUNT} ${SRCS_TOT} ${SRCS_PRCT}
