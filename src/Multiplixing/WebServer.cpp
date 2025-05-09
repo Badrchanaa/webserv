@@ -250,16 +250,13 @@ void WebServer::accept_connections(int listen_fd) {
 
 bool WebServer::handle_client_response(Connection &conn) {
   HTTPResponse &response = conn.m_Response;
+  bool shouldDelete = false;
 
-  bool isDeleted;
-
-  isDeleted = false;
   response.resume(conn.cgiEvent, conn.socketEvent);
-
   if (response.isDone()) {
     if (!response.isKeepAlive()) {
       // cleanup_connection(conn.client_fd);
-      isDeleted = true;
+      shouldDelete = true;
     } else {
       conn.m_State = Connection::REQUEST_PARSING;
       /// nots this///
@@ -267,7 +264,7 @@ bool WebServer::handle_client_response(Connection &conn) {
       conn.reset();
     }
   } else {
-    int state = conn.m_Response.getState();
+    HTTPResponse::pollState state = response.getPollState();
     int cgi_sock = conn.Cgihandler.getCgiSocket(conn.client_fd);
 
     if (state == HTTPResponse::CGI_WRITE) {
@@ -291,7 +288,7 @@ bool WebServer::handle_client_response(Connection &conn) {
       epoll.mod_fd(conn.client_fd, EPOLL_READ | EPOLL_WRITE);
     }
   }
-  return isDeleted;
+  return shouldDelete;
 }
 
 bool WebServer::handle_client_request(Connection &connection) {

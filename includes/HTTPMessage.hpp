@@ -26,9 +26,9 @@ class HTTPMessage
 		std::string			getHeader(std::string &key) const;
 		std::string			getHeader(const char *key) const;
 		const HTTPBody&		getBody() const;
-		void	            appendBody(const char *buff, size_t start, size_t end);
-		void	            appendBody(const std::string str);
-		void	            appendBody(const std::vector<char>& vec);
+		bool	            appendBody(const char *buff, size_t len);
+		bool	            appendBody(const std::string str);
+		bool	            appendBody(const std::vector<char>& vec);
 	public:
 		HTTPMessage(void);
 		~HTTPMessage();

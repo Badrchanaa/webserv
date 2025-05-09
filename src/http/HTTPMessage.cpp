@@ -54,24 +54,24 @@ std::string			HTTPMessage::getHeader(const char *key) const
 	return getHeader(s);
 }
 
-void	HTTPMessage::appendBody(const char *buff, size_t start, size_t end)
+bool	HTTPMessage::appendBody(const char *buff, size_t len)
 {
-	m_Body.append(buff + start, end);	
+	return m_Body.append(buff, len);
 }
 
-void	HTTPMessage::appendBody(const std::string str)
+bool	HTTPMessage::appendBody(const std::string str)
 {
 	size_t		size;
 	const char	*strBuff;
 
 	size = str.length();
 	strBuff = str.c_str();
-	m_Body.append(strBuff , size);
+	return m_Body.append(strBuff , size);
 }
 
-void	HTTPMessage::appendBody(const std::vector<char>& vec)
+bool	HTTPMessage::appendBody(const std::vector<char>& vec)
 {
-	m_Body.append(&vec[0], vec.size());
+	return m_Body.append(&vec[0], vec.size());
 }
 
 std::string	HTTPMessage::getHeader(std::string &key) const

@@ -18,13 +18,20 @@ class HTTPResponse: public HTTPMessage
 		typedef enum
 		{
 			INIT = 0,
-			CGI_WRITE = 1,
-			CGI_READ = 2,
 			PROCESS_BODY,
-			HEADERS = 3,
-			SOCKET_WRITE = 5,
-			DONE = 6
-		} responseState;
+			PROCESS_HEADERS,
+			SEND_HEADERS,
+			SEND_BODY,
+			DONE
+		}	responseState;
+
+		typedef enum
+		{
+			CGI_WRITE = 1,
+			CGI_READ,
+			SOCKET_WRITE,
+		}	pollState;
+
 		typedef enum
 		{
 			OK = 200,
@@ -33,8 +40,7 @@ class HTTPResponse: public HTTPMessage
 			FORBIDDEN = 403,
 			NOT_FOUND = 404,
 			SERVER_ERROR = 500
-
-		} statusCode;
+		}	statusCode;
 	
 	public:
 		HTTPResponse( void );
@@ -43,10 +49,9 @@ class HTTPResponse: public HTTPMessage
 		~HTTPResponse();
 
 		/// @brief initializes response from parsed request
-		/// @param request 
-		/// @param cgihandler 
+		/// @param request /// @param cgihandler 
 		/// @param fd 
-		void	init(HTTPRequest &request, CGIHandler &cgihandler, ConfigServer *configServer, int fd);
+		void	init(const HTTPRequest &request, const CGIHandler &cgihandler, const ConfigServer *configServer, int fd);
 
 
 		// response is sent, IS DONE
@@ -60,37 +65,41 @@ class HTTPResponse: public HTTPMessage
 		// get response status
 		statusCode	getStatus();
 
-		// returns response state (CGI_READ, CGI_WRITE, SOCKET_WRITE, DONE)
 		// use it to manage epoll events for this response, socket or cgi.
-		responseState getState() const;
+		pollState		getPollState() const;
+
+		// response processing state
+		responseState	getState() const;
 
 		// void				reset()
 		// {
 		// 	return;
 		// }
-		void	sendHeaders();
-		void	processBody();
-		void	sendBody();
 		/// @brief resumes response processing. should be called on event notify.
 		/// @param event EpollManager event.
 		/// @return if should remove current event from list
 		bool resume(bool isCgiReady, bool isClientReady);
 
 	private:
+		void	_sendHeaders();
+		void	_processBody();
+		void	_processHeaders();
+		void	_sendBody();
 		const std::string	_statusToString() const;
-		bool	_isCgiPath(std::string path, ConfigServer *configServer);
-		void	_initCgi(std::string path, CGIHandler &cgihandler, ConfigServer *configServer);
+		bool	_isCgiPath(const std::string path, const ConfigServer *configServer);
+		void	_initCgi(const std::string path, const CGIHandler &cgihandler, const ConfigServer *configServer);
 		void	_initBadRequest();
 
-		int				m_ClientFd;
-		statusCode		m_StatusCode;
-		HTTPBody		m_Body;
-		HTTPRequest*	m_Request;
+		std::stringstream	m_HeadersStream;
+		int					m_ClientFd;
+		statusCode			m_StatusCode;
+		const HTTPRequest*	m_Request;
 		// CGIProcess*		m_Cgi;
-		responseState	m_State;
+		responseState		m_State;
+		pollState			m_PollState;
 		// ConfigServer*	m_ConfigServer;
-		size_t			m_CursorPos;
-		bool			m_HasCgi;
+		size_t				m_CursorPos;
+		bool				m_HasCgi;
 		// int client_fd;
 
 };
