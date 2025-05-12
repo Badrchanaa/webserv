@@ -8,20 +8,17 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include "http.hpp"
 
-enum HttpMethod {
-  METHOD_NONE = 0,
-  GET = 1 << 0,
-  POST = 1 << 1,
-  DELETE = 1 << 2
-};
 
 struct MethodPair {
   const char *name;
-  HttpMethod method;
+  httpMethod method;
 };
 
 struct Location {
+  Location() : allowed_methods(METHOD_NONE), allowed_cgi_methods(METHOD_NONE) {}
+
   std::string uri;
   std::string root;
   unsigned int allowed_methods;
@@ -29,7 +26,9 @@ struct Location {
   bool autoindex;
   std::string upload;
   std::map<std::string, std::string> cgi;
-  Location() : allowed_methods(METHOD_NONE), allowed_cgi_methods(METHOD_NONE) {}
+  
+  // MUST BE ADDED
+  bool  isMethodAllowed(httpMethod method);
 };
 
 struct ConfigServer {
@@ -39,6 +38,10 @@ struct ConfigServer {
   std::string body_size;
   std::map<std::string, std::string> errors;
   Location location;
+
+  // MUST BE ADDED
+  const Location&  getLocation(const std::string path);
+
   ~ConfigServer(){}
 };
 

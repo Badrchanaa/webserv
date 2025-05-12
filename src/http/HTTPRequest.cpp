@@ -209,6 +209,11 @@ const std::string		&HTTPRequest::getPath() const
 	return m_Path;
 }
 
+httpMethod	HTTPRequest::getMethod() const
+{
+	return m_Method;
+}
+
 HTTPRequest& HTTPRequest::operator=(const HTTPRequest &other)
 {
 	(void)other;

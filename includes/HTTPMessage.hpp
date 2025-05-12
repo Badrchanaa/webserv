@@ -3,6 +3,7 @@
 
 #include <string>
 #include <map>
+#include "http.hpp"
 #include "HTTPBody.hpp"
 
 #define CRLF "\r\n"
@@ -11,13 +12,6 @@ class HTTPMessage
 {
 	public:
 		typedef std::map<std::string, std::string> HeaderMap;
-		typedef enum
-		{
-			GET,
-			POST,
-			PUT,
-			DELETE,
-		} httpMethod;
 		inline bool			hasHeader(const char *key) const;
 		size_t				getContentLength() const;
 		void				addHeader(std::string key, std::string value);

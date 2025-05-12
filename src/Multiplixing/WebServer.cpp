@@ -272,14 +272,13 @@ bool WebServer::handle_client_response(Connection &conn) {
       epoll.remove_fd(conn.client_fd);
       epoll.add_fd(cgi_sock, EPOLL_WRITE | EPOLL_READ);
       DEBUG_LOG("Switched to monitoring CGI socket (write)");
-
     } else if (state == HTTPResponse::CGI_READ) {
       // Switch monitoring to CGI socket for reading
       epoll.remove_fd(conn.client_fd);
       epoll.add_fd(cgi_sock, EPOLL_WRITE | EPOLL_READ);
       DEBUG_LOG("Switched to monitoring CGI socket (read)");
-
-    } else if (state != HTTPResponse::DONE) {
+    } 
+    else {
       // Switch back to client socket for writing
       if (cgi_sock != -1) {
         epoll.remove_fd(cgi_sock);

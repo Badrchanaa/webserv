@@ -39,6 +39,7 @@ class HTTPRequest: public HTTPMessage
 		~HTTPRequest();
 		HTTPParseState		&getParseState();
 		void				setMethod(const char *method_cstr);
+		httpMethod			getMethod() const;
 		const char*			getMethodStr() const;
 		void				appendToPath(const char *buff, size_t start, size_t len);
 		// bool				appendBody(const char *buff, size_t len);

@@ -39,7 +39,8 @@ class HTTPResponse: public HTTPMessage
 			BAD_REQUEST = 400,
 			FORBIDDEN = 403,
 			NOT_FOUND = 404,
-			SERVER_ERROR = 500
+			SERVER_ERROR = 500,
+			NOT_IMPLEMENTED = 501,
 		}	statusCode;
 	
 	public:
@@ -83,6 +84,7 @@ class HTTPResponse: public HTTPMessage
 	private:
 		void	_sendHeaders();
 		void	_processBody();
+		void	_debugBody();
 		void	_processHeaders();
 		void	_sendBody();
 		const std::string	_statusToString() const;
@@ -100,6 +102,7 @@ class HTTPResponse: public HTTPMessage
 		// ConfigServer*	m_ConfigServer;
 		size_t				m_CursorPos;
 		bool				m_HasCgi;
+		std::string			m_ResourcePath;
 		// int client_fd;
 
 };

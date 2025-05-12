@@ -53,7 +53,7 @@ private:
   bool is_commented(std::string &line);
   bool validate_body_size(const std::string &body_size);
   bool validate_error_paths(const std::map<std::string, std::string> &errors);
-  HttpMethod get_method_bit(const std::string &method);
+  httpMethod get_method_bit(const std::string &method);
   bool validate_port(int port);
   bool validate_server(const ConfigServer &config);
 

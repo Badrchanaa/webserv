@@ -2,7 +2,7 @@
 
 void Config::ProcessMethodContext(const std::string &trimmed) {
   std::string method = get_list_item(trimmed);
-  HttpMethod bit = get_method_bit(method);
+  httpMethod bit = get_method_bit(method);
   if (bit == METHOD_NONE) {
     std::cerr << "Error: Invalid method '" << method << "'\n";
     exit(EXIT_FAILURE);
@@ -18,7 +18,7 @@ void Config::ProcessMethodContext(const std::string &trimmed) {
   current_mask |= bit;
 }
 
-HttpMethod Config::get_method_bit(const std::string &method) {
+httpMethod Config::get_method_bit(const std::string &method) {
   for (size_t i = 0; i < sizeof(valid_methods) / sizeof(valid_methods[0]);
        ++i) {
     if (method == valid_methods[i].name) {
