@@ -28,7 +28,6 @@ struct Location {
   std::map<std::string, std::string> cgi;
   
   // MUST BE ADDED
-  bool  isMethodAllowed(httpMethod method);
 };
 
 struct ConfigServer {
@@ -40,7 +39,6 @@ struct ConfigServer {
   Location location;
 
   // MUST BE ADDED
-  const Location&  getLocation(const std::string path);
 
   ~ConfigServer(){}
 };

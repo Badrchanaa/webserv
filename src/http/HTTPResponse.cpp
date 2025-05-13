@@ -67,7 +67,7 @@ void	HTTPResponse::init(HTTPRequest const &request, CGIHandler const &cgihandler
 		m_StatusCode = NOT_IMPLEMENTED;
 	}
 	// ADD DEBUG INFO TO RESPONSE BODY
-	_debugBody();
+	// _debugBody();
 	m_ResourcePath = resourcePath;
 	m_State = PROCESS_BODY;
 }
