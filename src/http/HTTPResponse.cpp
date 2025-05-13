@@ -36,6 +36,44 @@ void	HTTPResponse::_initBadRequest()
 	addHeader("content-length", m_Body.getSize());
 }
 
+bool	_safePath(const std::string path)
+{
+	int		count;
+	size_t	start;
+	size_t	i;
+	std::string subpath;
+
+	start = 0;
+	count = 0;
+	for (i = 0; i < path.length(); i++)
+	{
+		if (path[i] == '/')
+		{
+			if (start == i)
+			{
+				start = i + 1;
+				continue;
+			}
+			subpath = path.substr(start, i - start);
+			if (subpath == "..")
+				count--;
+			else if (subpath != ".")
+				count++;
+			start = i + 1;
+		}
+	}
+	if (start != i)
+	{
+		subpath = path.substr(start, i - start);
+		if (subpath == "..")
+			count--;
+		else if (subpath != ".")
+			count++;
+	}
+	std::cout << "count: " << count << std::endl;
+	return count >= 0;
+}
+
 void	HTTPResponse::init(HTTPRequest const &request, CGIHandler const &cgihandler, ConfigServer const *configServer, int fd)
 {
 	std::string resourcePath;
@@ -51,6 +89,15 @@ void	HTTPResponse::init(HTTPRequest const &request, CGIHandler const &cgihandler
 	}
 	// if (request.isError())
 	// 	return _initBadRequest();
+
+	// check for path traversal
+	if (!_safePath(request.getPath()))
+	{
+		std::cout << "NOT A SAFE PATH" << std::endl;
+		m_StatusCode = FORBIDDEN;
+		m_State = PROCESS_BODY;
+		return;
+	}
 	resourcePath = "./" + configServer->location.root + configServer->location.uri + request.getPath();
 	std::cout << "RESOURCE PATH: " << resourcePath << std::endl;
 	if (_isCgiPath(request.getPath(), configServer))
@@ -280,6 +327,7 @@ void	HTTPResponse::_processErrorBody()
 		_readFileToBody(filename);
 }
 
+// PATH TRAVERSAL
 void	HTTPResponse::_processDirectoryListing()
 {
 	DIR	*dir;
