@@ -41,6 +41,11 @@ void	HTTPRequest::processHeaders()
 {
 	HeaderMap::const_iterator	it;
 
+	// TODO: do not ignore request parameters!!
+	size_t pos = m_Path.find('?');
+	if (pos != std::string::npos)
+		m_Path.substr(0, pos);
+
 	if (!this->_validateHeaders())
 		m_ParseState.setError();
 	if (m_Error == ERR_INVALID_CONTENT_LENGTH)

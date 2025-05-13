@@ -8,7 +8,7 @@ HTTPResponse::pollState	HTTPResponse::getPollState() const
 	return m_PollState;
 }
 
-HTTPResponse::HTTPResponse(void): m_State(INIT), m_PollState(SOCKET_WRITE), m_CursorPos(0), m_HasCgi(false)
+HTTPResponse::HTTPResponse(void): m_State(INIT), m_PollState(SOCKET_WRITE), m_CursorPos(0), m_HasCgi(false), m_ConfigServer(NULL)
 {
 	m_StatusCode = HTTPResponse::OK;
 }
@@ -43,6 +43,7 @@ void	HTTPResponse::init(HTTPRequest const &request, CGIHandler const &cgihandler
 
 	m_ClientFd = fd;
 	this->m_Request = &request;
+	this->m_ConfigServer = configServer;
 	if (request.isError())
 	{
 		m_StatusCode = HTTPResponse::BAD_REQUEST;
@@ -199,26 +200,142 @@ void	HTTPResponse::_debugBody()
 	appendBody(std::string("<h1>response body</h1>"));
 	addHeader("content-type", "text/html");
 }
+
+const std::string  HTTPResponse::_getDefaultErrorFile() const
+{
+	std::map<HTTPResponse::statusCode,const char*> defaultPages;
+
+	defaultPages[BAD_REQUEST] = "./html/error_400.html";
+	defaultPages[NOT_FOUND] = "./html/error_404.html";
+	defaultPages[FORBIDDEN] = "./html/error_403.html";
+	defaultPages[SERVER_ERROR] = "./html/error_500.html";
+	defaultPages[NOT_IMPLEMENTED] = "./html/error_501.html";
+
+	return std::string(defaultPages[m_StatusCode]);
+}
+
+bool	HTTPResponse::_validFile(const std::string filename) const
+{
+	struct stat fileStat;
+
+	if (access(filename.c_str(), R_OK) != 0 || stat(filename.c_str(), &fileStat) == -1)
+		return false;
+	return S_ISREG(fileStat.st_mode);
+}
+
+bool	HTTPResponse::_validDirectory(const std::string filename) const
+{
+	struct stat fileStat;
+
+	if (access(filename.c_str(), R_OK | X_OK) != 0 || stat(filename.c_str(), &fileStat) == -1)
+		return false;
+	return S_ISDIR(fileStat.st_mode);
+}
+
+void	HTTPResponse::_readFileToBody(const std::string filename)
+{
+	std::ifstream	fileStream;
+	char buff[4096];
+
+	fileStream.open(filename.c_str());
+	std::streamsize rbytes = 4096;
+	while (rbytes >=4096)
+	{
+		fileStream.read(buff, 4096);
+		rbytes = fileStream.gcount();
+		std::cout << "read " << rbytes << " bytes from file " << std::endl;
+		appendBody(buff, rbytes);
+	}
+}
+
+void	HTTPResponse::_processErrorBody()
+{
+	std::cout << "PROCESS ERROR BODY" << std::endl;
+	const std::map<std::string, std::string>	&errors = m_ConfigServer->errors;
+	std::map<std::string, std::string>::const_iterator	it;
+	std::string	filename;
+	std::stringstream s;
+
+	s << static_cast<int>(m_StatusCode);
+	// Temporarily add quotes to look for key.
+	std::string key = "\"";
+	key += s.str();
+	key += "\"";
+	it = errors.find(key);
+	if (it == errors.end())
+		filename = _getDefaultErrorFile();
+	else
+		filename = "./" + m_ConfigServer->location.root + "/" + it->second;
+	std::cout << "FILENAME: " << filename << std::endl;
+	if (!_validFile(filename))
+	{
+		std::string body;
+		body = "<html><body><h1>Error ";
+		body += s.str();
+		body += "</h1><p>(Default WebServ Error Page)</body></html>";
+		appendBody(body);
+		return;
+	}
+	else
+		_readFileToBody(filename);
+}
+
+void	HTTPResponse::_processDirectoryListing()
+{
+	DIR	*dir;
+	struct dirent	*entry;
+	std::string path;
+
+	if (!m_ConfigServer->location.autoindex)
+	{
+		m_StatusCode = FORBIDDEN;
+		return _processErrorBody();
+	}
+	dir = opendir(m_ResourcePath.c_str());
+	if (!dir)
+	{
+		m_StatusCode = SERVER_ERROR;
+		return _processErrorBody();
+	}	
+	std::cout << "DIRECTORY LISTING" << std::endl;
+	std::stringstream body;
+	path = m_Request->getPath();
+	if (path[path.length() - 1] != '/')
+		path += "/";
+
+	body << "<html><title>" << m_Request->getPath() << " listing" << "</title><body>";
+	body << "<h1>" << path << " listing</h1><ul>";
+	entry = readdir(dir);
+	while (entry)
+	{
+		body << "<li><a href=\"" << path << entry->d_name << "\">" << entry->d_name << "</a></li>";
+		entry = readdir(dir);
+	}
+	body << "</ul></body></html>";
+	appendBody(body.str());
+	closedir(dir);
+}
+
 void	HTTPResponse::_processBody()
 {
 	m_CursorPos = 0;
 
 	std::cout << "PROCESS BODY" << std::endl;
-	if (m_Request->getMethod() == GET && m_StatusCode == OK)
+	if (m_StatusCode != OK)
+		_processErrorBody();
+	else if (m_Request->getMethod() == GET)
 	{
-		std::ifstream	fileStream;
-		char buff[4096];
-
 		// TODO: error handling & large files (chunked response)
-		fileStream.open(m_ResourcePath.c_str());
-		std::streamsize rbytes = 4096;
-		while (rbytes >=4096)
-		{
-
-			fileStream.read(buff, 4096);
-			rbytes = fileStream.gcount();
-			std::cout << "read " << rbytes << " bytes from file " << std::endl;
-			appendBody(buff, rbytes);
+		if (_validFile(m_ResourcePath))
+			_readFileToBody(m_ResourcePath);
+		else if (_validDirectory(m_ResourcePath))
+			_processDirectoryListing();
+		else
+		{ 
+			// if not a file nor a directory (or bad permissions).
+			// return forbidden ??
+			m_StatusCode = FORBIDDEN;
+			_processErrorBody();
 		}
 	}
 

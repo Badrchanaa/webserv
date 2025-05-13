@@ -9,7 +9,7 @@
 #include "HTTPMessage.hpp"
 #include "HTTPRequest.hpp"
 #include "CGIHandler.hpp"
-
+#include "dirent.h"
 #include <string>
 
 class HTTPResponse: public HTTPMessage
@@ -82,14 +82,20 @@ class HTTPResponse: public HTTPMessage
 		bool resume(bool isCgiReady, bool isClientReady);
 
 	private:
+		void	_readFileToBody(const std::string filename);
+		void	_processDirectoryListing();
+		bool	_validDirectory(const std::string filename) const;
+		bool	_validFile(const std::string filename) const;
 		void	_sendHeaders();
 		void	_processBody();
 		void	_debugBody();
 		void	_processHeaders();
+		const std::string  _getDefaultErrorFile() const;
 		void	_sendBody();
 		const std::string	_statusToString() const;
 		bool	_isCgiPath(const std::string path, const ConfigServer *configServer);
 		void	_initCgi(const std::string path, const CGIHandler &cgihandler, const ConfigServer *configServer);
+		void	_processErrorBody();
 		void	_initBadRequest();
 
 		std::stringstream	m_HeadersStream;
@@ -103,6 +109,7 @@ class HTTPResponse: public HTTPMessage
 		size_t				m_CursorPos;
 		bool				m_HasCgi;
 		std::string			m_ResourcePath;
+		const ConfigServer*	m_ConfigServer;
 		// int client_fd;
 
 };

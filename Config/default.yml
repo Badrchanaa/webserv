@@ -32,7 +32,7 @@ server:
      - GET
      - DELETE
    root: www
-   autoindex: off
+   autoindex: on
    methods_cgi:
      - POST
      - GET 
