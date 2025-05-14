@@ -6,7 +6,7 @@
 #    By: bchanaa <marvin@42.fr>                     +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/04/21 12:11:54 by bchanaa           #+#    #+#              #
-#    Updated: 2024/07/20 09:42:00 by bchanaa          ###   ########.fr        #
+#    Updated: 2025/05/12 15:12:33 by bchanaa          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 # COLORS 
@@ -89,7 +89,7 @@ all: $(NAME)
 $(NAME): $(OBJ_FILES) $(HEADER_FILES)
 	@${eval SRCS_COUNT = ${shell expr ${SRCS_COUNT} + 1}}
 # @echo "i am here\n"
-	@$(CC) $(OBJ_FILES) -o $@ $(CFLAGS) #-fsanitize=address -g3
+	$(CC) $(OBJ_FILES) -o $@ $(CFLAGS) #-fsanitize=address -g3
 	@echo ""
 	@echo " ${BOLD}${CUR}${BEIGE}-> Compiling ${DEF}${BOLD}${LYELLOW}[WEBSERV]${DEF}"
 	@printf " ${BEIGE}   [${LGREEN}%-23.${BAR}s${BEIGE}] [%d/%d (%d%%)]${DEF}" "***********************" ${SRCS_COUNT} ${SRCS_TOT} ${SRCS_PRCT}
@@ -108,7 +108,7 @@ $(OBJ_PATH):
 $(OBJ_PATH)/%.o: %.cpp | $(OBJ_PATH)
 #The eval command allows you to perform dynamic evaluation and assignment within the Makefile.
 	@${eval SRCS_COUNT = ${shell expr ${SRCS_COUNT} + 1}}
-	@$(CC) $(CFLAGS) -c $< -o $@
+	@$(CC) $(CFLAGS) -c $< -o $@ #-fsanitize=address -g3
 	@echo ""
 	@echo " ${BOLD}${CUR}${BEIGE}-> Compiling ${DEF}${BOLD}${LYELLOW}[WEBSERV]${DEF}"
 	@printf " ${BEIGE}   [${LGREEN}%-23.${BAR}s${BEIGE}] [%d/%d (%d%%)]${DEF}" "***********************" ${SRCS_COUNT} ${SRCS_TOT} ${SRCS_PRCT}

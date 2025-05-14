@@ -8,14 +8,14 @@ HTTPParseState &HTTPRequest::getParseState()
 	return m_ParseState;
 }
 
-HTTPRequest::HTTPRequest(std::vector<ConfigServer> &servers): 
-	m_Error(ERR_NONE), m_ContentLength(0), m_TransferEncoding(DEFAULT),
+HTTPRequest::HTTPRequest(std::vector<ConfigServer> &servers): HTTPMessage(),
+	m_Error(ERR_NONE), m_TransferEncoding(DEFAULT),
 	m_MultipartForm(NULL), m_ConfigServers(servers)
 {
 	m_ParseState.setPrevChar('\n');
 }
 
-ConfigServer*	HTTPRequest::getServer() const
+const ConfigServer*	HTTPRequest::getServer() const
 {
 	return m_ConfigServer;
 }
@@ -37,24 +37,14 @@ bool	HTTPRequest::isError() const
 	return state == HTTPParseState::REQ_ERROR;
 }
 
-const HTTPBody&	HTTPRequest::getBody() const
-{
-	return m_Body;
-}
-
-bool	HTTPRequest::appendBody(const char *buff, size_t len)
-{
-	return m_Body.append(buff, len);
-}
-
-bool	HTTPRequest::hasHeader(const char *key) const
-{
-	return m_Headers.count(key) != 0;
-}
-
 void	HTTPRequest::processHeaders()
 {
 	HeaderMap::const_iterator	it;
+
+	// TODO: do not ignore request parameters!!
+	size_t pos = m_Path.find('?');
+	if (pos != std::string::npos)
+		m_Path.substr(0, pos);
 
 	if (!this->_validateHeaders())
 		m_ParseState.setError();
@@ -62,6 +52,7 @@ void	HTTPRequest::processHeaders()
 		std::cout << "INVALID CONTENT LENGTH" << std::endl;
 	if (m_Error == ERR_INVALID_HOST)
 		std::cout << "INVALID HOST" << std::endl;
+	m_ConfigServer = &(Config::getServerByName(m_ConfigServers, m_Headers["host"]));
 	if (m_Method == GET)
 		m_ParseState.setState(HTTPParseState::REQ_DONE);
 }
@@ -70,16 +61,6 @@ bool	HTTPRequest::isMultipartForm() const
 {
 	return false;
 }
-
-size_t		HTTPRequest::getContentLength() const
-{
-	return m_ContentLength;
-}
-
-// std::string HTTPRequest::getBodyStr() const
-// {
-	
-// }
 
 /*
 	Process and validate request headers (Host, Content-length, etc..)
@@ -165,37 +146,6 @@ bool	HTTPRequest::_validateHeaders()
 	return m_Error == ERR_NONE;
 }
 
-const HTTPRequest::HeaderMap&	HTTPRequest::getHeaders() const
-{
-	return this->m_Headers;
-}
-
-void	HTTPRequest::addHeader(std::string key, std::string value)
-{
-	size_t	start = value.find_first_not_of(" \t");
-	size_t	end = value.find_last_not_of(" \t");
-	if (start == std::string::npos || start == end)
-	{
-		m_Headers[key];
-		return;
-	}
-	m_Headers[key] = value.substr(start, end + 1);
-}
-
-std::string			HTTPRequest::getHeader(const char *key) const
-{
-	std::string s(key);
-	return getHeader(s);
-}
-
-std::string	HTTPRequest::getHeader(std::string &key) const
-{
-	HeaderMap::const_iterator it = m_Headers.find(key);
-	if (it == m_Headers.end())
-		return std::string();
-	return it->second;	
-}
-
 void	HTTPRequest::setMethod(const char *method_cstr)
 {
 	std::string method(method_cstr);
@@ -262,6 +212,11 @@ void	HTTPRequest::appendToPath(const char *buff, size_t start, size_t len)
 const std::string		&HTTPRequest::getPath() const
 {
 	return m_Path;
+}
+
+httpMethod	HTTPRequest::getMethod() const
+{
+	return m_Method;
 }
 
 HTTPRequest& HTTPRequest::operator=(const HTTPRequest &other)

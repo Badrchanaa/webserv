@@ -36,11 +36,9 @@ the queue, accept() fails with the error EAGAIN or EWOULDBLOCK.
 
 */
 
-
 void WebServer::create_listeners() {
   DEBUG_LOG("Initializing network stack for all servers...");
 
-  // Get all server configurations
   int server_count = config.ServersNumber();
   if (server_count == 0) {
     throw std::runtime_error("No server configurations found");
@@ -77,7 +75,6 @@ void WebServer::create_listeners() {
           continue;
         }
 
-        // Set socket options
         int yes = 1;
         if (setsockopt(temp_fd.fd, SOL_SOCKET, SO_REUSEADDR, &yes,
                        sizeof(int)) == -1) {
@@ -131,10 +128,10 @@ WebServer::~WebServer() {
        it != listener_descriptors.end(); ++it) {
     delete *it;
   }
-  for (std::list<Connection *>::iterator it = connections.begin(); it != connections.end(); ++it)
-  {
-      delete *it;
-      this->connections.erase(it);
+  for (std::list<Connection *>::iterator it = connections.begin();
+       it != connections.end(); ++it) {
+    delete *it;
+    this->connections.erase(it);
   }
 }
 
@@ -211,15 +208,12 @@ void WebServer::run() {
          it != connections.end();) {
       if ((*it)->hasEvent) {
         bool connectionDeleted = this->handle_client(*(*it));
-        if (!connectionDeleted)
-        {
+        if (!connectionDeleted) {
           (*it)->resetEvents();
           it++;
-        }
-        else
+        } else
           cleanup_connection(it);
-      }
-      else
+      } else
         it++;
     }
   }
@@ -239,8 +233,7 @@ void WebServer::accept_connections(int listen_fd) {
     throw std::runtime_error("accept failed");
   }
 
-  Connection *conn =
-      new Connection(this->cgi, server_conf, new_fd);
+  Connection *conn = new Connection(this->cgi, server_conf, new_fd);
   connections.push_back(conn);
   epoll.add_fd(new_fd, EPOLL_READ);
   // epoll.add_fd(new_fd, EPOLL_READ | EPOLL_WRITE);
@@ -250,16 +243,13 @@ void WebServer::accept_connections(int listen_fd) {
 
 bool WebServer::handle_client_response(Connection &conn) {
   HTTPResponse &response = conn.m_Response;
+  bool shouldDelete = false;
 
-  bool isDeleted;
-
-  isDeleted = false;
   response.resume(conn.cgiEvent, conn.socketEvent);
-
   if (response.isDone()) {
     if (!response.isKeepAlive()) {
       // cleanup_connection(conn.client_fd);
-      isDeleted = true;
+      shouldDelete = true;
     } else {
       conn.m_State = Connection::REQUEST_PARSING;
       /// nots this///
@@ -267,7 +257,7 @@ bool WebServer::handle_client_response(Connection &conn) {
       conn.reset();
     }
   } else {
-    int state = conn.m_Response.getState();
+    HTTPResponse::pollState state = response.getPollState();
     int cgi_sock = conn.Cgihandler.getCgiSocket(conn.client_fd);
 
     if (state == HTTPResponse::CGI_WRITE) {
@@ -275,14 +265,12 @@ bool WebServer::handle_client_response(Connection &conn) {
       epoll.remove_fd(conn.client_fd);
       epoll.add_fd(cgi_sock, EPOLL_WRITE | EPOLL_READ);
       DEBUG_LOG("Switched to monitoring CGI socket (write)");
-
     } else if (state == HTTPResponse::CGI_READ) {
       // Switch monitoring to CGI socket for reading
       epoll.remove_fd(conn.client_fd);
       epoll.add_fd(cgi_sock, EPOLL_WRITE | EPOLL_READ);
       DEBUG_LOG("Switched to monitoring CGI socket (read)");
-
-    } else if (state == HTTPResponse::SOCKET_WRITE) {
+    } else {
       // Switch back to client socket for writing
       if (cgi_sock != -1) {
         epoll.remove_fd(cgi_sock);
@@ -291,7 +279,7 @@ bool WebServer::handle_client_response(Connection &conn) {
       epoll.mod_fd(conn.client_fd, EPOLL_READ | EPOLL_WRITE);
     }
   }
-  return isDeleted;
+  return shouldDelete;
 }
 
 bool WebServer::handle_client_request(Connection &connection) {
@@ -328,7 +316,7 @@ bool WebServer::handle_client_request(Connection &connection) {
   return isDeleted;
 }
 
-bool  WebServer::handle_client(Connection &conn) {
+bool WebServer::handle_client(Connection &conn) {
 
   bool isDeleted;
 
@@ -385,24 +373,25 @@ Connection *WebServer::find_connection(int fd) {
 }
 
 void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
-    DEBUG_LOG("[Cleanup] Starting cleanup for ");
+  DEBUG_LOG("[Cleanup] Starting cleanup for ");
 
-    Connection *connection = *it;
-    // DEBUG_LOG("[Cleanup] Removing fd " << fd << " from epoll");
-    try {
-      epoll.remove_fd(connection->client_fd); // Remove from epoll FIRST
-    } catch (const std::exception &e) {
-      DEBUG_LOG("[Cleanup] Error removing fd " << connection->client_fd << ": " << e.what());
-    }
+  Connection *connection = *it;
+  // DEBUG_LOG("[Cleanup] Removing fd " << fd << " from epoll");
+  try {
+    epoll.remove_fd(connection->client_fd); // Remove from epoll FIRST
+  } catch (const std::exception &e) {
+    DEBUG_LOG("[Cleanup] Error removing fd " << connection->client_fd << ": "
+                                             << e.what());
+  }
 
-    // DEBUG_LOG("[Cleanup] Deleting connection object for fd: " << fd);
-    delete connection; // Connection
+  // DEBUG_LOG("[Cleanup] Deleting connection object for fd: " << fd);
+  delete connection; // Connection
 
-    it = connections.erase(it);
-    std::cout << "NUMBER OF CONNECTIONS: " << connections.size() << std::endl;
+  it = connections.erase(it);
+  std::cout << "NUMBER OF CONNECTIONS: " << connections.size() << std::endl;
 
-    // DEBUG_LOG("[Cleanup] Completed for fd: " << fd);
-    return;
+  // DEBUG_LOG("[Cleanup] Completed for fd: " << fd);
+  return;
   // DEBUG_LOG("[Cleanup] FD " << fd << " not found in connections");
 }
 
