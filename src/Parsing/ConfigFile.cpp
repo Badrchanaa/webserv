@@ -1,9 +1,9 @@
 #include "Config.hpp"
 
-const ConfigServer &Config::getServerByName(std::vector<ConfigServer> &servers, std::string name)
-{
+const ConfigServer &Config::getServerByName(std::vector<ConfigServer> &servers,
+                                            std::string name) {
   for (size_t i = 0; i < servers.size(); ++i) {
-    const ConfigServer& server = servers[i];
+    const ConfigServer &server = servers[i];
     for (size_t j = 0; j < server.server_names.size(); ++j) {
       if (server.server_names[j] == name) {
         return server;
@@ -19,8 +19,6 @@ const ConfigServer &Config::getServerByName(std::vector<ConfigServer> &servers, 
   // std::cerr << "No servers are configured." << std::endl;
   // exit(EXIT_FAILURE);
 }
-
-
 
 void Config::ResetParsingState() {
   inServer = false;
@@ -58,7 +56,7 @@ void Config::ProcessServerNameValue(const std::string &value) {
 }
 
 void Config::ProcessServerKeyValue(const std::string &key,
-                                        const std::string &value) {
+                                   const std::string &value) {
   if (key == "port") {
     this->ProcessPortValue(value);
   } else if (key == "server_name") {
@@ -87,7 +85,7 @@ void Config::HandleIndentOne(const std::string &trimmed) {
 }
 
 void Config::ProcessLocationKeyValue(const std::string &key,
-                                          const std::string &value) {
+                                     const std::string &value) {
   if (key == "uri") {
     currentServer.location.uri = value;
   } else if (key == "root") {
@@ -103,26 +101,158 @@ void Config::ProcessLocationKeyValue(const std::string &key,
     context = "methods";
   } else if (key == "methods_cgi") {
     context = "methods_cgi";
+  } else if (key == "index") { // I Added index handling
+    currentLocation.index = value;
   } else {
     std::cerr << "Unexpected location argument: " << value << std::endl;
     exit(EXIT_FAILURE);
   }
 }
 
+// void Config::HandleIndentThree(const std::string &trimmed) {
+//   if (context == "methods" || context == "methods_cgi" || context == "cgi") {
+//     context = "location";
+//   }
+//
+//   if (context == "errors") {
+//     std::string key_str, value;
+//     this->split_key_value(trimmed, key_str, value);
+//
+//     if (!key_str.empty()) {
+//       if (key_str[0] == '"' && key_str[key_str.size() - 1] == '"') {
+//         key_str = key_str.substr(1, key_str.size() - 2);
+//       }
+//     }
+//     if (key_str.empty() ||
+//         key_str.find_first_not_of("0123456789") != std::string::npos) {
+//       std::cerr << "Error: Invalid error code format '" << key_str
+//                 << "'. Must contain only digits." << std::endl;
+//       exit(EXIT_FAILURE);
+//     }
+//
+//     int code = 0;
+//     for (size_t i = 0; i < key_str.size(); ++i) {
+//       int digit = key_str[i] - '0';
+//       if (code >= 600) {
+//         std::cerr << "Error: Invalid HTTP error code " << code
+//                   << ". Must be between 400-599." << std::endl;
+//         exit(EXIT_FAILURE);
+//       }
+//       code = code * 10 + digit;
+//     }
+//     if (code < 400 || code >= 600) {
+//       std::cerr << "Error: Invalid HTTP error code " << code
+//                 << ". Must be between 400-599." << std::endl;
+//       exit(EXIT_FAILURE);
+//     }
+//
+//     if (value.empty()) {
+//       std::cerr << "Error: Empty error page path for code " << code
+//                 << std::endl;
+//       exit(EXIT_FAILURE);
+//     }
+//     if (value.find_first_of(" \t\r\n") != std::string::npos) {
+//       std::cerr << "Error: Error page path contains whitespace for code "
+//                 << code << std::endl;
+//       exit(EXIT_FAILURE);
+//     }
+//     currentServer.errors[code] = value;
+//   } else if (context == "location") {
+//     std::string key, value;
+//     this->split_key_value(trimmed, key, value);
+//
+//     if (LOCATION_KEYS.find(key) == LOCATION_KEYS.end()) {
+//       std::cerr << "Error: Unknown location directive '" << key << "'"
+//                 << std::endl;
+//       exit(EXIT_FAILURE);
+//     }
+//     this->ProcessLocationKeyValue(key, value);
+//   } else {
+//     std::cerr << "Error: Unexpected context '" << context
+//               << "' at indent level 3" << std::endl;
+//     exit(EXIT_FAILURE);
+//   }
+// }
+
+void Config::ExitWithError(const std::string &message) {
+  std::cerr << "Error: " << message << std::endl;
+  exit(EXIT_FAILURE);
+}
+std::string Config::TrimQuotes(const std::string &str) {
+  return (str.size() >= 2 && str.front() == '"' && str.back() == '"')
+             ? str.substr(1, str.size() - 2)
+             : str;
+}
+
+void Config::ValidateErrorCodeFormat(const std::string &key_str) {
+  if (key_str.empty() ||
+      key_str.find_first_not_of("0123456789") != std::string::npos) {
+    this->ExitWithError("Invalid error code format '" + key_str +
+                        "'. Must contain only digits.");
+  }
+}
+
+int Config::ConvertToErrorCode(const std::string &key_str) {
+  int code = 0;
+  for (char c : key_str) {
+    code = code * 10 + (c - '0');
+    if (code >= 600)
+      this->ExitWithError("Invalid HTTP error code " + Config::to_String(code) +
+                          ". Must be 400-599.");
+  }
+  return code;
+}
+
+void Config::ValidateErrorPath(const std::string &path, int code) {
+  if (path.empty())
+    this->ExitWithError("Empty error page path for code " +
+                        Config::to_String(code));
+  if (path.find_first_of(" \t\r\n") != std::string::npos) {
+    this->ExitWithError("Error page path contains whitespace for code " +
+                        Config::to_String(code));
+  }
+}
+
+void Config::HandleErrorContext(const std::string &trimmed) {
+  std::string key_str, value;
+  this->split_key_value(trimmed, key_str, value);
+
+  key_str = this->TrimQuotes(key_str);
+  this->ValidateErrorCodeFormat(key_str);
+
+  const int code = this->ConvertToErrorCode(key_str);
+  if (code < 400 || code >= 600) {
+    this->ExitWithError("Invalid HTTP error code " + Config::to_String(code) +
+                        ". Must be 400-599.");
+  }
+  this->ValidateErrorPath(value, code);
+
+  currentServer.errors[code] = value;
+}
+
 void Config::HandleIndentThree(const std::string &trimmed) {
   if (context == "methods" || context == "methods_cgi" || context == "cgi") {
     context = "location";
   }
-
   if (context == "errors") {
-    std::string key, value;
-    this->split_key_value(trimmed, key, value);
-    currentServer.errors[key] = value;
+    this->HandleErrorContext(trimmed);
   } else if (context == "location") {
-    std::string key, value;
-    this->split_key_value(trimmed, key, value);
-    this->ProcessLocationKeyValue(key, value);
+    this->HandleLocationContext(trimmed);
+  } else {
+    this->ExitWithError("Unexpected context '" + context +
+                        "' at indent level 3");
   }
+}
+
+// Location context handling
+void Config::HandleLocationContext(const std::string &trimmed) {
+  std::string key, value;
+  this->split_key_value(trimmed, key, value);
+
+  if (LOCATION_KEYS.find(key) == LOCATION_KEYS.end()) {
+    this->ExitWithError("Unknown location directive '" + key + "'");
+  }
+  this->ProcessLocationKeyValue(key, value);
 }
 
 void Config::HandleIndentFive(const std::string &trimmed) {
@@ -140,7 +270,13 @@ void Config::HandleIndentFive(const std::string &trimmed) {
 }
 
 void Config::FinalizeServer() {
-  if (!this->validate_server(currentServer)) {
+  // Add any pending location
+  if (context == "location") {
+    currentServer.locations.push_back(currentLocation);
+    context.clear();
+  }
+
+  if (!validate_server(currentServer)) {
     std::cerr << "Invalid server configuration" << std::endl;
     exit(EXIT_FAILURE);
   }

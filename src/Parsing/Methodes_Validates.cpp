@@ -30,39 +30,6 @@ httpMethod Config::get_method_bit(const std::string &method) {
   return METHOD_NONE;
 }
 
-bool Config::validate_error_paths(
-    const std::map<std::string, std::string> &errors) {
-  for (std::map<std::string, std::string>::const_iterator it = errors.begin();
-       it != errors.end(); ++it) {
-    const std::string &key = it->first;
-    const std::string &value = it->second;
-
-    if (key.size() < 2 || key[0] != '"' || key[key.size() - 1] != '"') {
-      std::cerr << "Error code must be quoted: " << key << std::endl;
-      return false;
-    }
-
-    std::string code = key.substr(1, key.size() - 2);
-
-    if (code.empty() ||
-        code.find_first_not_of("0123456789") != std::string::npos) {
-      std::cerr << "Invalid error code format: " << key << std::endl;
-      return false;
-    }
-
-    int status_code = std::atoi(code.c_str());
-    if (status_code < 400 || status_code >= 600) {
-      std::cerr << "Invalid HTTP error code: " << status_code << std::endl;
-      return false;
-    }
-
-    if (value.empty() || value.find_first_of("\t\r\n ") != std::string::npos) {
-      std::cerr << "Invalid error path: " << value << std::endl;
-      return false;
-    }
-  }
-  return true;
-}
 
 bool Config::validate_server(const ConfigServer &config) {
   for (std::vector<int>::const_iterator it = config.ports.begin();
@@ -78,10 +45,6 @@ bool Config::validate_server(const ConfigServer &config) {
     return false;
   }
 
-  if (!validate_error_paths(config.errors)) {
-    std::cout << "errors error" << std::endl;
-    return false;
-  }
   return true;
 }
 

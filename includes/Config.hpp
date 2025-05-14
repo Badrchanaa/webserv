@@ -28,7 +28,9 @@ const std::set<std::string> LOCATION_KEYS(location_keys_array,
 
 const MethodPair valid_methods[] = {
     {"GET", GET}, {"POST", POST}, {"DELETE", DELETE}};
+
 class Config {
+
 private:
   std::vector<ConfigServer> servers;
   ConfigServer currentServer;
@@ -57,7 +59,20 @@ private:
   bool validate_port(int port);
   bool validate_server(const ConfigServer &config);
 
+  void ExitWithError(const std::string &message);
+  void ValidateErrorCodeFormat(const std::string &key_str);
+  int ConvertToErrorCode(const std::string &key_str);
+  void ValidateErrorPath(const std::string &path, int code);
+  void HandleErrorContext(const std::string &trimmed);
+
 public:
+  // My Templet HHHHHHHHHHHHHHHHHH --> Debuger Don't Remove the template
+  template <typename T> std::string to_String(const T &value) {
+    std::ostringstream oss;
+    oss << value;
+    return oss.str();
+  }
+
   Config() {}
   ~Config() {}
   Config(const Config &other) { *this = other; }
@@ -70,7 +85,8 @@ public:
   ConfigServer &getServer(int index) { return this->servers[index]; }
 
   // returns serverconfig based on name parameter
-  static const ConfigServer &getServerByName(std::vector<ConfigServer> &servers, std::string name);
+  static const ConfigServer &getServerByName(std::vector<ConfigServer> &servers,
+                                             std::string name);
 
   /// Seters
   void AddServer(ConfigServer &ref) { this->servers.push_back(ref); }
