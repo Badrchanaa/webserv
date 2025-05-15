@@ -34,6 +34,7 @@ class Config {
 private:
   std::vector<ConfigServer> servers;
   ConfigServer currentServer;
+  Location currentLocation;
   std::string context;
   bool inServer;
 
@@ -64,6 +65,8 @@ private:
   int ConvertToErrorCode(const std::string &key_str);
   void ValidateErrorPath(const std::string &path, int code);
   void HandleErrorContext(const std::string &trimmed);
+  std::string TrimQuotes(const std::string &str);
+  void HandleLocationContext(const std::string &trimmed);
 
 public:
   // My Templet HHHHHHHHHHHHHHHHHH --> Debuger Don't Remove the template

@@ -1,5 +1,23 @@
 #include "Config.hpp"
 
+// void Config::ProcessMethodContext(const std::string &trimmed) {
+//   std::string method = get_list_item(trimmed);
+//   httpMethod bit = get_method_bit(method);
+//   if (bit == METHOD_NONE) {
+//     std::cerr << "Error: Invalid method '" << method << "'\n";
+//     exit(EXIT_FAILURE);
+//   }
+//
+//   unsigned int &current_mask = (context == "methods")
+//                                    ? currentServer.location.allowed_methods
+//                                    : currentServer.location.allowed_cgi_methods;
+//   if (current_mask & bit) {
+//     std::cerr << "Error: Duplicate method '" << method << "'\n";
+//     exit(EXIT_FAILURE);
+//   }
+//   current_mask |= bit;
+// }
+
 void Config::ProcessMethodContext(const std::string &trimmed) {
   std::string method = get_list_item(trimmed);
   httpMethod bit = get_method_bit(method);
@@ -9,8 +27,8 @@ void Config::ProcessMethodContext(const std::string &trimmed) {
   }
 
   unsigned int &current_mask = (context == "methods")
-                                   ? currentServer.location.allowed_methods
-                                   : currentServer.location.allowed_cgi_methods;
+                                   ? currentLocation.allowed_methods
+                                   : currentLocation.allowed_cgi_methods;
   if (current_mask & bit) {
     std::cerr << "Error: Duplicate method '" << method << "'\n";
     exit(EXIT_FAILURE);
