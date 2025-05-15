@@ -210,7 +210,12 @@ void Config::HandleIndentFive(const std::string &trimmed) {
 
 void Config::FinalizeServer() {
   // Add any pending location
+    std::cout << "uri :: " << currentLocation.uri  << std::endl;
   if (context == "location") {
+
+    std::cout << "++++++++++++++++++++++++++++ \n";
+    std::cout << "uri :: " << currentLocation.uri  << std::endl;
+    std::cout << "++++++++++++++++++++++++++++ \n";
     this->currentServer.locations.push_back(currentLocation);
     this->context.clear();
   }

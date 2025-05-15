@@ -123,16 +123,16 @@ void WebServer::create_listeners() {
 // }
 
 WebServer::~WebServer() {
-  for (std::vector<FileDescriptor *>::iterator it =
-           listener_descriptors.begin();
-       it != listener_descriptors.end(); ++it) {
-    delete *it;
-  }
-  for (std::list<Connection *>::iterator it = connections.begin();
-       it != connections.end(); ++it) {
-    delete *it;
-    this->connections.erase(it);
-  }
+  // for (std::vector<FileDescriptor *>::iterator it =
+  //          listener_descriptors.begin();
+  //      it != listener_descriptors.end(); ++it) {
+  //   delete *it;
+  // }
+  // for (std::list<Connection *>::iterator it = connections.begin();
+  //      it != connections.end(); ++it) {
+  //   delete *it;
+  //   this->connections.erase(it);
+  // }
 }
 
 WebServer::WebServer() : running(true) {
