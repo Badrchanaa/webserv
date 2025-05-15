@@ -83,6 +83,8 @@ void	HTTPResponse::init(HTTPRequest const &request, CGIHandler const &cgihandler
 	m_ClientFd = fd;
 	this->m_Request = &request;
 	this->m_ConfigServer = configServer;
+	
+	m_State = PROCESS_BODY;
 	if (request.isError())
 	{
 		m_StatusCode = HTTPResponse::BAD_REQUEST;
@@ -95,8 +97,7 @@ void	HTTPResponse::init(HTTPRequest const &request, CGIHandler const &cgihandler
 	if (!_safePath(request.getPath()))
 	{
 		std::cout << "NOT A SAFE PATH" << std::endl;
-		m_StatusCode = FORBIDDEN;
-		m_State = PROCESS_BODY;
+		m_StatusCode = NOT_FOUND;
 		return;
 	}
 	m_Location = &configServer->getLocation(request.getPath());
@@ -113,13 +114,10 @@ void	HTTPResponse::init(HTTPRequest const &request, CGIHandler const &cgihandler
 			m_StatusCode = SERVER_ERROR;
 	}
 	else if (request.getMethod() == POST)
-	{
 		m_StatusCode = NOT_IMPLEMENTED;
-	}
 	// ADD DEBUG INFO TO RESPONSE BODY
 	// _debugBody();
 	m_ResourcePath = resourcePath;
-	m_State = PROCESS_BODY;
 }
 
 void		HTTPResponse::reset()
@@ -373,7 +371,13 @@ void	HTTPResponse::_processBody()
 		if (_validFile(m_ResourcePath))
 			_readFileToBody(m_ResourcePath);
 		else if (_validDirectory(m_ResourcePath))
-			_processDirectoryListing();
+		{
+			std::string indexPath = m_Location->getIndexPath(m_Request->getPath());
+			if (indexPath == m_Request->getPath())
+				_readFileToBody(indexPath);
+			else
+				_processDirectoryListing();
+		}
 		else
 		{ 
 			// if not a file nor a directory (or bad permissions).
