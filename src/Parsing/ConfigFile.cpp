@@ -15,15 +15,13 @@ const ConfigServer &Config::getServerByName(std::vector<ConfigServer> &servers,
     return servers[0];
   }
   return servers[0];
-
-  // std::cerr << "No servers are configured." << std::endl;
-  // exit(EXIT_FAILURE);
 }
 
 void Config::ResetParsingState() {
-  inServer = false;
-  context.clear();
-  currentServer = ConfigServer();
+  this->inServer = false;
+  this->context.clear();
+  this->currentServer = ConfigServer();
+  this->currentLocation = Location();
 }
 
 void Config::EnterServerContext() {
@@ -62,17 +60,18 @@ void Config::ProcessServerKeyValue(const std::string &key,
   } else if (key == "server_name") {
     this->ProcessServerNameValue(value);
   } else if (key == "host") {
-    currentServer.host = value;
+    this->currentServer.host = value;
   } else if (key == "body_size") {
-    currentServer.body_size = value;
+    this->currentServer.body_size = value;
   }
 }
 
 void Config::HandleIndentOne(const std::string &trimmed) {
   if (trimmed == "errors:") {
-    context = "errors";
+    this->context = "errors";
   } else if (trimmed == "location:") {
-    context = "location";
+    this->context = "location";
+    this->currentLocation = Location();
   } else {
     std::string key, value;
     this->split_key_value(trimmed, key, value);
@@ -86,15 +85,16 @@ void Config::HandleIndentOne(const std::string &trimmed) {
 
 void Config::ProcessLocationKeyValue(const std::string &key,
                                      const std::string &value) {
+
   if (key == "uri") {
-    currentServer.location.uri = value;
+    currentLocation.uri = value;
   } else if (key == "root") {
-    currentServer.location.root = value;
+    currentLocation.root = value;
   } else if (key == "autoindex" && (value == "on" || value == "off")) {
     std::cout << "value : " << value << std::endl;
-    currentServer.location.autoindex = (value == "on");
+    currentLocation.autoindex = (value == "on");
   } else if (key == "upload") {
-    currentServer.location.upload = value;
+    currentLocation.upload = value;
   } else if (key == "cgi") {
     context = "cgi";
   } else if (key == "methods") {
@@ -109,79 +109,15 @@ void Config::ProcessLocationKeyValue(const std::string &key,
   }
 }
 
-// void Config::HandleIndentThree(const std::string &trimmed) {
-//   if (context == "methods" || context == "methods_cgi" || context == "cgi") {
-//     context = "location";
-//   }
-//
-//   if (context == "errors") {
-//     std::string key_str, value;
-//     this->split_key_value(trimmed, key_str, value);
-//
-//     if (!key_str.empty()) {
-//       if (key_str[0] == '"' && key_str[key_str.size() - 1] == '"') {
-//         key_str = key_str.substr(1, key_str.size() - 2);
-//       }
-//     }
-//     if (key_str.empty() ||
-//         key_str.find_first_not_of("0123456789") != std::string::npos) {
-//       std::cerr << "Error: Invalid error code format '" << key_str
-//                 << "'. Must contain only digits." << std::endl;
-//       exit(EXIT_FAILURE);
-//     }
-//
-//     int code = 0;
-//     for (size_t i = 0; i < key_str.size(); ++i) {
-//       int digit = key_str[i] - '0';
-//       if (code >= 600) {
-//         std::cerr << "Error: Invalid HTTP error code " << code
-//                   << ". Must be between 400-599." << std::endl;
-//         exit(EXIT_FAILURE);
-//       }
-//       code = code * 10 + digit;
-//     }
-//     if (code < 400 || code >= 600) {
-//       std::cerr << "Error: Invalid HTTP error code " << code
-//                 << ". Must be between 400-599." << std::endl;
-//       exit(EXIT_FAILURE);
-//     }
-//
-//     if (value.empty()) {
-//       std::cerr << "Error: Empty error page path for code " << code
-//                 << std::endl;
-//       exit(EXIT_FAILURE);
-//     }
-//     if (value.find_first_of(" \t\r\n") != std::string::npos) {
-//       std::cerr << "Error: Error page path contains whitespace for code "
-//                 << code << std::endl;
-//       exit(EXIT_FAILURE);
-//     }
-//     currentServer.errors[code] = value;
-//   } else if (context == "location") {
-//     std::string key, value;
-//     this->split_key_value(trimmed, key, value);
-//
-//     if (LOCATION_KEYS.find(key) == LOCATION_KEYS.end()) {
-//       std::cerr << "Error: Unknown location directive '" << key << "'"
-//                 << std::endl;
-//       exit(EXIT_FAILURE);
-//     }
-//     this->ProcessLocationKeyValue(key, value);
-//   } else {
-//     std::cerr << "Error: Unexpected context '" << context
-//               << "' at indent level 3" << std::endl;
-//     exit(EXIT_FAILURE);
-//   }
-// }
-
 void Config::ExitWithError(const std::string &message) {
   std::cerr << "Error: " << message << std::endl;
   exit(EXIT_FAILURE);
 }
 std::string Config::TrimQuotes(const std::string &str) {
-  return (str.size() >= 2 && str.front() == '"' && str.back() == '"')
-             ? str.substr(1, str.size() - 2)
-             : str;
+  if (str.size() >= 2 && str[0] == '"' && str[str.size() - 1] == '"') {
+    return str.substr(1, str.size() - 2);
+  }
+  return str;
 }
 
 void Config::ValidateErrorCodeFormat(const std::string &key_str) {
@@ -194,7 +130,9 @@ void Config::ValidateErrorCodeFormat(const std::string &key_str) {
 
 int Config::ConvertToErrorCode(const std::string &key_str) {
   int code = 0;
-  for (char c : key_str) {
+  for (std::string::const_iterator it = key_str.begin(); it != key_str.end();
+       ++it) {
+    char c = *it;
     code = code * 10 + (c - '0');
     if (code >= 600)
       this->ExitWithError("Invalid HTTP error code " + Config::to_String(code) +
@@ -227,7 +165,7 @@ void Config::HandleErrorContext(const std::string &trimmed) {
   }
   this->ValidateErrorPath(value, code);
 
-  currentServer.errors[code] = value;
+  this->currentServer.errors[code] = value;
 }
 
 void Config::HandleIndentThree(const std::string &trimmed) {
@@ -265,15 +203,16 @@ void Config::HandleIndentFive(const std::string &trimmed) {
     }
     std::string key, value;
     this->split_key_value(item, key, value);
-    currentServer.location.cgi[key] = value;
+    // currentServer.location.cgi[key] = value; Old one
+    this->currentLocation.cgi[key] = value;
   }
 }
 
 void Config::FinalizeServer() {
   // Add any pending location
   if (context == "location") {
-    currentServer.locations.push_back(currentLocation);
-    context.clear();
+    this->currentServer.locations.push_back(currentLocation);
+    this->context.clear();
   }
 
   if (!validate_server(currentServer)) {
