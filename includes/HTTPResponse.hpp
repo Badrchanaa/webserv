@@ -110,6 +110,7 @@ class HTTPResponse: public HTTPMessage
 		bool				m_HasCgi;
 		std::string			m_ResourcePath;
 		const ConfigServer*	m_ConfigServer;
+		const Location*		m_Location;
 		// int client_fd;
 
 };

@@ -8,7 +8,8 @@ HTTPResponse::pollState	HTTPResponse::getPollState() const
 	return m_PollState;
 }
 
-HTTPResponse::HTTPResponse(void): m_State(INIT), m_PollState(SOCKET_WRITE), m_CursorPos(0), m_HasCgi(false), m_ConfigServer(NULL)
+HTTPResponse::HTTPResponse(void): m_State(INIT), m_PollState(SOCKET_WRITE), m_CursorPos(0), 
+				m_HasCgi(false), m_ConfigServer(NULL), m_Location(NULL)
 {
 	m_StatusCode = HTTPResponse::OK;
 }
@@ -98,7 +99,8 @@ void	HTTPResponse::init(HTTPRequest const &request, CGIHandler const &cgihandler
 		m_State = PROCESS_BODY;
 		return;
 	}
-	resourcePath = "./" + configServer->location.root + configServer->location.uri + request.getPath();
+	m_Location = &configServer->getLocation(request.getPath());
+	resourcePath = "./" + m_Location->root + m_Location->uri + request.getPath();
 	std::cout << "RESOURCE PATH: " << resourcePath << std::endl;
 	if (_isCgiPath(request.getPath(), configServer))
 		return _initCgi(request.getPath(), cgihandler, configServer);
@@ -298,27 +300,21 @@ void	HTTPResponse::_readFileToBody(const std::string filename)
 void	HTTPResponse::_processErrorBody()
 {
 	std::cout << "PROCESS ERROR BODY" << std::endl;
-	const std::map<std::string, std::string>	&errors = m_ConfigServer->errors;
-	std::map<std::string, std::string>::const_iterator	it;
+	const std::map<int, std::string>	&errors = m_ConfigServer->errors;
+	std::map<int, std::string>::const_iterator	it;
 	std::string	filename;
-	std::stringstream s;
 
-	s << static_cast<int>(m_StatusCode);
 	// Temporarily add quotes to look for key.
-	std::string key = "\"";
-	key += s.str();
-	key += "\"";
-	it = errors.find(key);
+	it = errors.find(static_cast<int>(m_StatusCode));
 	if (it == errors.end())
 		filename = _getDefaultErrorFile();
 	else
-		filename = "./" + m_ConfigServer->location.root + "/" + it->second;
+		filename = "./" + m_Location->root + "/" + it->second;
 	std::cout << "FILENAME: " << filename << std::endl;
 	if (!_validFile(filename))
 	{
 		std::string body;
-		body = "<html><body><h1>Error ";
-		body += s.str();
+		body = "<html><body><h1>Unexpected error";
 		body += "</h1><p>(Default WebServ Error Page)</body></html>";
 		appendBody(body);
 		return;
@@ -334,7 +330,7 @@ void	HTTPResponse::_processDirectoryListing()
 	struct dirent	*entry;
 	std::string path;
 
-	if (!m_ConfigServer->location.autoindex)
+	if (!m_Location->autoindex)
 	{
 		m_StatusCode = FORBIDDEN;
 		return _processErrorBody();

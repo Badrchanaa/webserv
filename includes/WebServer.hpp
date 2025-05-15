@@ -53,7 +53,7 @@ class WebServer {
   volatile bool running;
 
   std::vector<FileDescriptor *> listener_descriptors;
-  std::map<int, std::vector<ConfigServer>>
+  std::map<int, std::vector<ConfigServer> >
       listener_map; /* Maps listener FDs to their config*/
 
 public:
