@@ -38,7 +38,7 @@ server:
      - GET
      - DELETE
    root: www
-   autoindex: off
+   autoindex: on
    methods_cgi:
      - POST
      - GET 
@@ -47,14 +47,14 @@ server:
      - .php: /usr/bin/php-cgi
 
  location:
-   uri: /hh
+   uri: /foewofew
    upload: uploads
    methods:
      - POST
      - GET
      - DELETE
    root: www
-   autoindex: off
+   autoindex: on
    methods_cgi:
      - POST
      - GET 
