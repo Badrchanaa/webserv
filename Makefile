@@ -89,7 +89,7 @@ all: $(NAME)
 $(NAME): $(OBJ_FILES) $(HEADER_FILES)
 	@${eval SRCS_COUNT = ${shell expr ${SRCS_COUNT} + 1}}
 # @echo "i am here\n"
-	$(CC) $(OBJ_FILES) -o $@ $(CFLAGS) #-fsanitize=address -g3
+	$(CC) $(OBJ_FILES) -o $@ $(CFLAGS) -fsanitize=address -g3
 	@echo ""
 	@echo " ${BOLD}${CUR}${BEIGE}-> Compiling ${DEF}${BOLD}${LYELLOW}[WEBSERV]${DEF}"
 	@printf " ${BEIGE}   [${LGREEN}%-23.${BAR}s${BEIGE}] [%d/%d (%d%%)]${DEF}" "***********************" ${SRCS_COUNT} ${SRCS_TOT} ${SRCS_PRCT}

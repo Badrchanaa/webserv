@@ -82,6 +82,8 @@ public:
   Connection &connection_ref(int fd);
   Connection &getClientConnection(int fd);
   int getCgiFdBasedOnClientFd(int client_fd);
+  bool try_attach_to_existing_listener(const ConfigServer& new_server, int port);
+
 };
 
 #endif // !_test__

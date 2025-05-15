@@ -36,90 +36,237 @@ the queue, accept() fails with the error EAGAIN or EWOULDBLOCK.
 
 */
 
-void WebServer::create_listeners() {
-  DEBUG_LOG("Initializing network stack for all servers...");
+// void WebServer::create_listeners() {
+//   DEBUG_LOG("Initializing network stack for all servers...");
+//
+//   int server_count = config.ServersNumber();
+//   if (server_count == 0) {
+//     throw std::runtime_error("No server configurations found");
+//   }
+//
+//   for (int i = 0; i < server_count; ++i) {
+//     ConfigServer &server = config.getServer(i);
+//
+//     for (size_t p = 0; p < server.ports.size(); ++p) {
+//       int port = server.ports[p];
+//       std::stringstream ss;
+//       ss << port;
+//       std::string port_str = ss.str();
+//       struct addrinfo hints, *res;
+//       memset(&hints, 0, sizeof hints);
+//       hints.ai_family = AF_UNSPEC;
+//       hints.ai_socktype = SOCK_STREAM;
+//       hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
+//
+//       DEBUG_LOG("Resolving addresses for port: " << port);
+//       int status =
+//           getaddrinfo(server.host.c_str(), port_str.c_str(), &hints, &res);
+//       if (status != 0) {
+//         DEBUG_LOG("Address resolution failed: " << gai_strerror(status));
+//         continue;
+//       }
+//
+//       for (struct addrinfo *p = res; p != NULL; p = p->ai_next) {
+//         FileDescriptor temp_fd(socket(
+//             p->ai_family, p->ai_socktype | SOCK_NONBLOCK, p->ai_protocol));
+//
+//         if (temp_fd.fd == -1) {
+//           DEBUG_LOG("Socket creation failed: " << strerror(errno));
+//           continue;
+//         }
+//
+//         int yes = 1;
+//         if (setsockopt(temp_fd.fd, SOL_SOCKET, SO_REUSEADDR, &yes,
+//                        sizeof(int)) == -1) {
+//           DEBUG_LOG("setsockopt failed: " << strerror(errno));
+//           continue;
+//         }
+//
+//         if (bind(temp_fd.fd, p->ai_addr, p->ai_addrlen) == 0) {
+//           if (listen(temp_fd.fd, BACKLOG) == -1) {
+//             DEBUG_LOG("listen failed: " << strerror(errno));
+//             continue;
+//           }
+//
+//           /* Store listener FD and config */
+//           int fd = temp_fd.release();
+//           listener_descriptors.push_back(new FileDescriptor(fd));
+//           listener_map[fd].push_back(server);
+//           // epoll.add_fd(fd, EPOLL_READ);
+//           epoll.add_fd(fd, EPOLL_READ | EPOLL_WRITE);
+//           // epoll.add_fd(temp_fd.fd, EPOLL_READ);
+//           DEBUG_LOG("Listening on port "
+//                     << port << " for server: " << server.server_names[0]);
+//           break;
+//         }
+//       }
+//       freeaddrinfo(res);
+//     }
+//   }
+//
+//   if (listener_map.empty()) {
+//     throw std::runtime_error("All bind attempts failed");
+//   }
+// }
+bool WebServer::try_attach_to_existing_listener(const ConfigServer& new_server, int port) {
+    typedef std::map<int, std::vector<ConfigServer> > ListenerMap;
+    
+    for (ListenerMap::iterator it = listener_map.begin(); it != listener_map.end(); ++it) {
+        // int s = 0;
+        // std::cout << "MapSize : " << listener_map.size() <<  "[First] -> " << it->first  << std::endl;
+        const int existing_fd = it->first;
+        struct sockaddr_storage addr;
+        socklen_t addr_len = sizeof(addr);
+        char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
 
-  int server_count = config.ServersNumber();
-  if (server_count == 0) {
-    throw std::runtime_error("No server configurations found");
-  }
-
-  for (int i = 0; i < server_count; ++i) {
-    ConfigServer &server = config.getServer(i);
-
-    for (size_t p = 0; p < server.ports.size(); ++p) {
-      int port = server.ports[p];
-      std::stringstream ss;
-      ss << port;
-      std::string port_str = ss.str();
-      struct addrinfo hints, *res;
-      memset(&hints, 0, sizeof hints);
-      hints.ai_family = AF_UNSPEC;
-      hints.ai_socktype = SOCK_STREAM;
-      hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
-
-      DEBUG_LOG("Resolving addresses for port: " << port);
-      int status =
-          getaddrinfo(server.host.c_str(), port_str.c_str(), &hints, &res);
-      if (status != 0) {
-        DEBUG_LOG("Address resolution failed: " << gai_strerror(status));
-        continue;
-      }
-
-      for (struct addrinfo *p = res; p != NULL; p = p->ai_next) {
-        FileDescriptor temp_fd(socket(
-            p->ai_family, p->ai_socktype | SOCK_NONBLOCK, p->ai_protocol));
-
-        if (temp_fd.fd == -1) {
-          DEBUG_LOG("Socket creation failed: " << strerror(errno));
-          continue;
-        }
-
-        int yes = 1;
-        if (setsockopt(temp_fd.fd, SOL_SOCKET, SO_REUSEADDR, &yes,
-                       sizeof(int)) == -1) {
-          DEBUG_LOG("setsockopt failed: " << strerror(errno));
-          continue;
-        }
-
-        if (bind(temp_fd.fd, p->ai_addr, p->ai_addrlen) == 0) {
-          if (listen(temp_fd.fd, BACKLOG) == -1) {
-            DEBUG_LOG("listen failed: " << strerror(errno));
+        if (getsockname(existing_fd, (struct sockaddr*)&addr, &addr_len) == -1) {
+            DEBUG_LOG("getsockname failed: " << strerror(errno));
             continue;
-          }
-
-          /* Store listener FD and config */
-          int fd = temp_fd.release();
-          listener_descriptors.push_back(new FileDescriptor(fd));
-          listener_map[fd].push_back(server);
-          // epoll.add_fd(fd, EPOLL_READ);
-          epoll.add_fd(fd, EPOLL_READ | EPOLL_WRITE);
-          // epoll.add_fd(temp_fd.fd, EPOLL_READ);
-          DEBUG_LOG("Listening on port "
-                    << port << " for server: " << server.server_names[0]);
-          break;
         }
-      }
-      freeaddrinfo(res);
-    }
-  }
+        const int flags = NI_NUMERICHOST | NI_NUMERICSERV;
+        if (getnameinfo((struct sockaddr*)&addr, addr_len, 
+                       hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), flags) != 0) {
+            // DEBUG_LOG("getnameinfo failed: " << gai_strerror(s));
+            DEBUG_LOG("getnameinfo failed: ");
+            continue;
+        }
 
-  if (listener_map.empty()) {
-    throw std::runtime_error("All bind attempts failed");
-  }
+        const int existing_port = atoi(sbuf);
+        const std::string current_host = new_server.host.empty() ? "0.0.0.0" : new_server.host;
+
+        // Compare normalized host:port
+        if (existing_port == port && 
+            (strcmp(hbuf, current_host.c_str()) == 0 || 
+            (current_host == "0.0.0.0" && strcmp(hbuf, "::") == 0))) {
+            
+            std::set<std::string> existing_names;
+            // std::cout << "--------------------------------------------------------- " << existing_port << std::endl;
+            for (std::vector<ConfigServer>::const_iterator sit = it->second.begin();
+                 sit != it->second.end(); ++sit) {
+                existing_names.insert(sit->server_names.begin(), sit->server_names.end());
+            }
+            // for (std::set<std::string>::const_iterator it = existing_names.begin(); it != existing_names.end(); ++it) {
+            //     std::cout << *it << std::endl;
+            // }
+            // std::cout << "--------------------------------------------------------- " << std::endl;
+
+            // std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ "<< std::endl;
+
+            bool conflict = false;
+            for (std::vector<std::string>::const_iterator nit = new_server.server_names.begin();
+                 nit != new_server.server_names.end(); ++nit) {
+                if (existing_names.find(*nit) != existing_names.end()) {
+                  // std::cout << "nit : " << *nit << std::endl;
+                    conflict = true;
+                    break;
+                }
+            }
+            // std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ " << conflict << std::endl;
+
+            if (!conflict) {
+                it->second.push_back(new_server);
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
+void WebServer::create_listeners() {
+    DEBUG_LOG("Initializing network stack for all servers...");
+
+    const int server_count = config.ServersNumber();
+    // std::cout << "cout -------------------> " << server_count << std::endl;
+    if (server_count == 0) {
+        throw std::runtime_error("No server configurations found");
+    }
+
+    for (int i = 0; i < server_count; ++i) {
+        ConfigServer& server = config.getServer(i);
+
+        for (std::vector<int>::const_iterator port_it = server.ports.begin();
+             port_it != server.ports.end(); ++port_it) {
+            const int port = *port_it;
+            struct addrinfo hints, *res;
+            memset(&hints, 0, sizeof(hints));
+            hints.ai_family = AF_UNSPEC;
+            hints.ai_socktype = SOCK_STREAM;
+            hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
+
+            DEBUG_LOG("Resolving addresses for " << server.host << ":" << port);
+            std::ostringstream port_stream;
+            port_stream << port;
+            int status = getaddrinfo(server.host.empty() ? NULL : server.host.c_str(),
+                                   port_stream.str().c_str(), &hints, &res);
+            if (status != 0) {
+                DEBUG_LOG("Address resolution failed: " << gai_strerror(status));
+                continue;
+            }
+
+            for (struct addrinfo* p = res; p != NULL; p = p->ai_next) {
+                FileDescriptor temp_fd(socket(p->ai_family, 
+                                          p->ai_socktype | SOCK_NONBLOCK, 
+                                          p->ai_protocol));
+                if (temp_fd.fd == -1) {
+                    DEBUG_LOG("Socket creation failed: " << strerror(errno));
+                    continue;
+                }
+
+                int yes = 1;
+                if (setsockopt(temp_fd.fd, SOL_SOCKET, SO_REUSEADDR, 
+                              &yes, sizeof(int)) == -1) {
+                    DEBUG_LOG("setsockopt failed: " << strerror(errno));
+                    continue;
+                }
+
+                if (bind(temp_fd.fd, p->ai_addr, p->ai_addrlen) == 0) {
+                    if (listen(temp_fd.fd, BACKLOG) == -1) {
+                        DEBUG_LOG("listen failed: " << strerror(errno));
+                        continue;
+                    }
+
+                    const int fd = temp_fd.release();
+                    listener_descriptors.push_back(new FileDescriptor(fd));
+                    // std::cout << "Port -------> " << *port_it << " | fd -------> " << fd << std::endl;
+                    listener_map[fd].push_back(server);
+                    epoll.add_fd(fd, EPOLL_READ | EPOLL_WRITE);
+                    DEBUG_LOG("Successfully bound to " << server.host << ":" << port);
+                    break;
+                } else {
+                    if (errno == EADDRINUSE) {
+                        if (try_attach_to_existing_listener(server, port)) {
+                            DEBUG_LOG("Attached virtual host to existing listener on port " << port);
+                            break;
+                        }
+                        else {
+                          freeaddrinfo(res);
+                          std::ostringstream oss; oss << "Port " << port << " already in use with conflicting server names";
+                          throw std::runtime_error(oss.str());
+                        }
+                    } else {
+                        DEBUG_LOG("bind failed: " << strerror(errno));
+                    }
+                }
+            }
+            freeaddrinfo(res);
+        }
+    }
+
+    if (listener_map.empty()) {
+        throw std::runtime_error("All bind attempts failed");
+    }
+}
 WebServer::~WebServer() {
-  // for (std::vector<FileDescriptor *>::iterator it =
-  //          listener_descriptors.begin();
-  //      it != listener_descriptors.end(); ++it) {
-  //   delete *it;
-  // }
-  // for (std::list<Connection *>::iterator it = connections.begin();
-  //      it != connections.end(); ++it) {
-  //   delete *it;
-  //   this->connections.erase(it);
-  // }
+  for (std::vector<FileDescriptor *>::iterator it =
+           listener_descriptors.begin();
+       it != listener_descriptors.end(); ++it) {
+    delete *it;
+  }
+  for (std::list<Connection *>::iterator it = connections.begin();
+       it != connections.end(); ++it) {
+    delete *it;
+    this->connections.erase(it);
+  }
 }
 
 WebServer::WebServer() : running(true) {
