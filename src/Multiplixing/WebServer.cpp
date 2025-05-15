@@ -108,31 +108,18 @@ void WebServer::create_listeners() {
     throw std::runtime_error("All bind attempts failed");
   }
 }
-// void WebServer::setup_epoll() { epoll.add_fd(listen_fd, EPOLL_READ); }
-// void WebServer::setup_epoll() { epoll.add_fd(listen_fd, EPOLLIN | EPOLLET); }
-
-// dont forget init listen_fd and config and cgi ...etc
-// WebServer::WebServer() : running(true) {
-//   DEBUG_LOG("Initializing web server...");
-//
-//   create_listener();
-//
-//   setup_epoll();
-//   this->cgi.epoll_fd = this->listen_fd;
-//   DEBUG_LOG("Server initialized. Entering main event loop.");
-// }
 
 WebServer::~WebServer() {
-  for (std::vector<FileDescriptor *>::iterator it =
-           listener_descriptors.begin();
-       it != listener_descriptors.end(); ++it) {
-    delete *it;
-  }
-  for (std::list<Connection *>::iterator it = connections.begin();
-       it != connections.end(); ++it) {
-    delete *it;
-    this->connections.erase(it);
-  }
+  // for (std::vector<FileDescriptor *>::iterator it =
+  //          listener_descriptors.begin();
+  //      it != listener_descriptors.end(); ++it) {
+  //   delete *it;
+  // }
+  // for (std::list<Connection *>::iterator it = connections.begin();
+  //      it != connections.end(); ++it) {
+  //   delete *it;
+  //   this->connections.erase(it);
+  // }
 }
 
 WebServer::WebServer() : running(true) {

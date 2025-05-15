@@ -25,6 +25,7 @@ const std::set<std::string> LOCATION_KEYS(location_keys_array,
                                           location_keys_array +
                                               sizeof(location_keys_array) /
                                                   sizeof(std::string));
+const std::string location_required_params[] = {"uri", "root", "methods", "autoindex", "upload"};
 
 const MethodPair valid_methods[] = {
     {"GET", GET}, {"POST", POST}, {"DELETE", DELETE}};
@@ -53,6 +54,7 @@ private:
                                const std::string &value);
   void ProcessMethodContext(const std::string &trimmed);
   void FinalizeServer();
+  void FinalizeLocation();
   bool is_commented(std::string &line);
   bool validate_body_size(const std::string &body_size);
   bool validate_error_paths(const std::map<std::string, std::string> &errors);
@@ -68,6 +70,7 @@ private:
   std::string TrimQuotes(const std::string &str);
   void HandleLocationContext(const std::string &trimmed);
 
+  bool isValidLocation();
 public:
   // My Templet HHHHHHHHHHHHHHHHHH --> Debuger Don't Remove the template
   template <typename T> std::string to_String(const T &value) {

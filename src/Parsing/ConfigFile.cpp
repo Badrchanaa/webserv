@@ -1,4 +1,5 @@
 #include "Config.hpp"
+#include <sys/wait.h>
 
 const ConfigServer &Config::getServerByName(std::vector<ConfigServer> &servers,
                                             std::string name) {
@@ -67,11 +68,25 @@ void Config::ProcessServerKeyValue(const std::string &key,
 }
 
 void Config::HandleIndentOne(const std::string &trimmed) {
+  // Finalize current location if exiting location context
+  // if (context == "location") {
+  // if (trimmed == "location:") {
+  //   std::cout << "i am here location" << std::endl;
+  //   currentServer.locations.push_back(currentLocation);
+  //   context.clear();
+  //   currentLocation = Location();
+  // }
+
   if (trimmed == "errors:") {
+    this->FinalizeLocation();
     this->context = "errors";
   } else if (trimmed == "location:") {
+    std::cout << "++++++++++++++++++++++++++++++++++++++" << std::endl;
+    std::cout << "i am here location" << std::endl;
+    std::cout << "++++++++++++++++++++++++++++++++++++++" << std::endl;
+    this->FinalizeLocation();
     this->context = "location";
-    this->currentLocation = Location();
+    // this->currentLocation = Location();
   } else {
     std::string key, value;
     this->split_key_value(trimmed, key, value);
@@ -87,22 +102,23 @@ void Config::ProcessLocationKeyValue(const std::string &key,
                                      const std::string &value) {
 
   if (key == "uri") {
-    currentLocation.uri = value;
+    std::cout << "URI -> " << value << std::endl;
+    this->currentLocation.uri = value;
   } else if (key == "root") {
-    currentLocation.root = value;
+    this->currentLocation.root = value;
   } else if (key == "autoindex" && (value == "on" || value == "off")) {
     std::cout << "value : " << value << std::endl;
-    currentLocation.autoindex = (value == "on");
+    this->currentLocation.autoindex = (value == "on");
   } else if (key == "upload") {
-    currentLocation.upload = value;
+    this->currentLocation.upload = value;
   } else if (key == "cgi") {
-    context = "cgi";
+    this->context = "cgi";
   } else if (key == "methods") {
-    context = "methods";
+    this->context = "methods";
   } else if (key == "methods_cgi") {
-    context = "methods_cgi";
+    this->context = "methods_cgi";
   } else if (key == "index") { // I Added index handling
-    currentLocation.index = value;
+    this->currentLocation.index = value;
   } else {
     std::cerr << "Unexpected location argument: " << value << std::endl;
     exit(EXIT_FAILURE);
@@ -173,8 +189,10 @@ void Config::HandleIndentThree(const std::string &trimmed) {
     context = "location";
   }
   if (context == "errors") {
+    this->FinalizeLocation();
     this->HandleErrorContext(trimmed);
   } else if (context == "location") {
+    // std::cout << "helllo world->" << std::endl;
     this->HandleLocationContext(trimmed);
   } else {
     this->ExitWithError("Unexpected context '" + context +
@@ -208,12 +226,33 @@ void Config::HandleIndentFive(const std::string &trimmed) {
   }
 }
 
+bool Config::isValidLocation() {
+  return !this->currentLocation.uri.empty() &&
+         !this->currentLocation.root.empty() &&
+         !this->currentLocation.upload.empty() &&
+         !this->currentLocation.allowed_methods;
+}
+
+void Config::FinalizeLocation() {
+  if (!this->isValidLocation()) {
+    currentServer.locations.push_back(currentLocation);
+    std::cout << "==================================" << std::endl;
+    std::cout << "currentLocation Size :: " << currentServer.locations.size()
+              << std::endl;
+    std::cout << "uri :: " << currentLocation.uri << std::endl;
+    std::cout << "root :: " << currentLocation.root << std::endl;
+    std::cout << "upload :: " << currentLocation.upload << std::endl;
+    std::cout << "allowed_methods :: " << currentLocation.allowed_methods
+              << std::endl;
+    std::cout << "==================================" << std::endl;
+    currentLocation = Location(); // Reset
+  }
+}
+
 void Config::FinalizeServer() {
   // Add any pending location
-  if (context == "location") {
-    this->currentServer.locations.push_back(currentLocation);
-    this->context.clear();
-  }
+  // std::cout << "uri :: " << this->currentLocation.uri << std::endl;
+  this->FinalizeLocation();
 
   if (!validate_server(currentServer)) {
     std::cerr << "Invalid server configuration" << std::endl;
