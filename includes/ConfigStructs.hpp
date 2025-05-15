@@ -54,15 +54,20 @@ struct ConfigServer {
     const Location *bestMatch = NULL;
     size_t maxLength = 0;
 
+    std::cout << "--------------------------------- " << std::endl;
+    std::cout << locations.size() << std::endl;
+    std::cout << "--------------------------------- " << std::endl;
     for (std::vector<Location>::const_iterator it = locations.begin();
          it != locations.end(); ++it) {
       const Location &loc = *it;
+      return loc;
       // i have some mistiks with this uri  don't forget about it
       if (path.find(loc.uri) == 0 && loc.uri.length() > maxLength) {
         maxLength = loc.uri.length();
         bestMatch = &loc;
       }
     }
+    std::cout << "++++++++++++++++--------------------------------- " << std::endl;
 
     if (!bestMatch) {
       throw std::runtime_error("No matching location found");
