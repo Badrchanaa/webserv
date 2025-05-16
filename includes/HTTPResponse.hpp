@@ -81,7 +81,7 @@ class HTTPResponse: public HTTPMessage
 		/// @param event EpollManager event.
 		/// @return if should remove current event from list
 		bool	resume(bool isCgiReady, bool isClientReady);
-		void	sendError(statusCode status);
+		void	setError(statusCode status);
 
 	private:
 		void	_readFileToBody(const std::string filename);

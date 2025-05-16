@@ -3,25 +3,31 @@
 #include <unistd.h>
 #include <string>
 
-HTTPBody::HTTPBody(void)
+HTTPBody::HTTPBody(void): m_Offset(0)
 {
 	m_IsFile = false;
 	m_Size = 0;
 }
 
-HTTPBody::HTTPBody(char *buffer, size_t len)
+HTTPBody::HTTPBody(char *buffer, size_t len): m_Offset(0)
 {
 	this->append(buffer, len);
 }
 
 size_t	HTTPBody::getSize() const
 {
-	return m_VectorBuffer.size();
+	return m_VectorBuffer.size() - m_Offset;
 }
 
-const std::vector<char>&	HTTPBody::getBuffer() const
+void	HTTPBody::setOffset(size_t offset)
 {
-	return m_VectorBuffer;
+	m_Offset = offset;
+}
+
+const char*	HTTPBody::getBuffer() const
+{
+	const char*	buff = &m_VectorBuffer[m_Offset];
+	return buff;
 }
 
 bool	HTTPBody::_writeToFile(const char *buffer, size_t len)

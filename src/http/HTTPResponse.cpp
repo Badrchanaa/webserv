@@ -78,7 +78,7 @@ bool	_safePath(const std::string path)
 void	HTTPResponse::init(HTTPRequest const &request, CGIHandler const &cgihandler, ConfigServer const *configServer, int fd)
 {
 	std::string resourcePath;
-	struct stat fileStat;
+	// struct stat fileStat;
 
 	m_ClientFd = fd;
 	this->m_Request = &request;
@@ -119,7 +119,6 @@ void	HTTPResponse::init(HTTPRequest const &request, CGIHandler const &cgihandler
 	// ADD DEBUG INFO TO RESPONSE BODY
 	// _debugBody();
 	m_ResourcePath = resourcePath;
-	_processResource();
 }
 
 void		HTTPResponse::reset()
@@ -160,6 +159,8 @@ const std::string	HTTPResponse::_statusToString() const
 			return std::string("OK");
 		case 201:
 			return std::string("Created");
+		case 301:
+			return std::string("Moved Permanently");
 		case 400:
 			return std::string("Bad Request");
 		case 403:
@@ -244,7 +245,7 @@ void	HTTPResponse::_debugBody()
 	responseStream << "<h1>REQUEST BODY:</h1>";
 	appendBody(responseStream.str());
 
-	appendBody(m_Request->getBody().getBuffer());
+	appendBody(m_Request->getBody().getBuffer(), m_Request->getBody().getSize());
 
 	appendBody(std::string("<h1>response body</h1>"));
 	addHeader("content-type", "text/html");
@@ -335,12 +336,10 @@ void	HTTPResponse::_processDirectoryListing()
 		m_StatusCode = FORBIDDEN;
 		return _processErrorBody();
 	}
+	std::cout << "opening dir:" << m_ResourcePath << std::endl;
 	dir = opendir(m_ResourcePath.c_str());
 	if (!dir)
-	{
-		m_StatusCode = SERVER_ERROR;
-		return _processErrorBody();
-	}	
+		return setError(SERVER_ERROR);
 	std::cout << "DIRECTORY LISTING" << std::endl;
 	std::stringstream body;
 	path = m_Request->getPath();
@@ -360,62 +359,60 @@ void	HTTPResponse::_processDirectoryListing()
 	closedir(dir);
 }
 
+void	HTTPResponse::setError(statusCode status)
+{
+	m_StatusCode = status;
+	_processErrorBody();
+	m_State = PROCESS_HEADERS;
+	m_PollState = SOCKET_WRITE;
+}
+
 void	HTTPResponse::_processResource()
 {
 	if (m_Request->getMethod() != GET)
-	{
-		m_StatusCode = NOT_IMPLEMENTED;
-		return ;
-	}
-	
+		return setError(NOT_IMPLEMENTED);
 	if (_validFile(m_ResourcePath))
 		return;
 	if (_validDirectory(m_ResourcePath))
 	{
-		if (m_ResourcePath.back() != '/')
+		if (m_ResourcePath[m_ResourcePath.length() - 1] != '/')
 		{
 			m_StatusCode = MOVED_PERMANENTLY;
-			addHeader("location", m_ResourcePath + "/");
+			addHeader("location", m_Request->getPath() + "/");
 			return;
 		}
-		m_ResourcePath += "/index.html";
-		if (_validFile(m_ResourcePath))
+		std::string indexPath = m_ResourcePath + "index.html";
+		if (_validFile(indexPath))
+		{
+			m_ResourcePath = indexPath;
 			return;
+		}
 		else if (m_Location->autoindex)
 			_processDirectoryListing();
 		else
-		{
-			m_StatusCode = NOT_FOUND;
-			_processErrorBody();
-		}
+			setError(NOT_FOUND);
 	}
 	else
-		m_StatusCode = NOT_FOUND;
+		setError(NOT_FOUND);
 }
 
 void	HTTPResponse::_processBody()
 {
-	m_CursorPos = 0;
-
 	_processResource();
-	if ()
-	std::cout << "PROCESS BODY" << std::endl;
-	if (m_StatusCode != OK)
-		_processErrorBody();
-	
-
+	if (m_StatusCode == OK)
+		_readFileToBody(m_ResourcePath);
 	m_State = PROCESS_HEADERS;
 }
 
 void	HTTPResponse::_sendBody()
 {
 	std::cout << "PROCESS BODY" << std::endl;
-	const std::vector<char>	&bodyBuffer = m_Body.getBuffer();
-	const char * buff = const_cast<const char *>(&bodyBuffer[m_CursorPos]);
-	std::size_t	size = bodyBuffer.size();
+	const char* bodyBuffer = m_Body.getBuffer();
+	// const char * buff = const_cast<const char *>(&bodyBuffer[m_CursorPos]);
+	std::size_t	size = m_Body.getSize();
 	// write(1, buff, size);
 
-	ssize_t	wBytes = send(m_ClientFd, buff, size - m_CursorPos, 0);
+	ssize_t	wBytes = send(m_ClientFd, bodyBuffer, size, 0);
 	if (wBytes < 0)
 	{
 			m_State = DONE;
@@ -423,11 +420,8 @@ void	HTTPResponse::_sendBody()
 	}
 	std::cout << "body size: " << m_Body.getSize() << std::endl;
 	std::cout << "BODY: sent " << wBytes << " bytes to socket " << m_ClientFd << std::endl;
-	if (wBytes + m_CursorPos < size)
-	{
-		m_CursorPos = wBytes;
-		std::cout << "written: " << wBytes << " cursorPos: " << m_CursorPos << std::endl;
-	}
+	if (static_cast<size_t>(wBytes) < size)
+		std::cout << "written: " << wBytes << std::endl;
 	else
 		m_State = DONE;
 }

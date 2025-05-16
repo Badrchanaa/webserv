@@ -19,9 +19,10 @@ class HTTPBody
 
 		bool						append(const char *buffer, size_t len);
 		// unsigned int				write(int fd);
-		const std::vector<char>&	getBuffer() const;
-		void						flush();
-		size_t						getSize() const;
+		const char*		getBuffer() const;
+		void			flush();
+		size_t			getSize() const;
+		void			setOffset(size_t offset);
 
 	private:
 		bool	_switchToFile();
@@ -33,6 +34,7 @@ class HTTPBody
 		std::vector<char>		m_VectorBuffer;
 		size_t					m_Size;
 		bool					m_IsFile;
+		size_t					m_Offset;
 };
 
 #endif

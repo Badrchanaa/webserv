@@ -66,11 +66,6 @@ struct ConfigServer {
         bestMatch = &loc;
       }
     }
-<<<<<<< HEAD
-=======
-    std::cout << "++++++++++++++++--------------------------------- "
-              << std::endl;
->>>>>>> b923d70e360a8c38250bde061411d65acd2e32d3
 
     if (!bestMatch) {
       std::cout << "location uri form getLocation function :: "

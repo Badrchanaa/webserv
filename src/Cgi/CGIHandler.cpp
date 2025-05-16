@@ -58,7 +58,6 @@ void CGIHandler::spawn(const std::string &script,
 
     CGIProcess proc = {client, sockets[0], pid, "", body, 0};
     processes[sockets[0]] = proc;
-    connection.
   }
 }
 
@@ -75,22 +74,22 @@ void CGIHandler::spawn(const std::string &script,
 //     cleanup(it->second, true);
 // }
 
-void CGIHandler::check_zombies() {
-  int status;
-  pid_t pid;
-  while ((pid = waitpid(-1, &status, WNOHANG))) {
-    if (pid <= 0)
-      break;
+// void CGIHandler::check_zombies() {
+//   int status;
+//   pid_t pid;
+//   while ((pid = waitpid(-1, &status, WNOHANG))) {
+//     if (pid <= 0)
+//       break;
 
-    for (std::map<int, CGIProcess>::iterator it = processes.begin();
-         it != processes.end(); ++it) {
-      if (it->second.pid == pid) {
-        cleanup(it->second, WIFEXITED(status) ? false : true);
-        break;
-      }
-    }
-  }
-}
+//     for (std::map<int, CGIProcess>::iterator it = processes.begin();
+//          it != processes.end(); ++it) {
+//       if (it->second.pid == pid) {
+//         cleanup(it->second, WIFEXITED(status) ? false : true);
+//         break;
+//       }
+//     }
+//   }
+// }
 
 void CGIHandler::setup_child(int sock, const std::string &script,
                              const std::vector<std::string> &env) {
@@ -108,47 +107,48 @@ void CGIHandler::setup_child(int sock, const std::string &script,
   exit(EXIT_FAILURE);
 }
 //
-bool  CGIProcess::handle_input(HTTPBody& body) {
-  // Hello World + 5 >> World
-  const char * buff = body.getBuffer();
-  size_t len = body.getSize();
-  ssize_t sent = send(this->cgi_sock, buff + this->written,
-                      len - this->written, MSG_NOSIGNAL);
-  if(sent < 0) {
-    this->cleanup(*this, true);
-    return false;
-  }
-  body.setOffset(sent);
-  return true;
-  // if (sent < len) {
-  //     struct epoll_event ev;
-  //     ev.events = EPOLL_READ;
-  //     ev.data.fd = this->cgi_sock;
-  //     epoll_ctl(epoll_fd, EPOLL_CTL_MOD, proc.cgi_sock, &ev);
-  //     shutdown(proc.cgi_sock, SHUT_WR);
-  // }
-}
+// bool  CGIProcess::handle_input(HTTPBody& body) {
+//   // Hello World + 5 >> World
+//   const char * buff = body.getBuffer();
+//   size_t len = body.getSize();
+//   ssize_t sent = send(this->cgi_sock, buff + this->written,
+//                       len - this->written, MSG_NOSIGNAL);
+//   if(sent < 0) {
+//     this->cleanup(*this, true);
+//     return false;
+//   }
+//   body.setOffset(sent);
+//   return true;
+//   // if (sent < len) {
+//   //     struct epoll_event ev;
+//   //     ev.events = EPOLL_READ;
+//   //     ev.data.fd = this->cgi_sock;
+//   //     epoll_ctl(epoll_fd, EPOLL_CTL_MOD, proc.cgi_sock, &ev);
+//   //     shutdown(proc.cgi_sock, SHUT_WR);
+//   // }
+// }
 
-void CGIProcess::handle_output(CGIProcess &proc) {
-  char buf[4096];
-  ssize_t received = recv(this->cgi_sock, buf, sizeof(buf), 0);
+// void CGIProcess::handle_output(CGIProcess &proc) {
+//   char buf[4096];
+//   ssize_t received = recv(this->cgi_sock, buf, sizeof(buf), 0);
 
-  if (received > 0) {
-    proc.output.append(buf, received);
-  } else if (received <= 0 && errno != EAGAIN) {
-    this->cleanup(*this, received < 0);
-  }
-}
+//   if (received > 0) {
+//     proc.output.append(buf, received);
+//   } else if (received <= 0 && errno != EAGAIN) {
+//     this->cleanup(*this, received < 0);
+//   }
+// }
 
-void CGIProcess::cleanup(bool error) {
+// void CGIHandler::cleanup(bool error) {
+void CGIHandler::cleanup(const CGIProcess &proc, bool error){
   // if (!proc.output.empty()) {
   //   send(proc.client_fd, proc.output.c_str(), proc.output.size(), 0);
   // } else if (error) {
   //   // std::string err = "HTTP/1.1 500 Internal Error\r\n\r\n";
   //   send(proc.client_fd, err.c_str(), err.size(), 0);
   // }
-
-  close(this->cgi_sock);
+  (void)error;
+  close(proc.cgi_sock);
   // close(proc.client_fd);
   processes.erase(proc.cgi_sock);
 }
