@@ -101,23 +101,25 @@ void	HTTPResponse::init(HTTPRequest const &request, CGIHandler const &cgihandler
 		return;
 	}
 	m_Location = &configServer->getLocation(request.getPath());
-	resourcePath = "./" + m_Location->root + m_Location->uri + request.getPath();
+	std::cout << "location root: " << m_Location->root << std::endl;
+	std::cout << "location uri: " << m_Location->uri << std::endl;
+
+	if (m_Location->uri != "/")
+		resourcePath =  m_Location->root + m_Location->uri + request.getPath();
+	else
+		resourcePath =  m_Location->root + request.getPath();
+	if (resourcePath[0] == '/')
+		resourcePath = "." + resourcePath;
+	else
+		resourcePath = "./" + resourcePath;
 	std::cout << "RESOURCE PATH: " << resourcePath << std::endl;
 	if (_isCgiPath(request.getPath(), configServer))
 		return _initCgi(request.getPath(), cgihandler, configServer);
 	
-	if (request.getMethod() == GET)
-	{
-		if (access(resourcePath.c_str(), R_OK) != 0)
-			m_StatusCode = NOT_FOUND;
-		else if (stat(resourcePath.c_str(), &fileStat) == -1)
-			m_StatusCode = SERVER_ERROR;
-	}
-	else if (request.getMethod() == POST)
-		m_StatusCode = NOT_IMPLEMENTED;
 	// ADD DEBUG INFO TO RESPONSE BODY
 	// _debugBody();
 	m_ResourcePath = resourcePath;
+	_processResource();
 }
 
 void		HTTPResponse::reset()
@@ -358,34 +360,49 @@ void	HTTPResponse::_processDirectoryListing()
 	closedir(dir);
 }
 
+void	HTTPResponse::_processResource()
+{
+	if (m_Request->getMethod() != GET)
+	{
+		m_StatusCode = NOT_IMPLEMENTED;
+		return ;
+	}
+	
+	if (_validFile(m_ResourcePath))
+		return;
+	if (_validDirectory(m_ResourcePath))
+	{
+		if (m_ResourcePath.back() != '/')
+		{
+			m_StatusCode = MOVED_PERMANENTLY;
+			addHeader("location", m_ResourcePath + "/");
+			return;
+		}
+		m_ResourcePath += "/index.html";
+		if (_validFile(m_ResourcePath))
+			return;
+		else if (m_Location->autoindex)
+			_processDirectoryListing();
+		else
+		{
+			m_StatusCode = NOT_FOUND;
+			_processErrorBody();
+		}
+	}
+	else
+		m_StatusCode = NOT_FOUND;
+}
+
 void	HTTPResponse::_processBody()
 {
 	m_CursorPos = 0;
 
+	_processResource();
+	if ()
 	std::cout << "PROCESS BODY" << std::endl;
 	if (m_StatusCode != OK)
 		_processErrorBody();
-	else if (m_Request->getMethod() == GET)
-	{
-		// TODO: error handling & large files (chunked response)
-		if (_validFile(m_ResourcePath))
-			_readFileToBody(m_ResourcePath);
-		else if (_validDirectory(m_ResourcePath))
-		{
-			std::string indexPath = m_Location->getIndexPath(m_Request->getPath());
-			if (indexPath == m_Request->getPath())
-				_readFileToBody(indexPath);
-			else
-				_processDirectoryListing();
-		}
-		else
-		{ 
-			// if not a file nor a directory (or bad permissions).
-			// return forbidden ??
-			m_StatusCode = FORBIDDEN;
-			_processErrorBody();
-		}
-	}
+	
 
 	m_State = PROCESS_HEADERS;
 }

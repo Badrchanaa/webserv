@@ -36,6 +36,7 @@ class HTTPResponse: public HTTPMessage
 		{
 			OK = 200,
 			CREATED = 201,
+			MOVED_PERMANENTLY = 301,
 			BAD_REQUEST = 400,
 			FORBIDDEN = 403,
 			NOT_FOUND = 404,
@@ -83,6 +84,7 @@ class HTTPResponse: public HTTPMessage
 
 	private:
 		void	_readFileToBody(const std::string filename);
+		void	_processResource();
 		void	_processDirectoryListing();
 		bool	_validDirectory(const std::string filename) const;
 		bool	_validFile(const std::string filename) const;
