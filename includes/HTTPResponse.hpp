@@ -80,7 +80,8 @@ class HTTPResponse: public HTTPMessage
 		/// @brief resumes response processing. should be called on event notify.
 		/// @param event EpollManager event.
 		/// @return if should remove current event from list
-		bool resume(bool isCgiReady, bool isClientReady);
+		bool	resume(bool isCgiReady, bool isClientReady);
+		void	sendError(statusCode status);
 
 	private:
 		void	_readFileToBody(const std::string filename);

@@ -38,6 +38,7 @@ struct Location {
       return path + this->index;
     return path + "/" + this->index;
   }
+  Location() : autoindex(0), allowed_methods(0), allowed_cgi_methods(0) {}
 };
 
 struct ConfigServer {
@@ -58,15 +59,24 @@ struct ConfigServer {
     for (std::vector<Location>::const_iterator it = locations.begin();
          it != locations.end(); ++it) {
       const Location &loc = *it;
+      // return loc;
       // i have some mistiks with this uri  don't forget about it
       if (path.find(loc.uri) == 0 && loc.uri.length() > maxLength) {
         maxLength = loc.uri.length();
         bestMatch = &loc;
       }
     }
+<<<<<<< HEAD
+=======
+    std::cout << "++++++++++++++++--------------------------------- "
+              << std::endl;
+>>>>>>> b923d70e360a8c38250bde061411d65acd2e32d3
 
     if (!bestMatch) {
-      throw std::runtime_error("No matching location found");
+      std::cout << "location uri form getLocation function :: "
+                << locations[locations.size() - 1].uri << std::endl;
+      return locations[locations.size() - 1];
+      // throw std::runtime_error("No matching location found");
     }
     return *bestMatch;
   }

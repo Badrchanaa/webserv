@@ -29,6 +29,7 @@ public:
   // Config &config;
   CGIHandler &Cgihandler;
   FileDescriptor client_fd;
+
   HTTPRequest m_Request;
 
   bool hasEvent;

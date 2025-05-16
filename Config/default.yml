@@ -47,3 +47,67 @@ server:
      - .php: /usr/bin/php-cgi
 
 
+server:
+ host: 127.0.0.1
+ port: 4000 9999
+ # server_name mybe have wildcard *.youssef || "" -> direcot to defualt server and nginx use defualt or defualt_server to spicifiy defualt server || 
+ #  If it is required to process requests without the “Host” header field in a server block which is not the default, an empty name should be specified:
+    # server {
+    #     listen       80;
+    #     server_name  example.org  www.example.org  "";
+    #     ...
+    # }
+ # If no server_name is defined in a server block then nginx uses the empty name as the server name.
+ #
+ #    nginx versions up to 0.8.48 used the machine’s hostname as the server name in this case. 
+ #    i foget root and index
+
+ server_name: youssef localhost
+ body_size: 4000M  
+ # errors:
+ #   "500": errors/500.html
+ #   "404": errors/404.html
+ #   "403": errors/403.html
+ #   "405": errors/405.html
+ #   "400": errors/400.htmt
+ errors:
+   500: errors/500.html
+   404: errors/404.html
+   403: errors/403.html
+   405: errors/405.html
+   400: errors/400.htmt
+
+ # test:
+ #   uri: /
+ location:
+   uri: /app
+   upload: uploads
+   methods:
+     - POST
+     - GET
+     - DELETE
+   root: www
+   autoindex: on
+   methods_cgi:
+     - POST
+     - GET 
+   cgi:
+     - .py: /usr/bin/python3
+     - .php: /usr/bin/php-cgi
+
+ location:
+   uri: /foewofew
+   upload: uploads
+   methods:
+     - POST
+     - GET
+     - DELETE
+   root: www
+   autoindex: on
+   methods_cgi:
+     - POST
+     - GET 
+   cgi:
+     - .py: /usr/bin/python3
+     - .php: /usr/bin/php-cgi
+

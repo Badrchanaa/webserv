@@ -44,6 +44,7 @@ class HTTPRequest: public HTTPMessage
 		void				appendToPath(const char *buff, size_t start, size_t len);
 		// bool				appendBody(const char *buff, size_t len);
 		bool				validPath();
+		const std::string	getQuery() const;
 		// std::string			getBodyStr() const;
 		const std::string&	getPath() const;
 		bool				isTransferChunked() const;
@@ -65,6 +66,7 @@ class HTTPRequest: public HTTPMessage
 		std::string			m_Host;
 		std::string			m_Path;
 		transferEncoding	m_TransferEncoding;
+		std::string			m_Query;
 		HTTPMultipartForm	*m_MultipartForm;
 		/*
 			TODO: remove ConfigServers from constructor, get them from config after header parsing
