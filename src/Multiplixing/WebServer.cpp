@@ -36,78 +36,6 @@ the queue, accept() fails with the error EAGAIN or EWOULDBLOCK.
 
 */
 
-// void WebServer::create_listeners() {
-//   DEBUG_LOG("Initializing network stack for all servers...");
-//
-//   int server_count = config.ServersNumber();
-//   if (server_count == 0) {
-//     throw std::runtime_error("No server configurations found");
-//   }
-//
-//   for (int i = 0; i < server_count; ++i) {
-//     ConfigServer &server = config.getServer(i);
-//
-//     for (size_t p = 0; p < server.ports.size(); ++p) {
-//       int port = server.ports[p];
-//       std::stringstream ss;
-//       ss << port;
-//       std::string port_str = ss.str();
-//       struct addrinfo hints, *res;
-//       memset(&hints, 0, sizeof hints);
-//       hints.ai_family = AF_UNSPEC;
-//       hints.ai_socktype = SOCK_STREAM;
-//       hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
-//
-//       DEBUG_LOG("Resolving addresses for port: " << port);
-//       int status =
-//           getaddrinfo(server.host.c_str(), port_str.c_str(), &hints, &res);
-//       if (status != 0) {
-//         DEBUG_LOG("Address resolution failed: " << gai_strerror(status));
-//         continue;
-//       }
-//
-//       for (struct addrinfo *p = res; p != NULL; p = p->ai_next) {
-//         FileDescriptor temp_fd(socket(
-//             p->ai_family, p->ai_socktype | SOCK_NONBLOCK, p->ai_protocol));
-//
-//         if (temp_fd.fd == -1) {
-//           DEBUG_LOG("Socket creation failed: " << strerror(errno));
-//           continue;
-//         }
-//
-//         int yes = 1;
-//         if (setsockopt(temp_fd.fd, SOL_SOCKET, SO_REUSEADDR, &yes,
-//                        sizeof(int)) == -1) {
-//           DEBUG_LOG("setsockopt failed: " << strerror(errno));
-//           continue;
-//         }
-//
-//         if (bind(temp_fd.fd, p->ai_addr, p->ai_addrlen) == 0) {
-//           if (listen(temp_fd.fd, BACKLOG) == -1) {
-//             DEBUG_LOG("listen failed: " << strerror(errno));
-//             continue;
-//           }
-//
-//           /* Store listener FD and config */
-//           int fd = temp_fd.release();
-//           listener_descriptors.push_back(new FileDescriptor(fd));
-//           listener_map[fd].push_back(server);
-//           // epoll.add_fd(fd, EPOLL_READ);
-//           epoll.add_fd(fd, EPOLL_READ | EPOLL_WRITE);
-//           // epoll.add_fd(temp_fd.fd, EPOLL_READ);
-//           DEBUG_LOG("Listening on port "
-//                     << port << " for server: " << server.server_names[0]);
-//           break;
-//         }
-//       }
-//       freeaddrinfo(res);
-//     }
-//   }
-//
-//   if (listener_map.empty()) {
-//     throw std::runtime_error("All bind attempts failed");
-//   }
-// }
 bool WebServer::try_attach_to_existing_listener(const ConfigServer& new_server, int port) {
     typedef std::map<int, std::vector<ConfigServer> > ListenerMap;
     
@@ -145,12 +73,6 @@ bool WebServer::try_attach_to_existing_listener(const ConfigServer& new_server, 
                  sit != it->second.end(); ++sit) {
                 existing_names.insert(sit->server_names.begin(), sit->server_names.end());
             }
-            // for (std::set<std::string>::const_iterator it = existing_names.begin(); it != existing_names.end(); ++it) {
-            //     std::cout << *it << std::endl;
-            // }
-            // std::cout << "--------------------------------------------------------- " << std::endl;
-
-            // std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ "<< std::endl;
 
             bool conflict = false;
             for (std::vector<std::string>::const_iterator nit = new_server.server_names.begin();
@@ -277,46 +199,20 @@ WebServer::WebServer() : running(true) {
   DEBUG_LOG("Server initialized. Entering main event loop.");
 }
 
-Connection &WebServer::connection_ref(int fd) {
+
+Connection &WebServer::getClientConnection(int fd) {
   for (std::list<Connection *>::iterator it = connections.begin();
        it != connections.end(); ++it) {
     if ((*it)->client_fd == fd)
+      (*it)->socketEvent = true;
+    if ((*it)->m_Response.getCgiFd() == fd)
+      (*it)->cgiEvent = true;
+    if ((*it)->socketEvent || (*it)->cgiEvent)
       return *(*it);
   }
-  throw std::runtime_error("Clinet Connection not found");
+  throw std::runtime_error("Clinet Connection not found OR Cgi Connection not found");
 }
 
-Connection &WebServer::getClientConnection(int fd) {
-  try {
-    Connection &conn = this->connection_ref(fd);
-    conn.socketEvent = true;
-    return conn;
-  } catch (const std::exception &e) {
-    // int client_fd = this->cgi.is_cgi_socket(fd);
-    // i think is_cgi_socket should return fd or cgi_sock not client_fd
-    // for (connec in conss)
-    // {
-    //   if (conec.client_fd = fd || conn.m_Response.getCgiFd() == fd)
-    // }
-    int client_fd = this->cgi.is_cgi_socket(fd);
-    if (client_fd) {
-      // Connection &conn = this->connection_ref(fd);
-      Connection &conn = this->connection_ref(client_fd);
-      conn.cgiEvent = true;
-      return conn;
-    }
-  }
-  throw std::runtime_error("CGI Connection not found");
-}
-
-int WebServer::getCgiFdBasedOnClientFd(int client_fd) {
-  for (std::map<int, CGIProcess>::iterator it = this->cgi.processes.begin();
-       it != cgi.processes.end(); ++it) {
-    if (it->second.client_fd == client_fd)
-      return it->first; // Return the CGI socket fd
-  }
-  return -1; // Not found
-}
 
 void WebServer::run() {
   struct epoll_event events[MAX_EVENTS];
@@ -396,7 +292,8 @@ bool WebServer::handle_client_response(Connection &conn) {
     }
   } else {
     HTTPResponse::pollState state = response.getPollState();
-    int cgi_sock = conn.Cgihandler.getCgiSocket(conn.client_fd);
+    // int cgi_sock = conn.Cgihandler.getCgiSocket(conn.client_fd);
+    int cgi_sock = conn.m_Response.getCgiFd();
 
     if (state == HTTPResponse::CGI_WRITE) {
       // Switch monitoring to CGI socket for writing
@@ -458,11 +355,12 @@ bool WebServer::handle_client_request(Connection &connection) {
 bool WebServer::handle_client(Connection &conn) {
 
   bool isDeleted;
-
+  int fd  = false;
   isDeleted = false;
   if (conn.events & EPOLL_ERRORS) {
-    int fd = this->getCgiFdBasedOnClientFd(conn.client_fd);
-    if (conn.cgiEvent && cgi.is_cgi_socket(fd)) {
+    // int fd = this->getCgiFdBasedOnClientFd(conn.client_fd);
+    fd = conn.m_Response.getCgiFd();
+    if (conn.cgiEvent && fd) {
       cgi.cleanup_by_fd(fd);
     } else if (conn.socketEvent) {
       // cleanup_connection(conn.client_fd);
@@ -523,15 +421,12 @@ void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
                                              << e.what());
   }
 
-  // DEBUG_LOG("[Cleanup] Deleting connection object for fd: " << fd);
   delete connection; // Connection
 
   it = connections.erase(it);
   std::cout << "NUMBER OF CONNECTIONS: " << connections.size() << std::endl;
 
-  // DEBUG_LOG("[Cleanup] Completed for fd: " << fd);
   return;
-  // DEBUG_LOG("[Cleanup] FD " << fd << " not found in connections");
 }
 
 int main() {
