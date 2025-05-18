@@ -32,8 +32,9 @@
 
 // CGIHandler::CGIHandler(int efd) : epoll_fd(efd) {}
 // /path/tocgi/script, env, clientfd, requestBody
+extern char **environ;
 CGIProcess *CGIHandler::spawn(const std::string &script) {
-  extern char **environ;
+  CGIProcess *proc = NULL;
   int sockets[2];
   if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, sockets))
     throw std::runtime_error("socketpair");
@@ -45,7 +46,7 @@ CGIProcess *CGIHandler::spawn(const std::string &script) {
   if (pid == 0) {
 
     close(sockets[0]);
-    setup_child(sockets[1], script, env);
+    setup_child(sockets[1], script, environ);
   } else {
     close(sockets[1]);
 
@@ -56,9 +57,9 @@ CGIProcess *CGIHandler::spawn(const std::string &script) {
     epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sockets[0], &ev);
 
     // mod_fd(socket
-    CGIProcess *proc = new CGIProcess(sockets[0], pid);
-    return proc;
+   proc = new CGIProcess(sockets[0], pid);
   }
+    return proc;
 }
 
 // void CGIHandler::handle_cgi_request(int fd, uint32_t events) {
@@ -92,18 +93,18 @@ CGIProcess *CGIHandler::spawn(const std::string &script) {
 // }
 
 void CGIHandler::setup_child(int sock, const std::string &script,
-                             const std::vector<std::string> &env) {
+                             char **env) {
   dup2(sock, STDIN_FILENO);
   dup2(sock, STDOUT_FILENO);
   close(sock);
 
-  std::vector<const char *> envp;
-  for (size_t i = 0; i < env.size(); ++i)
-    envp.push_back(env[i].c_str());
-  envp.push_back(NULL);
+  // std::vector<const char *> envp;
+  // for (size_t i = 0; env[i]; ++i)
+  //   envp.push_back(env[i].c_str());
+  // envp.push_back(NULL);
 
   const char *argv[] = {script.c_str(), NULL};
-  execve(script.c_str(), (char *const *)argv, (char *const *)&envp[0]);
+  execve(script.c_str(), (char *const *)argv, env);
   exit(EXIT_FAILURE);
 }
 //
@@ -144,18 +145,18 @@ void CGIProcess::cleanup(bool error) {
   waitpid(pid, NULL, 0);
 }
 
-void handle_request(Connection &conn) {
-  if (needs_cgi(conn.request)) {
-    std::map<std::string, std::string> env;
-    // Populate environment variables...
+// void handle_request(Connection &conn) {
+//   if (needs_cgi(conn.request)) {
+//     std::map<std::string, std::string> env;
+//     // Populate environment variables...
 
-    try {
-      cgi_handler.spawn("/path/to/cgi/script", env, conn.client_fd,
-                        conn.request.body);
-    } catch (const std::exception &e) {
-      send_error_response(conn.client_fd, 500);
-    }
-  } else {
-    // Handle normal request
-  }
-}
+//     try {
+//       cgi_handler.spawn("/path/to/cgi/script", env, conn.client_fd,
+//                         conn.request.body);
+//     } catch (const std::exception &e) {
+//       send_error_response(conn.client_fd, 500);
+//     }
+//   } else {
+//     // Handle normal request
+//   }
+// }

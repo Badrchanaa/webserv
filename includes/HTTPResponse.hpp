@@ -82,6 +82,7 @@ class HTTPResponse: public HTTPMessage
 		/// @return if should remove current event from list
 		bool	resume(bool isCgiReady, bool isClientReady);
 		void	setError(statusCode status);
+		int		getCgiFd() const;
 
 	private:
 		void	_readFileToBody(const std::string filename);
@@ -105,7 +106,6 @@ class HTTPResponse: public HTTPMessage
 		int					m_ClientFd;
 		statusCode			m_StatusCode;
 		const HTTPRequest*	m_Request;
-		// CGIProcess*		m_Cgi;
 		responseState		m_State;
 		pollState			m_PollState;
 		// ConfigServer*	m_ConfigServer;
@@ -114,6 +114,7 @@ class HTTPResponse: public HTTPMessage
 		std::string			m_ResourcePath;
 		const ConfigServer*	m_ConfigServer;
 		const Location*		m_Location;
+		CGIProcess*			m_Cgi;
 		// int client_fd;
 
 };

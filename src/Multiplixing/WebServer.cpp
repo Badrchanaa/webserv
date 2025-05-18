@@ -295,7 +295,7 @@ bool WebServer::handle_client_response(Connection &conn) {
     // int cgi_sock = conn.Cgihandler.getCgiSocket(conn.client_fd);
     int cgi_sock = conn.m_Response.getCgiFd();
 
-    if (state == HTTPResponse::CGI_WRITE) {
+    if (cgi_sock != -1 && state == HTTPResponse::CGI_WRITE) {
       // Switch monitoring to CGI socket for writing
       epoll.remove_fd(conn.client_fd);
       epoll.add_fd(cgi_sock, EPOLL_WRITE | EPOLL_READ);
@@ -360,7 +360,7 @@ bool WebServer::handle_client(Connection &conn) {
   if (conn.events & EPOLL_ERRORS) {
     // int fd = this->getCgiFdBasedOnClientFd(conn.client_fd);
     fd = conn.m_Response.getCgiFd();
-    if (conn.cgiEvent && fd) {
+    if (fd != -1 && conn.cgiEvent) {
       cgi.cleanup_by_fd(fd);
     } else if (conn.socketEvent) {
       // cleanup_connection(conn.client_fd);

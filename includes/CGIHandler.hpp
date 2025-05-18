@@ -64,8 +64,12 @@ public:
   void handle_cgi_request(int fd, uint32_t events);
   void check_zombies();
   void setup_child(int sock, const std::string &script,
-                   const std::vector<std::string> &env);
+                   char **env);
   void cleanup(const CGIProcess &proc, bool error);
+  void  cleanup_by_fd(int fd)
+  {
+    (void)fd;
+  }
 };
 
 #endif // !__cgi__

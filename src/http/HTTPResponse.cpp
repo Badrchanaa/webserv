@@ -9,9 +9,16 @@ HTTPResponse::pollState	HTTPResponse::getPollState() const
 }
 
 HTTPResponse::HTTPResponse(void): m_State(INIT), m_PollState(SOCKET_WRITE), m_CursorPos(0), 
-				m_HasCgi(false), m_ConfigServer(NULL), m_Location(NULL)
+				m_HasCgi(false), m_ConfigServer(NULL), m_Location(NULL), m_Cgi(NULL)
 {
 	m_StatusCode = HTTPResponse::OK;
+}
+
+int		HTTPResponse::getCgiFd() const
+{
+	if (!m_Cgi)
+		return -1;
+	return m_Cgi->cgi_sock;
 }
 
 bool	HTTPResponse::_isCgiPath(const std::string path, const ConfigServer *configServer)
