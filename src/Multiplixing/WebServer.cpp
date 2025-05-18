@@ -179,16 +179,16 @@ void WebServer::create_listeners() {
     }
 }
 WebServer::~WebServer() {
-  for (std::vector<FileDescriptor *>::iterator it =
-           listener_descriptors.begin();
-       it != listener_descriptors.end(); ++it) {
-    delete *it;
-  }
-  for (std::list<Connection *>::iterator it = connections.begin();
-       it != connections.end(); ++it) {
-    delete *it;
-    this->connections.erase(it);
-  }
+  // for (std::vector<FileDescriptor *>::iterator it =
+  //          listener_descriptors.begin();
+  //      it != listener_descriptors.end(); ++it) {
+  //   delete *it;
+  // }
+  // for (std::list<Connection *>::iterator it = connections.begin();
+  //      it != connections.end(); ++it) {
+  //   delete *it;
+  //   this->connections.erase(it);
+  // }
 }
 
 WebServer::WebServer() : running(true) {
@@ -200,14 +200,26 @@ WebServer::WebServer() : running(true) {
 }
 
 
-Connection &WebServer::getClientConnection(int fd) {
+Connection &WebServer::getClientConnection(int fd, uint32_t events) {
   for (std::list<Connection *>::iterator it = connections.begin();
        it != connections.end(); ++it) {
-    if ((*it)->client_fd == fd)
-      (*it)->socketEvent = true;
-    if ((*it)->m_Response.getCgiFd() == fd)
-      (*it)->cgiEvent = true;
-    if ((*it)->socketEvent || (*it)->cgiEvent)
+      
+    Connection & conn = *(*it);
+    // conn.resetEvents();
+    HTTPResponse::pollState state = conn.m_Response.getPollState();
+    std::cout << "Cgifd ------------------> Before "  << (*it)->m_Response.getCgiFd() << std::endl;
+    std::cout << "cgiEvent"  << (*it)->cgiEvent << "socketEvent" <<  (*it)->socketEvent<< std::endl;
+    if (conn.client_fd == fd)
+      conn.socketEvent = true;
+    if (conn.m_Response.getCgiFd() == fd)
+    {
+      if (((events & EPOLL_READ) && state == HTTPResponse::CGI_READ) ||
+        ((events & EPOLL_WRITE) && state == HTTPResponse::CGI_WRITE))
+        conn.cgiEvent = true;
+    }
+    std::cout << " ++++++++++++++++++++ After +++++++++++ "<< std::endl;
+    std::cout << "cgiEvent"  << (*it)->cgiEvent << "socketEvent" <<  (*it)->socketEvent<< std::endl;
+    if (conn.socketEvent || conn.cgiEvent)
       return *(*it);
   }
   throw std::runtime_error("Clinet Connection not found OR Cgi Connection not found");
@@ -231,7 +243,8 @@ void WebServer::run() {
         this->accept_connections(events[i].data.fd);
       } else {
         DEBUG_LOG("Processing event on fd: " << events[i].data.fd);
-        Connection &conn = this->getClientConnection(events[i].data.fd);
+        // conn.hasEvent = false;
+        Connection &conn = this->getClientConnection(events[i].data.fd, events[i].events);
         conn.hasEvent = true;
         conn.events |= events[i].events;
         // this->handle_client(events[i].data.fd, events[i].events);
@@ -267,55 +280,81 @@ void WebServer::accept_connections(int listen_fd) {
     throw std::runtime_error("accept failed");
   }
 
-  Connection *conn = new Connection(this->cgi, server_conf, new_fd);
+  Connection *conn = new Connection(server_conf, new_fd);
   connections.push_back(conn);
-  epoll.add_fd(new_fd, EPOLL_READ);
-  // epoll.add_fd(new_fd, EPOLL_READ | EPOLL_WRITE);
+  // epoll.add_fd(new_fd, EPOLL_READ);
+  epoll.add_fd(new_fd, EPOLL_READ | EPOLL_WRITE);
 
   log_connection(client_addr);
 }
 
 bool WebServer::handle_client_response(Connection &conn) {
   HTTPResponse &response = conn.m_Response;
+  HTTPResponse::pollState prevState = response.getPollState();
   bool shouldDelete = false;
 
+  std::cout << "PRE RESUME //////" << std::endl;
   response.resume(conn.cgiEvent, conn.socketEvent);
   if (response.isDone()) {
     if (!response.isKeepAlive()) {
-      // cleanup_connection(conn.client_fd);
       shouldDelete = true;
     } else {
       conn.m_State = Connection::REQUEST_PARSING;
-      /// nots this///
       epoll.mod_fd(conn.client_fd, EPOLL_READ | EPOLL_WRITE);
       conn.reset();
     }
-  } else {
-    HTTPResponse::pollState state = response.getPollState();
-    // int cgi_sock = conn.Cgihandler.getCgiSocket(conn.client_fd);
-    int cgi_sock = conn.m_Response.getCgiFd();
-
-    if (cgi_sock != -1 && state == HTTPResponse::CGI_WRITE) {
-      // Switch monitoring to CGI socket for writing
-      epoll.remove_fd(conn.client_fd);
-      epoll.add_fd(cgi_sock, EPOLL_WRITE | EPOLL_READ);
-      DEBUG_LOG("Switched to monitoring CGI socket (write)");
-      
-    } else if (state == HTTPResponse::CGI_READ) {
-      // Switch monitoring to CGI socket for reading
-      epoll.remove_fd(conn.client_fd);
-      epoll.add_fd(cgi_sock, EPOLL_WRITE | EPOLL_READ);
-      DEBUG_LOG("Switched to monitoring CGI socket (read)");
-    } else {
-      // Switch back to client socket for writing
-      if (cgi_sock != -1) {
-        epoll.remove_fd(cgi_sock);
-        // response.clearCgiSocket();
-      }
-      epoll.mod_fd(conn.client_fd, EPOLL_READ | EPOLL_WRITE);
-    }
   }
-  return shouldDelete;
+  HTTPResponse::pollState currState = response.getPollState();
+  std::cout << "AFTER RESUME //////" << std::endl;
+  std::cout << "pollState: " << currState << std::endl;
+  if (response.hasCgi() && currState == HTTPResponse::SOCKET_WRITE && currState != prevState)
+  {
+    int cgi_sock = response.getCgiFd();
+    if (cgi_sock <  0)
+    {
+      std::cout << "UNEXPECTED CGI SOCKET -1" << std::endl;
+      return true;
+    }
+    std::cout << "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh" << std::endl;
+    epoll.remove_fd(response.getCgiFd());
+    std::cout << "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh" << std::endl;
+    std::cout << "----------------------------+" << std::endl;
+    DEBUG_LOG("Switched to monitoring Client Socket (write)");
+    epoll.add_fd(conn.client_fd, EPOLL_WRITE | EPOLL_READ);
+  }
+  // } else {
+  //   HTTPResponse::pollState state = response.getPollState();
+  //   std::cout << "regex : ---> " << state << std::endl;
+  //   // int cgi_sock = conn.Cgihandler.getCgiSocket(conn.client_fd);
+  //   int cgi_sock = conn.m_Response.getCgiFd();
+
+  //   if (cgi_sock != -1 && state == HTTPResponse::CGI_WRITE) {
+  //     // Switch monitoring to CGI socket for writing
+  //     epoll.remove_fd(conn.client_fd);
+  //     std::cout << "----------------------------+" << std::endl;
+  //     epoll.add_fd(cgi_sock, EPOLL_WRITE | EPOLL_READ);
+  //     std::cout << "----------------------------+" << std::endl;
+  //     DEBUG_LOG("Switched to monitoring CGI socket (write)");
+      
+    // } else if (state == HTTPResponse::CGI_READ) {
+    //   // Switch monitoring to CGI socket for reading
+    //   epoll.remove_fd(conn.client_fd);
+    //   std::cout << "----------------------------++ " << cgi_sock << std::endl;
+
+    //   epoll.add_fd(cgi_sock, EPOLL_WRITE | EPOLL_READ);
+      
+    //   std::cout << "----------------------------++" << std::endl;
+    //   DEBUG_LOG("Switched to monitoring CGI socket (read)");
+    // } else {
+    //   // Switch back to client socket for writing
+    //   std::cout << " i am here 888888888\n" << std::endl;
+    //   if (cgi_sock != -1) {
+    //     epoll.remove_fd(cgi_sock);
+    //     // response.clearCgiSocket();
+    //   }
+    //   epoll.mod_fd(conn.client_fd, EPOLL_READ | EPOLL_WRITE);
+    // }
+    return shouldDelete;
 }
 
 bool WebServer::handle_client_request(Connection &connection) {
@@ -327,7 +366,7 @@ bool WebServer::handle_client_request(Connection &connection) {
   bytes_received = recv(connection.client_fd, buffer, sizeof(buffer), 0);
   if (bytes_received == 0) {
     // Should send response ??
-    connection.init_response();
+    connection.init_response(this->epoll, this->cgi);
     handle_client_response(connection);
     DEBUG_LOG("Connection closed by client (fd: " << connection.client_fd
                                                   << ")");
@@ -346,7 +385,7 @@ bool WebServer::handle_client_request(Connection &connection) {
   HTTPParser::parse(request, buffer, bytes_received);
   if (request.isComplete()) {
     connection.m_State = Connection::RESPONSE_PROCESSING;
-    connection.init_response();
+    connection.init_response(epoll, cgi);
     isDeleted = this->handle_client_response(connection);
   }
   return isDeleted;
@@ -416,6 +455,7 @@ void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
   // DEBUG_LOG("[Cleanup] Removing fd " << fd << " from epoll");
   try {
     epoll.remove_fd(connection->client_fd); // Remove from epoll FIRST
+    std::cout << "REMOVED CLIENT FD" << std::endl;
   } catch (const std::exception &e) {
     DEBUG_LOG("[Cleanup] Error removing fd " << connection->client_fd << ": "
                                              << e.what());
@@ -435,6 +475,12 @@ int main() {
     server.run();
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << std::endl;
+    return EXIT_FAILURE;
+  } catch (const std::runtime_error &e) {
+    std::cerr << "RUntime Error: " << e.what() << std::endl;
+    return EXIT_FAILURE;
+  } catch (...) {
+    std::cerr << "SOMETHING WENT WRONG" << std::endl;
     return EXIT_FAILURE;
   }
   return EXIT_SUCCESS;

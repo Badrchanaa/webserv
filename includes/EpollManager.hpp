@@ -25,6 +25,9 @@ class EpollManager {
   // std::map<int, Event> events;
 public:
   int epfd;
+  // // typedef  uint32_t events_t;
+  // typedef std::map<int,events_t> eventsMap;
+  // eventsMap fds;
 
   EpollManager();
   ~EpollManager();

@@ -33,9 +33,11 @@
 // CGIHandler::CGIHandler(int efd) : epoll_fd(efd) {}
 // /path/tocgi/script, env, clientfd, requestBody
 extern char **environ;
-CGIProcess *CGIHandler::spawn(const std::string &script) {
+CGIProcess *CGIHandler::spawn(char * const *args) const
+{
   CGIProcess *proc = NULL;
   int sockets[2];
+  std::cout << "SOCKET PAIR CALLED" << std::endl;
   if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, sockets))
     throw std::runtime_error("socketpair");
 
@@ -46,20 +48,22 @@ CGIProcess *CGIHandler::spawn(const std::string &script) {
   if (pid == 0) {
 
     close(sockets[0]);
-    setup_child(sockets[1], script, environ);
+    setup_child(sockets[1], args, environ);
   } else {
     close(sockets[1]);
 
-    struct epoll_event ev;
+    // struct epoll_event ev;
     // ev.events = EPOLLIN | EPOLLOUT | EPOLLRDHUP | EPOLLERR | EPOLLHUP;
-    ev.events = EPOLL_READ | EPOLL_WRITE;
-    ev.data.fd = sockets[0];
-    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sockets[0], &ev);
+    // ev.events = EPOLL_READ | EPOLL_WRITE;
+    // ev.data.fd = sockets[0];
+    // epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sockets[0], &ev);
+    // epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sockets[0], &ev);
 
     // mod_fd(socket
-   proc = new CGIProcess(sockets[0], pid);
+    std::cout << "socket pair : ----------------------------------------------> " << sockets[0] << std::endl;
+    proc = new CGIProcess(sockets[0], pid);
   }
-    return proc;
+  return proc;
 }
 
 // void CGIHandler::handle_cgi_request(int fd, uint32_t events) {
@@ -92,8 +96,7 @@ CGIProcess *CGIHandler::spawn(const std::string &script) {
 //   }
 // }
 
-void CGIHandler::setup_child(int sock, const std::string &script,
-                             char **env) {
+void CGIHandler::setup_child(int sock, char * const* args, char **env) const {
   dup2(sock, STDIN_FILENO);
   dup2(sock, STDOUT_FILENO);
   close(sock);
@@ -103,9 +106,8 @@ void CGIHandler::setup_child(int sock, const std::string &script,
   //   envp.push_back(env[i].c_str());
   // envp.push_back(NULL);
 
-  const char *argv[] = {script.c_str(), NULL};
-  execve(script.c_str(), (char *const *)argv, env);
-  exit(EXIT_FAILURE);
+  if (execve(args[0], args, env) == -1)
+    exit(EXIT_FAILURE);
 }
 //
 bool CGIProcess::write(HTTPBody &body) {
@@ -123,10 +125,11 @@ bool CGIProcess::write(HTTPBody &body) {
 
 ssize_t CGIProcess::read(char *buff, size_t size) {
   ssize_t received = recv(this->cgi_sock, buff, size, 0);
-
+  std::cout << "received: " << received  << " from: " << cgi_sock << std::endl;
   // proc.output.append(buf, received);
   if (received <= 0) {
     this->cleanup(received < 0);
+    std::cout << "cgi read error: " << strerror(errno) << std::endl;
     // this->cleanup(*this, received < 0);
   }
   return received;
@@ -137,7 +140,7 @@ void CGIProcess::cleanup(bool error) {
   (void)error;
   if (error)
     kill(this->pid, SIGKILL);
-  close(this->cgi_sock);
+  // close(this->cgi_sock);
   // close(proc.client_fd);
   // processes.erase(proc.cgi_sock);
   // int status;

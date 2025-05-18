@@ -20,7 +20,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "Connection.hpp"
+// #include "Connection.hpp"
 #include "HTTPParseState.hpp"
 #include "HTTPParser.hpp"
 #include "HTTPRequest.hpp"
@@ -43,6 +43,8 @@
 #define EPOLL_ERRORS (EPOLLRDHUP | EPOLLERR | EPOLLHUP)
 #define EPOLL_READ (EPOLLIN)
 #define EPOLL_WRITE (EPOLLOUT)
+
+class Connection;
 
 class WebServer {
 
@@ -80,7 +82,7 @@ public:
   void set_nonblocking(int fd);
 
   Connection &connection_ref(int fd);
-  Connection &getClientConnection(int fd);
+  Connection &getClientConnection(int fd, uint32_t events);
   int getCgiFdBasedOnClientFd(int client_fd);
   bool try_attach_to_existing_listener(const ConfigServer& new_server, int port);
 

@@ -106,6 +106,8 @@ void Config::ProcessLocationKeyValue(const std::string &key,
     this->currentLocation.autoindex = (value == "on");
   } else if (key == "upload") {
     this->currentLocation.upload = value;
+  } else if (key == "cgi_uri") {
+    this->currentLocation.cgi_uri = value;
   } else if (key == "cgi") {
     this->context = "cgi";
   } else if (key == "methods") {
@@ -256,8 +258,10 @@ void Config::FinalizeLocation() {
     std::cout << "uri :: " << currentLocation.uri << std::endl;
     std::cout << "root :: " << currentLocation.root << std::endl;
     std::cout << "upload :: " << currentLocation.upload << std::endl;
-    std::cout << "allowed_methods :: " << currentLocation.allowed_methods
-              << std::endl;
+    std::cout << "cgi_uri :: " << currentLocation.cgi_uri << std::endl;
+    std::cout << "allowed_methods :: " << currentLocation.allowed_methods << std::endl;
+    std::cout << "==================================" << std::endl;
+    std::cout << "cgi paths :: " << currentLocation.cgi[".py"] << "   |||||   " << currentLocation.cgi[".php"] << std::endl;
     std::cout << "==================================" << std::endl;
     currentLocation = Location(); // Reset
   }

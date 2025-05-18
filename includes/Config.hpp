@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include "http.hpp"
 
 #include "ConfigStructs.hpp"
 
@@ -20,12 +21,13 @@ const std::set<std::string>
                                                        sizeof(std::string));
 
 const std::string location_keys_array[] = {
-    "uri", "root", "methods", "methods_cgi", "autoindex", "upload", "cgi"};
+    "uri", "root", "methods", "methods_cgi", "autoindex", "upload", "cgi", "cgi_uri"};
 const std::set<std::string> LOCATION_KEYS(location_keys_array,
                                           location_keys_array +
                                               sizeof(location_keys_array) /
                                                   sizeof(std::string));
 const std::string location_required_params[] = {"uri", "root", "methods", "autoindex", "upload"};
+
 
 const MethodPair valid_methods[] = {
     {"GET", GET}, {"POST", POST}, {"DELETE", DELETE}};

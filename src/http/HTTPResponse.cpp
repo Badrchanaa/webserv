@@ -8,8 +8,8 @@ HTTPResponse::pollState	HTTPResponse::getPollState() const
 	return m_PollState;
 }
 
-HTTPResponse::HTTPResponse(void): m_State(INIT), m_PollState(SOCKET_WRITE), m_CursorPos(0), 
-				m_HasCgi(false), m_ConfigServer(NULL), m_Location(NULL), m_Cgi(NULL)
+HTTPResponse::HTTPResponse(void): m_State(INIT), m_PollState(SOCKET_WRITE), m_CursorPos(0)
+				, m_ConfigServer(NULL), m_Location(NULL), m_Cgi(NULL)
 {
 	m_StatusCode = HTTPResponse::OK;
 }
@@ -33,6 +33,26 @@ void	HTTPResponse::_initCgi(const std::string path, const CGIHandler &cgihandler
 	(void)path;
 	(void)configServer;
 	(void)cgihandler;
+
+	std::string scriptName = m_Location->getScriptName(m_Request->getPath());
+	std::string pathName  = m_Location->getScriptPath(m_Request->getPath());
+	scriptName = m_Location->root + m_Location->uri + m_Location->cgi_uri + scriptName;
+
+	char * const args[3] = {
+		const_cast<char * const>(pathName.c_str()),
+	 	const_cast<char * const>(scriptName.c_str()),
+		NULL
+	};
+	try
+	{
+		m_Cgi = cgihandler.spawn(args);
+	}
+	catch(const std::exception& e)
+	{
+		std::cerr << e.what() << '\n';
+	}
+	std::cout << "end init cgi" << std::endl;
+	m_PollState = CGI_READ;
 }
 
 void	HTTPResponse::_initBadRequest()
@@ -97,7 +117,7 @@ void	HTTPResponse::init(HTTPRequest const &request, CGIHandler const &cgihandler
 		m_StatusCode = HTTPResponse::BAD_REQUEST;
 		return;
 	}
-	// if (request.isError())
+	 // if (request.isError())
 	// 	return _initBadRequest();
 
 	// check for path traversal
@@ -107,7 +127,13 @@ void	HTTPResponse::init(HTTPRequest const &request, CGIHandler const &cgihandler
 		m_StatusCode = NOT_FOUND;
 		return;
 	}
+	std::cout << "request path" << m_Request->getPath() << std::endl;
+	std::cout << "here" << std::endl;
 	m_Location = &configServer->getLocation(request.getPath());
+	std::cout << "here 11111111" << std::endl;
+	if (m_Location->isCgiPath(request.getPath()))
+		return _initCgi(request.getPath(), cgihandler, configServer);
+	std::cout << "here 22222" << std::endl;
 	std::cout << "location root: " << m_Location->root << std::endl;
 	std::cout << "location uri: " << m_Location->uri << std::endl;
 
@@ -145,7 +171,7 @@ bool		HTTPResponse::isKeepAlive() const
 
 bool		HTTPResponse::hasCgi() const
 {
-	return m_HasCgi;
+	return m_Cgi != NULL;
 }
 
 HTTPResponse::statusCode	HTTPResponse::getStatus()
@@ -368,6 +394,7 @@ void	HTTPResponse::_processDirectoryListing()
 
 void	HTTPResponse::setError(statusCode status)
 {
+	std::cout << "[RESPONSE] set error: " << status << std::endl;
 	m_StatusCode = status;
 	_processErrorBody();
 	m_State = PROCESS_HEADERS;
@@ -401,6 +428,18 @@ void	HTTPResponse::_processResource()
 	}
 	else
 		setError(NOT_FOUND);
+}
+
+void	HTTPResponse::_processCgiBody()
+{
+	char buff[8192];
+	ssize_t rbytes  = m_Cgi->read(buff, 8192);
+	buff[rbytes] = 0;
+	std::cout << buff << std::endl;
+	std::cout << "read from cgi: " << rbytes << std::endl;
+	setError(SERVER_ERROR);
+	m_State = PROCESS_HEADERS;
+	m_PollState = SOCKET_WRITE;
 }
 
 void	HTTPResponse::_processBody()
@@ -440,9 +479,10 @@ bool HTTPResponse::resume(bool isCgiReady, bool isClientReady)
 		std::cout << "CGI READY" << std::endl;
 	if (isClientReady)
 		std::cout << "CLIENT READY" << std::endl;
-
 	// RESPONSE PROCESSING (BODY -> HEADERS)
-	if (m_State == PROCESS_BODY)
+	if (m_PollState == CGI_READ && isCgiReady && m_State == PROCESS_BODY)
+		_processCgiBody();
+	else if (!hasCgi() && m_State == PROCESS_BODY)
 		_processBody();
 	if (m_State == PROCESS_HEADERS)
 		_processHeaders();

@@ -16,16 +16,62 @@ struct MethodPair {
 };
 
 // enum httpMethod { METHOD_NONE = 0, GET = 1, POST = 2, DELETE = 4 };
+#include <iostream>
+#include <string>
 
 struct Location {
   std::string uri;
   std::string root;
   bool autoindex;
   std::string upload;
+  std::string cgi_uri;
   std::map<std::string, std::string> cgi;
   unsigned int allowed_methods;
   unsigned int allowed_cgi_methods;
   std::string index;
+
+//  /app/cgi-bin/script.py
+  std::string getScriptPath(const std::string &scriptName) const
+  {
+      std::string::size_type dotPos = scriptName.rfind('.');
+      if (dotPos == std::string::npos )
+        return (std::string(""));
+    std::string ext;
+      // if (dotPos == 0)
+      //   ext = scriptName;
+      // else 
+      ext = scriptName.substr(dotPos);
+      std::cout << "--------------------------------" << std::endl;
+      std::cout << "ext " << ext << std::endl;
+      std::cout << "--------------------------------" << std::endl;
+      std::map<std::string, std::string>::const_iterator it = cgi.find(ext);
+      if (it == cgi.end())
+        return (std::string(""));
+        // return NULL;
+      return it->second;
+  }
+
+  std::string getScriptName(const std::string &path) const
+  {
+    std::string::size_type slashPos = path.rfind('/');
+    if (slashPos == std::string::npos || path.length() == 1)
+       return (std::string(""));
+    std::cout << "++++++++++++++++++++++++++++ -> " <<  slashPos << std::endl;
+    
+    std::string temp = path.substr(slashPos + 1);
+    std::cout << "++++++++++++++++++++++++++++ " << std::endl;
+    return temp;
+  }
+
+  bool isCgiPath(const std::string &path) const
+  {
+    std::string filename = getScriptName(path);
+    std::cout << "fileName : " << filename  << std::endl;
+    std::string scriptPath = getScriptPath(filename);
+    std::cout << "scriptPath: " << scriptPath  << std::endl;
+    
+    return (!scriptPath.empty() &&  (this->uri + this->cgi_uri == path.substr(0, path.length() - filename.length())));
+  }
 
   bool isMethodAllowed(httpMethod method) const {
     return (allowed_methods & method) != 0;

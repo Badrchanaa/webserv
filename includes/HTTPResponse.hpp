@@ -100,6 +100,7 @@ class HTTPResponse: public HTTPMessage
 		bool	_isCgiPath(const std::string path, const ConfigServer *configServer);
 		void	_initCgi(const std::string path, const CGIHandler &cgihandler, const ConfigServer *configServer);
 		void	_processErrorBody();
+		void	_processCgiBody();
 		void	_initBadRequest();
 
 		std::stringstream	m_HeadersStream;
@@ -110,7 +111,7 @@ class HTTPResponse: public HTTPMessage
 		pollState			m_PollState;
 		// ConfigServer*	m_ConfigServer;
 		size_t				m_CursorPos;
-		bool				m_HasCgi;
+		// bool				m_HasCgi;
 		std::string			m_ResourcePath;
 		const ConfigServer*	m_ConfigServer;
 		const Location*		m_Location;

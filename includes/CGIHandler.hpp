@@ -60,11 +60,11 @@ public:
   CGIHandler(int ep_fd = -1) : epoll_fd(ep_fd) { }
   int is_cgi_socket(int fd) const;
   int getCgiSocket(int c_fd) const;
-  CGIProcess *spawn(const std::string &script);
+  CGIProcess *spawn(char * const *args) const;
   void handle_cgi_request(int fd, uint32_t events);
   void check_zombies();
-  void setup_child(int sock, const std::string &script,
-                   char **env);
+  void setup_child(int sock, char * const *args,
+                   char **env) const;
   void cleanup(const CGIProcess &proc, bool error);
   void  cleanup_by_fd(int fd)
   {

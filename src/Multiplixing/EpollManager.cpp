@@ -37,6 +37,11 @@ EpollManager::EpollManager() {
   }
 
   void EpollManager::remove_fd(int fd) {
+    // eventsMap::iterator it = fds.find(fd);
+    // if (it != fds.end())
+    //   return ;
+    
+    // fds.erase(fd);
     DEBUG_LOG("[Epoll] Attempting to remove fd: " << fd);
     if (epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL) == -1) {
       DEBUG_LOG("[Epoll] Remove failed (fd: " << fd
@@ -47,6 +52,9 @@ EpollManager::EpollManager() {
   }
 
   void EpollManager::add_fd(int fd, uint32_t events) {
+    // eventsMap::const_iterator it = fds.find(fd);
+    // if (it == fds.end())
+    //   return ;
     DEBUG_LOG("[Epoll] Adding fd "
               << fd << " with events: " << format_events(events));
     struct epoll_event ev;

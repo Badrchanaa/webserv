@@ -31,7 +31,7 @@ server:
  # test:
  #   uri: /
  location:
-   uri: /
+   uri: /app
    upload: uploads
    methods:
      - POST
@@ -39,6 +39,7 @@ server:
      - DELETE
    root: www
    autoindex: on
+   cgi_uri: /cgi-bin/
    methods_cgi:
      - POST
      - GET 

@@ -7,6 +7,7 @@
 #include "FileDescriptor.hpp"
 #include "HTTPRequest.hpp"
 #include "HTTPResponse.hpp"
+#include "WebServer.hpp"
 
 // CGI LINK: https://datatracker.ietf.org/doc/html/rfc3875
 class Connection {
@@ -21,13 +22,15 @@ public:
 
 public:
   /// Added by bchanaa
+  bool cgiFdAdded;
+  bool socketFdAdded;
   bool m_KeepAlive;
   HTTPResponse m_Response;
   connectionState m_State;
 
   /// Added by regex33
   // Config &config;
-  CGIHandler &Cgihandler;
+  // CGIHandler &Cgihander;
   FileDescriptor client_fd;
 
   HTTPRequest m_Request;
@@ -41,7 +44,7 @@ public:
   // ConfigServer &config_server; 
                                
   // Connection(CGIHandler &cgihandler, std::vector<ConfigServer> &server, Config &conf, int f);
-  Connection(CGIHandler &cgihandler, std::vector<ConfigServer> &server, int f);
+  Connection(std::vector<ConfigServer> &server, int f);
   ~Connection()
   {
   } 
@@ -56,7 +59,7 @@ public:
 
   bool keepAlive();
 
-  void init_response();
+  void init_response(EpollManager& epollManager, CGIHandler& cgiHandler);
   // struct sockaddr_storage addr; //what is this
 };
 
