@@ -84,6 +84,19 @@ class HTTPResponse: public HTTPMessage
 		void	setError(statusCode status);
 		int		getCgiFd() const;
 
+  // int getCgiFd() const { return m_CgiFd; }
+    void setCgiFd(int fd) { m_CgiFd = fd; }
+    void clearCgiSocket() { m_CgiFd = -1; }
+    void cleanupCgi() {
+      if (m_Cgi) {
+          m_Cgi->cleanup(false);
+          m_Cgi = NULL;
+      }
+      m_CgiFd = -1;  
+    }
+
+
+
 	private:
 		void	_readFileToBody(const std::string filename);
 		void	_processResource();
@@ -116,6 +129,7 @@ class HTTPResponse: public HTTPMessage
 		const ConfigServer*	m_ConfigServer;
 		const Location*		m_Location;
 		CGIProcess*			m_Cgi;
+    int m_CgiFd;
 		// int client_fd;
 
 };

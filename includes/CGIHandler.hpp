@@ -65,11 +65,11 @@ public:
   void check_zombies();
   void setup_child(int sock, char * const *args,
                    char **env) const;
-  void cleanup(const CGIProcess &proc, bool error);
-  void  cleanup_by_fd(int fd)
-  {
-    (void)fd;
-  }
+  // void cleanup(const CGIProcess &proc, bool error);
+  // void  cleanup_by_fd(int fd)
+  // {
+  //   (void)fd;
+  // }
 };
 
 #endif // !__cgi__

@@ -66,6 +66,7 @@ public:
   // private:
   void create_listener();
 
+  void close_fds(Connection &connection);
   /* Modified functions */
   void create_listeners();
   void accept_connections(int listen_fd);

@@ -1,40 +1,8 @@
 #include "../../includes/CGIHandler.hpp"
 #include "../../includes/WebServer.hpp"
-
-// void CGIHandler::cleanup_by_fd(int fd) {
-//   std::map<int, CGIProcess>::iterator it = processes.find(fd);
-//   if (it != processes.end()) {
-//     cleanup(it->second, true);
-//   }
-// }
-
-// int CGIHandler::getCgiSocket(int c_fd) const {
-//   const std::map<int, CGIProcess> &processes = this->processes;
-//   for (std::map<int, CGIProcess>::const_iterator it = processes.begin();
-//        it != processes.end(); ++it) {
-//     if (it->second.client_fd == c_fd) {
-//       return it->first;
-//     }
-//   }
-//   return -1;
-// }
-
-// bool CGIHandler::is_cgi_socket(int fd) const {
-//   return processes.find(fd) != processes.end();
-// }
-
-// int CGIHandler::is_cgi_socket(int fd) const {
-//   std::map<int, CGIProcess>::const_iterator it = processes.find(fd);
-//   if (it != processes.end())
-//     return it->second.client_fd;
-//   return false; // Not found
-// }
-
-// CGIHandler::CGIHandler(int efd) : epoll_fd(efd) {}
 // /path/tocgi/script, env, clientfd, requestBody
 extern char **environ;
-CGIProcess *CGIHandler::spawn(char * const *args) const
-{
+CGIProcess *CGIHandler::spawn(char *const *args) const {
   CGIProcess *proc = NULL;
   int sockets[2];
   std::cout << "SOCKET PAIR CALLED" << std::endl;
@@ -48,66 +16,38 @@ CGIProcess *CGIHandler::spawn(char * const *args) const
   if (pid == 0) {
 
     close(sockets[0]);
+    // std::cout << "aargs[0] :: " << args[0] << std::endl;
+    // std::cout << "aargs[1] :: " << args[1] << std::endl;
     setup_child(sockets[1], args, environ);
   } else {
     close(sockets[1]);
 
     // struct epoll_event ev;
-    // ev.events = EPOLLIN | EPOLLOUT | EPOLLRDHUP | EPOLLERR | EPOLLHUP;
     // ev.events = EPOLL_READ | EPOLL_WRITE;
     // ev.data.fd = sockets[0];
     // epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sockets[0], &ev);
-    // epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sockets[0], &ev);
 
-    // mod_fd(socket
-    std::cout << "socket pair : ----------------------------------------------> " << sockets[0] << std::endl;
+    std::cout
+        << "socket pair : ----------------------------------------------> "
+        << sockets[0] << std::endl;
     proc = new CGIProcess(sockets[0], pid);
   }
   return proc;
 }
 
-// void CGIHandler::handle_cgi_request(int fd, uint32_t events) {
-//   std::map<int, CGIProcess>::iterator it = processes.find(fd);
-//   if (it == processes.end())
-//     return;
-//
-//   if (events & EPOLL_WRITE)
-//     handle_output(it->second);
-//   if (events & EPOLL_READ)
-//     handle_input(it->second);
-//   if (events & (EPOLL_ERRORS))
-//     cleanup(it->second, true);
-// }
-
-// void CGIHandler::check_zombies() {
-//   int status;
-//   pid_t pid;
-//   while ((pid = waitpid(-1, &status, WNOHANG))) {
-//     if (pid <= 0)
-//       break;
-//
-//     for (std::map<int, CGIProcess>::iterator it = processes.begin();
-//          it != processes.end(); ++it) {
-//       if (it->second.pid == pid) {
-//         cleanup(it->second, WIFEXITED(status) ? false : true);
-//         break;
-//       }
-//     }
-//   }
-// }
-
-void CGIHandler::setup_child(int sock, char * const* args, char **env) const {
+void CGIHandler::setup_child(int sock, char *const *args, char **env) const {
   dup2(sock, STDIN_FILENO);
   dup2(sock, STDOUT_FILENO);
   close(sock);
 
-  // std::vector<const char *> envp;
-  // for (size_t i = 0; env[i]; ++i)
-  //   envp.push_back(env[i].c_str());
-  // envp.push_back(NULL);
+  std::cout << "test " << std::endl;
+  // std::cout << "args[0] :: " << args[0] << std::endl;
+  // std::cout << "args[1] :: " << args[1] << std::endl;
 
-  if (execve(args[0], args, env) == -1)
+  if (execve(args[0], args, env) == -1) {
+    std::cerr << "execve failed: " << strerror(errno) << std::endl;
     exit(EXIT_FAILURE);
+  }
 }
 //
 bool CGIProcess::write(HTTPBody &body) {
@@ -125,41 +65,45 @@ bool CGIProcess::write(HTTPBody &body) {
 
 ssize_t CGIProcess::read(char *buff, size_t size) {
   ssize_t received = recv(this->cgi_sock, buff, size, 0);
-  std::cout << "received: " << received  << " from: " << cgi_sock << std::endl;
-  // proc.output.append(buf, received);
-  if (received <= 0) {
-    this->cleanup(received < 0);
-    std::cout << "cgi read error: " << strerror(errno) << std::endl;
-    // this->cleanup(*this, received < 0);
+  std::cout << "received: " << received << " from: " << cgi_sock << std::endl;
+
+  if (received < 0) {
+    std::cout << "++++++++++++++++++++++++++++" << std::endl;
+    std::cout << "received == < 0" << std::endl;
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      return 0; // Not a fatal error for non-blocking sockets
+    }
+    this->cleanup(true);
+    std::cout << "++++++++++++++++++++++++++++" << std::endl;
+  } else if (received == 0) {
+    std::cout << "----------------------------" << std::endl;
+    std::cout << "received == 0" << std::endl;
+    this->cleanup(false);
+    std::cout << "----------------------------" << std::endl;
   }
   return received;
 }
 
-// void CGIHandler::cleanup(bool error) {
+// In CGIHandler
 void CGIProcess::cleanup(bool error) {
-  (void)error;
-  if (error)
-    kill(this->pid, SIGKILL);
-  // close(this->cgi_sock);
-  // close(proc.client_fd);
-  // processes.erase(proc.cgi_sock);
-  // int status;
-  // waitpid(pid, NULL, WNOHANG);
-  waitpid(pid, NULL, 0);
+  if (cgi_sock != -1) {
+    close(cgi_sock);
+    cgi_sock = -1;
+  }
+
+  if (error) {
+    kill(pid, SIGKILL);
+    std::cerr << "[CGI] Forcefully terminated PID " << pid << std::endl;
+  }
+
+  int status;
+  if (waitpid(pid, &status, WNOHANG) == 0) {
+    // Process still running, wait normally
+    waitpid(pid, &status, 0);
+  }
+
+  if (WIFEXITED(status)) {
+    std::cout << "[CGI] Process " << pid << " exited with status "
+              << WEXITSTATUS(status) << std::endl;
+  }
 }
-
-// void handle_request(Connection &conn) {
-//   if (needs_cgi(conn.request)) {
-//     std::map<std::string, std::string> env;
-//     // Populate environment variables...
-
-//     try {
-//       cgi_handler.spawn("/path/to/cgi/script", env, conn.client_fd,
-//                         conn.request.body);
-//     } catch (const std::exception &e) {
-//       send_error_response(conn.client_fd, 500);
-//     }
-//   } else {
-//     // Handle normal request
-//   }
-// }

@@ -31,13 +31,19 @@ public:
   /// Added by regex33
   // Config &config;
   // CGIHandler &Cgihander;
-  FileDescriptor client_fd;
+  // FileDescriptor client_fd;
+  int client_fd;
 
   HTTPRequest m_Request;
 
   bool hasEvent;
   bool cgiEvent;
   bool socketEvent;
+
+  bool cgi_Added;
+  bool client_Added;
+
+
   uint32_t events;
 
   /* Reference to specific server config */

@@ -13,11 +13,6 @@ Connection::Connection(std::vector<ConfigServer> &servers, int f)
   //            struct sockaddr_storage a)
   // : client_fd(f), state(REQUEST_PARSING), addr(a) {}
 
-  void Connection::reset() {
-    this->m_State = RESPONSE_PROCESSING;
-    this->m_Request.reset();
-    this->m_Response.reset();
-  }
 
 void Connection::resetEvents()
 {
@@ -27,28 +22,40 @@ void Connection::resetEvents()
   this->events = 0;
 }
 
+void Connection::reset() {
+    m_Response.reset();
 
-
-  bool Connection::keepAlive() { return this->m_KeepAlive; }
-
-// asfs
-  void Connection::init_response(EpollManager& epollManager, CGIHandler& cgiHandler) {
-    this->m_State = RESPONSE_PROCESSING;
-  // if cgi init will spawn and setup the child and wait for cgi_write to write body;
-    this->m_Response.init(this->m_Request, cgiHandler, m_Request.getServer(),
-                          this->client_fd);
-    HTTPResponse::pollState state = m_Response.getPollState();
-    if ( state == HTTPResponse::CGI_READ || 
-        state == HTTPResponse::CGI_WRITE)
-    {
-      epollManager.remove_fd(this->client_fd);
-      std::cout << "----------------------------+" << std::endl;
-      epollManager.add_fd(m_Response.getCgiFd(), EPOLL_WRITE | EPOLL_READ);
-      std::cout << "----------------------------+" << std::endl;
-      DEBUG_LOG("Switched to monitoring CGI socket.");
+    if (m_Response.getCgiFd() != -1) {
+        close(m_Response.getCgiFd());
+        m_Response.cleanupCgi();
     }
-    // else
-    //   epollManager.add_fd(this->client_fd, EPOLL_READ | EPOLL_WRITE);
-    // add
-    this->m_KeepAlive = this->m_Response.isKeepAlive();
-  }
+
+    m_Request.reset();
+    m_State = REQUEST_PARSING;
+}
+
+
+bool Connection::keepAlive() { return this->m_KeepAlive; }
+
+
+  void Connection::init_response(EpollManager& epollManager, CGIHandler& cgiHandler) {
+  this->m_State = RESPONSE_PROCESSING;
+  (void) epollManager;
+  // Initialize response and CGI
+  this->m_Response.init(this->m_Request, cgiHandler, this->m_Request.getServer(), this->client_fd);
+
+  // Store CGI FD in response
+  // if (m_Response.hasCgi()) {
+  //   int cgi_fd = m_Response.getCgiFd();
+  //   if (cgi_fd != -1) {
+  //     // epollManager.remove_fd(client_fd);
+  //     // epollManager.add_fd(cgi_fd, EPOLLIN | EPOLLOUT | EPOLLET);
+  //     // this->epoll.remove_fd(this->client_fd);
+  //     epollManager.mod_fd(client_fd, 0);
+  //     epollManager.add_fd(cgi_fd, EPOLL_WRITE | EPOLL_READ);
+  //     DEBUG_LOG("Monitoring CGI fd: " << cgi_fd);
+  //   }
+  // }
+  
+  this->m_KeepAlive = this->m_Response.isKeepAlive();
+}

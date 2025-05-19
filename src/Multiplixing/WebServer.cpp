@@ -36,154 +36,166 @@ the queue, accept() fails with the error EAGAIN or EWOULDBLOCK.
 
 */
 
-bool WebServer::try_attach_to_existing_listener(const ConfigServer& new_server, int port) {
-    typedef std::map<int, std::vector<ConfigServer> > ListenerMap;
-    
-    for (ListenerMap::iterator it = listener_map.begin(); it != listener_map.end(); ++it) {
-        // int s = 0;
-        // std::cout << "MapSize : " << listener_map.size() <<  "[First] -> " << it->first  << std::endl;
-        const int existing_fd = it->first;
-        struct sockaddr_storage addr;
-        socklen_t addr_len = sizeof(addr);
-        char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
+bool WebServer::try_attach_to_existing_listener(const ConfigServer &new_server,
+                                                int port) {
+  typedef std::map<int, std::vector<ConfigServer> > ListenerMap;
 
-        if (getsockname(existing_fd, (struct sockaddr*)&addr, &addr_len) == -1) {
-            DEBUG_LOG("getsockname failed: " << strerror(errno));
-            continue;
-        }
-        const int flags = NI_NUMERICHOST | NI_NUMERICSERV;
-        if (getnameinfo((struct sockaddr*)&addr, addr_len, 
-                       hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), flags) != 0) {
-            // DEBUG_LOG("getnameinfo failed: " << gai_strerror(s));
-            DEBUG_LOG("getnameinfo failed: ");
-            continue;
-        }
+  for (ListenerMap::iterator it = listener_map.begin();
+       it != listener_map.end(); ++it) {
+    // int s = 0;
+    // std::cout << "MapSize : " << listener_map.size() <<  "[First] -> " <<
+    // it->first  << std::endl;
+    const int existing_fd = it->first;
+    struct sockaddr_storage addr;
+    socklen_t addr_len = sizeof(addr);
+    char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
 
-        const int existing_port = atoi(sbuf);
-        const std::string current_host = new_server.host.empty() ? "0.0.0.0" : new_server.host;
-
-        // Compare normalized host:port
-        if (existing_port == port && 
-            (strcmp(hbuf, current_host.c_str()) == 0 || 
-            (current_host == "0.0.0.0" && strcmp(hbuf, "::") == 0))) {
-            
-            std::set<std::string> existing_names;
-            // std::cout << "--------------------------------------------------------- " << existing_port << std::endl;
-            for (std::vector<ConfigServer>::const_iterator sit = it->second.begin();
-                 sit != it->second.end(); ++sit) {
-                existing_names.insert(sit->server_names.begin(), sit->server_names.end());
-            }
-
-            bool conflict = false;
-            for (std::vector<std::string>::const_iterator nit = new_server.server_names.begin();
-                 nit != new_server.server_names.end(); ++nit) {
-                if (existing_names.find(*nit) != existing_names.end()) {
-                  // std::cout << "nit : " << *nit << std::endl;
-                    conflict = true;
-                    break;
-                }
-            }
-            // std::cout << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ " << conflict << std::endl;
-
-            if (!conflict) {
-                it->second.push_back(new_server);
-                return true;
-            }
-        }
+    if (getsockname(existing_fd, (struct sockaddr *)&addr, &addr_len) == -1) {
+      DEBUG_LOG("getsockname failed: " << strerror(errno));
+      continue;
     }
-    return false;
+    const int flags = NI_NUMERICHOST | NI_NUMERICSERV;
+    if (getnameinfo((struct sockaddr *)&addr, addr_len, hbuf, sizeof(hbuf),
+                    sbuf, sizeof(sbuf), flags) != 0) {
+      // DEBUG_LOG("getnameinfo failed: " << gai_strerror(s));
+      DEBUG_LOG("getnameinfo failed: ");
+      continue;
+    }
+
+    const int existing_port = atoi(sbuf);
+    const std::string current_host =
+        new_server.host.empty() ? "0.0.0.0" : new_server.host;
+
+    // Compare normalized host:port
+    if (existing_port == port &&
+        (strcmp(hbuf, current_host.c_str()) == 0 ||
+         (current_host == "0.0.0.0" && strcmp(hbuf, "::") == 0))) {
+
+      std::set<std::string> existing_names;
+      // std::cout << "---------------------------------------------------------
+      // " << existing_port << std::endl;
+      for (std::vector<ConfigServer>::const_iterator sit = it->second.begin();
+           sit != it->second.end(); ++sit) {
+        existing_names.insert(sit->server_names.begin(),
+                              sit->server_names.end());
+      }
+
+      bool conflict = false;
+      for (std::vector<std::string>::const_iterator nit =
+               new_server.server_names.begin();
+           nit != new_server.server_names.end(); ++nit) {
+        if (existing_names.find(*nit) != existing_names.end()) {
+          // std::cout << "nit : " << *nit << std::endl;
+          conflict = true;
+          break;
+        }
+      }
+      // std::cout <<
+      // "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ " <<
+      // conflict << std::endl;
+
+      if (!conflict) {
+        it->second.push_back(new_server);
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 void WebServer::create_listeners() {
-    DEBUG_LOG("Initializing network stack for all servers...");
+  DEBUG_LOG("Initializing network stack for all servers...");
 
-    const int server_count = config.ServersNumber();
-    // std::cout << "cout -------------------> " << server_count << std::endl;
-    if (server_count == 0) {
-        throw std::runtime_error("No server configurations found");
-    }
+  const int server_count = config.ServersNumber();
+  // std::cout << "cout -------------------> " << server_count << std::endl;
+  if (server_count == 0) {
+    throw std::runtime_error("No server configurations found");
+  }
 
-    for (int i = 0; i < server_count; ++i) {
-        ConfigServer& server = config.getServer(i);
+  for (int i = 0; i < server_count; ++i) {
+    ConfigServer &server = config.getServer(i);
 
-        for (std::vector<int>::const_iterator port_it = server.ports.begin();
-             port_it != server.ports.end(); ++port_it) {
-            const int port = *port_it;
-            struct addrinfo hints, *res;
-            memset(&hints, 0, sizeof(hints));
-            hints.ai_family = AF_UNSPEC;
-            hints.ai_socktype = SOCK_STREAM;
-            hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
+    for (std::vector<int>::const_iterator port_it = server.ports.begin();
+         port_it != server.ports.end(); ++port_it) {
+      const int port = *port_it;
+      struct addrinfo hints, *res;
+      memset(&hints, 0, sizeof(hints));
+      hints.ai_family = AF_UNSPEC;
+      hints.ai_socktype = SOCK_STREAM;
+      hints.ai_flags = AI_PASSIVE | AI_NUMERICSERV;
 
-            DEBUG_LOG("Resolving addresses for " << server.host << ":" << port);
-            std::ostringstream port_stream;
-            port_stream << port;
-            int status = getaddrinfo(server.host.empty() ? NULL : server.host.c_str(),
-                                   port_stream.str().c_str(), &hints, &res);
-            if (status != 0) {
-                DEBUG_LOG("Address resolution failed: " << gai_strerror(status));
-                continue;
-            }
+      DEBUG_LOG("Resolving addresses for " << server.host << ":" << port);
+      std::ostringstream port_stream;
+      port_stream << port;
+      int status = getaddrinfo(server.host.empty() ? NULL : server.host.c_str(),
+                               port_stream.str().c_str(), &hints, &res);
+      if (status != 0) {
+        DEBUG_LOG("Address resolution failed: " << gai_strerror(status));
+        continue;
+      }
 
-            for (struct addrinfo* p = res; p != NULL; p = p->ai_next) {
-                FileDescriptor temp_fd(socket(p->ai_family, 
-                                          p->ai_socktype | SOCK_NONBLOCK, 
-                                          p->ai_protocol));
-                if (temp_fd.fd == -1) {
-                    DEBUG_LOG("Socket creation failed: " << strerror(errno));
-                    continue;
-                }
-
-                int yes = 1;
-                if (setsockopt(temp_fd.fd, SOL_SOCKET, SO_REUSEADDR, 
-                              &yes, sizeof(int)) == -1) {
-                    DEBUG_LOG("setsockopt failed: " << strerror(errno));
-                    continue;
-                }
-
-                if (bind(temp_fd.fd, p->ai_addr, p->ai_addrlen) == 0) {
-                    if (listen(temp_fd.fd, BACKLOG) == -1) {
-                        DEBUG_LOG("listen failed: " << strerror(errno));
-                        continue;
-                    }
-
-                    const int fd = temp_fd.release();
-                    listener_descriptors.push_back(new FileDescriptor(fd));
-                    // std::cout << "Port -------> " << *port_it << " | fd -------> " << fd << std::endl;
-                    listener_map[fd].push_back(server);
-                    epoll.add_fd(fd, EPOLL_READ | EPOLL_WRITE);
-                    DEBUG_LOG("Successfully bound to " << server.host << ":" << port);
-                    break;
-                } else {
-                    if (errno == EADDRINUSE) {
-                        if (try_attach_to_existing_listener(server, port)) {
-                            DEBUG_LOG("Attached virtual host to existing listener on port " << port);
-                            break;
-                        }
-                        else {
-                          freeaddrinfo(res);
-                          std::ostringstream oss; oss << "Port " << port << " already in use with conflicting server names";
-                          throw std::runtime_error(oss.str());
-                        }
-                    } else {
-                        DEBUG_LOG("bind failed: " << strerror(errno));
-                    }
-                }
-            }
-            freeaddrinfo(res);
+      for (struct addrinfo *p = res; p != NULL; p = p->ai_next) {
+        FileDescriptor temp_fd(socket(
+            p->ai_family, p->ai_socktype | SOCK_NONBLOCK, p->ai_protocol));
+        if (temp_fd.fd == -1) {
+          DEBUG_LOG("Socket creation failed: " << strerror(errno));
+          continue;
         }
-    }
 
-    if (listener_map.empty()) {
-        throw std::runtime_error("All bind attempts failed");
+        int yes = 1;
+        if (setsockopt(temp_fd.fd, SOL_SOCKET, SO_REUSEADDR, &yes,
+                       sizeof(int)) == -1) {
+          DEBUG_LOG("setsockopt failed: " << strerror(errno));
+          continue;
+        }
+
+        if (bind(temp_fd.fd, p->ai_addr, p->ai_addrlen) == 0) {
+          if (listen(temp_fd.fd, BACKLOG) == -1) {
+            DEBUG_LOG("listen failed: " << strerror(errno));
+            continue;
+          }
+
+          const int fd = temp_fd.release();
+          listener_descriptors.push_back(new FileDescriptor(fd));
+          // std::cout << "Port -------> " << *port_it << " | fd -------> " <<
+          // fd << std::endl;
+          listener_map[fd].push_back(server);
+          // epoll.add_fd(fd, EPOLL_READ | EPOLL_WRITE);
+          epoll.add_fd(fd, EPOLL_READ);
+          DEBUG_LOG("Successfully bound to " << server.host << ":" << port);
+          break;
+        } else {
+          if (errno == EADDRINUSE) {
+            if (try_attach_to_existing_listener(server, port)) {
+              DEBUG_LOG("Attached virtual host to existing listener on port "
+                        << port);
+              break;
+            } else {
+              freeaddrinfo(res);
+              std::ostringstream oss;
+              oss << "Port " << port
+                  << " already in use with conflicting server names";
+              throw std::runtime_error(oss.str());
+            }
+          } else {
+            DEBUG_LOG("bind failed: " << strerror(errno));
+          }
+        }
+      }
+      freeaddrinfo(res);
     }
+  }
+
+  if (listener_map.empty()) {
+    throw std::runtime_error("All bind attempts failed");
+  }
 }
 WebServer::~WebServer() {
-  // for (std::vector<FileDescriptor *>::iterator it =
-  //          listener_descriptors.begin();
-  //      it != listener_descriptors.end(); ++it) {
-  //   delete *it;
-  // }
+  for (std::vector<FileDescriptor *>::iterator it =
+           listener_descriptors.begin();
+       it != listener_descriptors.end(); ++it) {
+    delete *it;
+  }
   // for (std::list<Connection *>::iterator it = connections.begin();
   //      it != connections.end(); ++it) {
   //   delete *it;
@@ -200,31 +212,27 @@ WebServer::WebServer() : running(true) {
 }
 
 
+// In src/Multiplixing/WebServer.cpp
 Connection &WebServer::getClientConnection(int fd, uint32_t events) {
+  (void)events;
   for (std::list<Connection *>::iterator it = connections.begin();
        it != connections.end(); ++it) {
-      
-    Connection & conn = *(*it);
-    // conn.resetEvents();
-    HTTPResponse::pollState state = conn.m_Response.getPollState();
-    std::cout << "Cgifd ------------------> Before "  << (*it)->m_Response.getCgiFd() << std::endl;
-    std::cout << "cgiEvent"  << (*it)->cgiEvent << "socketEvent" <<  (*it)->socketEvent<< std::endl;
-    if (conn.client_fd == fd)
-      conn.socketEvent = true;
-    if (conn.m_Response.getCgiFd() == fd)
-    {
-      if (((events & EPOLL_READ) && state == HTTPResponse::CGI_READ) ||
-        ((events & EPOLL_WRITE) && state == HTTPResponse::CGI_WRITE))
-        conn.cgiEvent = true;
-    }
-    std::cout << " ++++++++++++++++++++ After +++++++++++ "<< std::endl;
-    std::cout << "cgiEvent"  << (*it)->cgiEvent << "socketEvent" <<  (*it)->socketEvent<< std::endl;
-    if (conn.socketEvent || conn.cgiEvent)
-      return *(*it);
-  }
-  throw std::runtime_error("Clinet Connection not found OR Cgi Connection not found");
-}
+    Connection &conn = *(*it);
 
+    // Check if the event is for client_fd or CGI fd
+    if (conn.client_fd == fd) {
+      conn.socketEvent = true;
+      // return conn;
+    }
+    if (conn.m_Response.getCgiFd() == fd) { // Add this check
+      conn.cgiEvent = true;
+      // return conn;
+    }
+    if (conn.socketEvent || conn.cgiEvent)
+      return conn;
+  }
+  throw std::runtime_error("Connection not found");
+}
 
 void WebServer::run() {
   struct epoll_event events[MAX_EVENTS];
@@ -244,25 +252,37 @@ void WebServer::run() {
       } else {
         DEBUG_LOG("Processing event on fd: " << events[i].data.fd);
         // conn.hasEvent = false;
-        Connection &conn = this->getClientConnection(events[i].data.fd, events[i].events);
+        Connection &conn =
+            this->getClientConnection(events[i].data.fd, events[i].events);
         conn.hasEvent = true;
         conn.events |= events[i].events;
+        DEBUG_LOG("events|= cgifd : " << conn.m_Response.getCgiFd() << " | client_fd : " << conn.client_fd << " | Events --->  " << events[i].data.fd << " with events: " << epoll.format_events(events[i].events));
         // this->handle_client(events[i].data.fd, events[i].events);
       }
     }
 
     for (std::list<Connection *>::iterator it = this->connections.begin();
          it != connections.end();) {
+      std::cout << "iterator " << std::endl;
       if ((*it)->hasEvent) {
         bool connectionDeleted = this->handle_client(*(*it));
+        DEBUG_LOG("[hashEvent] : " << (*it)->m_Response.getCgiFd() << " | client_fd : " << (*it)->client_fd << " | connectionDeleted " << connectionDeleted << " with events: " << epoll.format_events((*it)->events));
         if (!connectionDeleted) {
+          std::cout << "i am in if of loop" << std::endl;
           (*it)->resetEvents();
           it++;
         } else
+        {
+          std::cout << "i am in else of loop" << std::endl;
+      
           cleanup_connection(it);
+        }
       } else
         it++;
     }
+      std::cout << "HI ------------ " << std::endl;
+
+
   }
 }
 
@@ -289,72 +309,121 @@ void WebServer::accept_connections(int listen_fd) {
 }
 
 bool WebServer::handle_client_response(Connection &conn) {
-  HTTPResponse &response = conn.m_Response;
-  HTTPResponse::pollState prevState = response.getPollState();
-  bool shouldDelete = false;
+    HTTPResponse &response = conn.m_Response;
+    bool shouldDelete = false;
+    int cgi_fd = response.getCgiFd();
 
-  std::cout << "PRE RESUME //////" << std::endl;
-  response.resume(conn.cgiEvent, conn.socketEvent);
-  if (response.isDone()) {
-    if (!response.isKeepAlive()) {
-      shouldDelete = true;
-    } else {
-      conn.m_State = Connection::REQUEST_PARSING;
-      epoll.mod_fd(conn.client_fd, EPOLL_READ | EPOLL_WRITE);
-      conn.reset();
+    // Process the response state machine
+    response.resume(conn.cgiEvent, conn.socketEvent);
+
+    // Handle completion
+    if (response.isDone()) {
+        // Clean up CGI resources first
+        if (cgi_fd > 0) {
+            try {
+                epoll.remove_fd(cgi_fd);
+                close(cgi_fd);
+                response.cleanupCgi();
+            } catch (...) {
+                DEBUG_LOG("Error cleaning up CGI fd: " << cgi_fd);
+            }
+        }
+
+        // Determine if we should close the connection
+        if (!response.isKeepAlive()) {
+            shouldDelete = true;
+        } else {
+            // Reset connection for keep-alive
+            conn.reset();
+            try {
+                // epoll.mod_fd(conn.client_fd, EPOLLIN | EPOLLONESHOT);
+                if (!conn.client_Added){
+                  epoll.add_fd(conn.client_fd, EPOLLIN | EPOLLONESHOT);
+                  conn.client_Added = 1;
+                }
+                else
+                  epoll.mod_fd(conn.client_fd, EPOLLIN | EPOLLONESHOT);
+            } catch (...) {
+                DEBUG_LOG("Error resetting client fd: " << conn.client_fd);
+                shouldDelete = true;
+            }
+        }
     }
-  }
-  HTTPResponse::pollState currState = response.getPollState();
-  std::cout << "AFTER RESUME //////" << std::endl;
-  std::cout << "pollState: " << currState << std::endl;
-  if (response.hasCgi() && currState == HTTPResponse::SOCKET_WRITE && currState != prevState)
-  {
-    int cgi_sock = response.getCgiFd();
-    if (cgi_sock <  0)
-    {
-      std::cout << "UNEXPECTED CGI SOCKET -1" << std::endl;
-      return true;
+
+    if (response.hasCgi() && cgi_fd > 0) {
+        HTTPResponse::pollState currState = response.getPollState();
+        
+        try {
+            switch (currState) {
+                case HTTPResponse::CGI_READ:
+                  if (conn.client_Added)
+                  {
+                    conn.client_Added = 0;
+                    epoll.remove_fd(conn.client_fd);
+                  }
+                  if (!conn.cgi_Added){
+                    conn.cgi_Added = 1;
+                    epoll.add_fd(cgi_fd, EPOLLIN | EPOLLONESHOT);
+                  }
+                  else
+                    epoll.mod_fd(cgi_fd, EPOLLIN | EPOLLONESHOT);
+                  break;
+                    
+                case HTTPResponse::CGI_WRITE:
+                  if (conn.client_Added)
+                  {
+                    conn.client_Added = 0;
+                    epoll.remove_fd(conn.client_fd);
+                  }
+                  if (!conn.cgi_Added){
+                    conn.cgi_Added = 1;
+                    epoll.add_fd(cgi_fd, EPOLLOUT | EPOLLONESHOT);
+                  }
+                  else
+                    epoll.mod_fd(cgi_fd, EPOLLOUT | EPOLLONESHOT);
+                  break;
+                    
+                case HTTPResponse::SOCKET_WRITE:
+                  if (conn.cgi_Added)
+                    epoll.remove_fd(cgi_fd);
+                  if (!conn.client_Added){
+                    epoll.add_fd(conn.client_fd, EPOLLOUT | EPOLLONESHOT);
+                    conn.client_Added = 1;
+                  }
+                  else
+                    epoll.mod_fd(conn.client_fd, EPOLLOUT | EPOLLONESHOT);
+                  break;
+                    
+                default:
+                    break;
+            }
+        } catch (const std::exception& e) {
+            DEBUG_LOG("Epoll error: " << e.what());
+            close_fds(conn);
+            shouldDelete = true;
+        }
     }
-    std::cout << "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh" << std::endl;
-    epoll.remove_fd(response.getCgiFd());
-    std::cout << "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh" << std::endl;
-    std::cout << "----------------------------+" << std::endl;
-    DEBUG_LOG("Switched to monitoring Client Socket (write)");
-    epoll.add_fd(conn.client_fd, EPOLL_WRITE | EPOLL_READ);
-  }
-  // } else {
-  //   HTTPResponse::pollState state = response.getPollState();
-  //   std::cout << "regex : ---> " << state << std::endl;
-  //   // int cgi_sock = conn.Cgihandler.getCgiSocket(conn.client_fd);
-  //   int cgi_sock = conn.m_Response.getCgiFd();
 
-  //   if (cgi_sock != -1 && state == HTTPResponse::CGI_WRITE) {
-  //     // Switch monitoring to CGI socket for writing
-  //     epoll.remove_fd(conn.client_fd);
-  //     std::cout << "----------------------------+" << std::endl;
-  //     epoll.add_fd(cgi_sock, EPOLL_WRITE | EPOLL_READ);
-  //     std::cout << "----------------------------+" << std::endl;
-  //     DEBUG_LOG("Switched to monitoring CGI socket (write)");
-      
-    // } else if (state == HTTPResponse::CGI_READ) {
-    //   // Switch monitoring to CGI socket for reading
-    //   epoll.remove_fd(conn.client_fd);
-    //   std::cout << "----------------------------++ " << cgi_sock << std::endl;
-
-    //   epoll.add_fd(cgi_sock, EPOLL_WRITE | EPOLL_READ);
-      
-    //   std::cout << "----------------------------++" << std::endl;
-    //   DEBUG_LOG("Switched to monitoring CGI socket (read)");
-    // } else {
-    //   // Switch back to client socket for writing
-    //   std::cout << " i am here 888888888\n" << std::endl;
-    //   if (cgi_sock != -1) {
-    //     epoll.remove_fd(cgi_sock);
-    //     // response.clearCgiSocket();
-    //   }
-    //   epoll.mod_fd(conn.client_fd, EPOLL_READ | EPOLL_WRITE);
-    // }
     return shouldDelete;
+}
+
+
+void WebServer::close_fds(Connection &connection) {
+    try {
+        if (connection.client_fd > 0) {
+            epoll.remove_fd(connection.client_fd);
+            close(connection.client_fd);
+            connection.client_fd = -1;  // Invalidate immediately
+        }
+        int cgi_fd = connection.m_Response.getCgiFd();
+        if (cgi_fd > 0) {
+            epoll.remove_fd(cgi_fd);
+            close(cgi_fd);
+            connection.m_Response.cleanupCgi();
+        }
+    } catch (...) {
+        DEBUG_LOG("Error closing FDs");
+    }
 }
 
 bool WebServer::handle_client_request(Connection &connection) {
@@ -367,15 +436,13 @@ bool WebServer::handle_client_request(Connection &connection) {
   if (bytes_received == 0) {
     // Should send response ??
     connection.init_response(this->epoll, this->cgi);
-    handle_client_response(connection);
-    DEBUG_LOG("Connection closed by client (fd: " << connection.client_fd
-                                                  << ")");
-    // cleanup_connection(connection.client_fd);
+    isDeleted = this->handle_client_response(connection);
+    DEBUG_LOG("Connection closed by client (fd: " << connection.client_fd << ")");
+    close_fds(connection);
     return true;
-    // log_request(*conn);
   } else if (bytes_received == -1) {
     DEBUG_LOG("Receive error on fd " << connection.client_fd);
-    // cleanup_connection(connection.client_fd);
+    close_fds(connection);
     return true;
   }
   DEBUG_LOG("Received " << bytes_received
@@ -394,26 +461,40 @@ bool WebServer::handle_client_request(Connection &connection) {
 bool WebServer::handle_client(Connection &conn) {
 
   bool isDeleted;
-  int fd  = false;
+  int cgi_fd = -1;
+  int client_fd = -1;
   isDeleted = false;
   if (conn.events & EPOLL_ERRORS) {
     // int fd = this->getCgiFdBasedOnClientFd(conn.client_fd);
-    fd = conn.m_Response.getCgiFd();
-    if (fd != -1 && conn.cgiEvent) {
-      cgi.cleanup_by_fd(fd);
-    } else if (conn.socketEvent) {
-      // cleanup_connection(conn.client_fd);
-      fd = conn.client_fd;
+    cgi_fd = conn.m_Response.getCgiFd();
+    if (cgi_fd != -1 && conn.cgiEvent) {
+      try{
+
+      // this->epoll.remove_fd(cgi_fd);
+      conn.m_Response.cleanupCgi();
+      // close(cgi_fd);
+      conn.cgiEvent = false; 
+      }
+      catch(...)
+      {
+        DEBUG_LOG("error in handle_client remove_fd\n");
+      }
+      // mybe should set 0 on cgi_sock of response object
+    } 
+    if (conn.socketEvent) {
+      // client_fd = conn.client_fd;
+      // epoll.remove_fd(client_fd);
+      conn.socketEvent = false; 
+      close_fds(conn);
       isDeleted = true;
     }
-    DEBUG_LOG("Connection closed by client (fd: "
-              << fd << ")" << this->epoll.format_events(conn.events));
+    DEBUG_LOG("Connection closed by client (fd: " << cgi_fd << " | " << client_fd << ")" << this->epoll.format_events(conn.events));
     return isDeleted; // hadle errors don't forget
   }
 
   if (conn.m_State == Connection::REQUEST_PARSING &&
       (conn.events & EPOLL_READ)) {
-    this->handle_client_request(conn);
+    isDeleted = this->handle_client_request(conn);
   } else if (conn.m_State == Connection::RESPONSE_PROCESSING &&
              (conn.events & EPOLL_WRITE)) {
     isDeleted = this->handle_client_response(conn);
@@ -439,35 +520,29 @@ void WebServer::log_connection(const struct sockaddr_storage &addr) {
   DEBUG_LOG("New connection from " << ip << ":" << port);
 }
 
-Connection *WebServer::find_connection(int fd) {
-  for (std::list<Connection *>::iterator it = connections.begin();
-       it != connections.end(); ++it) {
-    if ((*it)->client_fd == fd)
-      return *it;
-  }
-  return NULL;
-}
+
+// void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
+//   Connection *connection = *it;
+//
+//
+//   delete connection;
+//   it = connections.erase(it);
+// }
 
 void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
-  DEBUG_LOG("[Cleanup] Starting cleanup for ");
-
-  Connection *connection = *it;
-  // DEBUG_LOG("[Cleanup] Removing fd " << fd << " from epoll");
-  try {
-    epoll.remove_fd(connection->client_fd); // Remove from epoll FIRST
-    std::cout << "REMOVED CLIENT FD" << std::endl;
-  } catch (const std::exception &e) {
-    DEBUG_LOG("[Cleanup] Error removing fd " << connection->client_fd << ": "
-                                             << e.what());
-  }
-
-  delete connection; // Connection
-
-  it = connections.erase(it);
-  std::cout << "NUMBER OF CONNECTIONS: " << connections.size() << std::endl;
-
-  return;
+    Connection *conn = *it;
+    if (conn->client_fd > 0) {
+        epoll.remove_fd(conn->client_fd);
+        close(conn->client_fd);
+    }
+    if (conn->m_Response.getCgiFd() > 0) {
+        epoll.remove_fd(conn->m_Response.getCgiFd());
+        close(conn->m_Response.getCgiFd());
+    }
+    delete conn;
+    it = connections.erase(it);
 }
+
 
 int main() {
   try {

@@ -25,7 +25,11 @@ EpollManager::EpollManager() {
     DEBUG_LOG("[Epoll] Modifying fd "
               << fd << " with events: " << format_events(events));
     struct epoll_event ev;
-    ev.events = events | EPOLL_ERRORS;
+    // if (!events)
+      ev.events = events;
+    // else
+    //   ev.events = events | EPOLL_ERRORS;
+
     ev.data.fd = fd;
 
     if (epoll_ctl(epfd, EPOLL_CTL_MOD, fd, &ev) == -1) {
@@ -58,7 +62,8 @@ EpollManager::EpollManager() {
     DEBUG_LOG("[Epoll] Adding fd "
               << fd << " with events: " << format_events(events));
     struct epoll_event ev;
-    ev.events = events | EPOLL_ERRORS;
+    // ev.events = events | EPOLL_ERRORS;
+    ev.events = events;
     ev.data.fd = fd;
 
     if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev) == -1) {
