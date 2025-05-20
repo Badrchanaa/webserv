@@ -22,8 +22,8 @@ public:
 
 public:
   /// Added by bchanaa
-  bool cgiFdAdded;
-  bool socketFdAdded;
+  bool cgi_Added;
+  bool client_Added;
   bool m_KeepAlive;
   HTTPResponse m_Response;
   connectionState m_State;
@@ -40,8 +40,6 @@ public:
   bool cgiEvent;
   bool socketEvent;
 
-  bool cgi_Added;
-  bool client_Added;
 
 
   uint32_t events;

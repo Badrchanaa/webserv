@@ -161,7 +161,9 @@ void WebServer::create_listeners() {
           // fd << std::endl;
           listener_map[fd].push_back(server);
           // epoll.add_fd(fd, EPOLL_READ | EPOLL_WRITE);
+            std::cout << "hello 1 : " << fd  << std::endl;
           epoll.add_fd(fd, EPOLL_READ);
+          
           DEBUG_LOG("Successfully bound to " << server.host << ":" << port);
           break;
         } else {
@@ -303,7 +305,11 @@ void WebServer::accept_connections(int listen_fd) {
   Connection *conn = new Connection(server_conf, new_fd);
   connections.push_back(conn);
   // epoll.add_fd(new_fd, EPOLL_READ);
-  epoll.add_fd(new_fd, EPOLL_READ | EPOLL_WRITE);
+  std::cout << "hello 0" << std::endl;
+  std::cout << "4444444444444444444444444444444444" << std::endl;
+  // conn->client_Added = 1;
+  epoll.add_fd(new_fd, EPOLL_READ | EPOLL_WRITE );
+  std::cout << "4444444444444444444444444444444444" << std::endl;
 
   log_connection(client_addr);
 }
@@ -321,9 +327,12 @@ bool WebServer::handle_client_response(Connection &conn) {
         // Clean up CGI resources first
         if (cgi_fd > 0) {
             try {
+              if (conn.cgi_Added){
+                conn.cgi_Added = 0;
                 epoll.remove_fd(cgi_fd);
-                close(cgi_fd);
-                response.cleanupCgi();
+              }
+              close(cgi_fd);
+              response.cleanupCgi();
             } catch (...) {
                 DEBUG_LOG("Error cleaning up CGI fd: " << cgi_fd);
             }
@@ -338,6 +347,7 @@ bool WebServer::handle_client_response(Connection &conn) {
             try {
                 // epoll.mod_fd(conn.client_fd, EPOLLIN | EPOLLONESHOT);
                 if (!conn.client_Added){
+                    std::cout << "hello 2" << std::endl;
                   epoll.add_fd(conn.client_fd, EPOLLIN | EPOLLONESHOT);
                   conn.client_Added = 1;
                 }
@@ -363,6 +373,7 @@ bool WebServer::handle_client_response(Connection &conn) {
                   }
                   if (!conn.cgi_Added){
                     conn.cgi_Added = 1;
+                    std::cout << "hello 3" << std::endl;
                     epoll.add_fd(cgi_fd, EPOLLIN | EPOLLONESHOT);
                   }
                   else
@@ -370,6 +381,7 @@ bool WebServer::handle_client_response(Connection &conn) {
                   break;
                     
                 case HTTPResponse::CGI_WRITE:
+                  std::cout << "CGI_WITE PLACE " << std::endl;
                   if (conn.client_Added)
                   {
                     conn.client_Added = 0;
@@ -377,6 +389,7 @@ bool WebServer::handle_client_response(Connection &conn) {
                   }
                   if (!conn.cgi_Added){
                     conn.cgi_Added = 1;
+                    std::cout << "hello 4" << std::endl;
                     epoll.add_fd(cgi_fd, EPOLLOUT | EPOLLONESHOT);
                   }
                   else
@@ -385,10 +398,14 @@ bool WebServer::handle_client_response(Connection &conn) {
                     
                 case HTTPResponse::SOCKET_WRITE:
                   if (conn.cgi_Added)
+                  {
+                    conn.cgi_Added = 0;
                     epoll.remove_fd(cgi_fd);
+                  }
                   if (!conn.client_Added){
-                    epoll.add_fd(conn.client_fd, EPOLLOUT | EPOLLONESHOT);
                     conn.client_Added = 1;
+                    std::cout << "hello 5" << std::endl;
+                    epoll.add_fd(conn.client_fd, EPOLLOUT | EPOLLONESHOT);
                   }
                   else
                     epoll.mod_fd(conn.client_fd, EPOLLOUT | EPOLLONESHOT);
@@ -411,15 +428,23 @@ bool WebServer::handle_client_response(Connection &conn) {
 void WebServer::close_fds(Connection &connection) {
     try {
         if (connection.client_fd > 0) {
+          if (connection.client_Added)
+          {
+            connection.client_Added = 0;
             epoll.remove_fd(connection.client_fd);
-            close(connection.client_fd);
-            connection.client_fd = -1;  // Invalidate immediately
+          }
+          close(connection.client_fd);
+          connection.client_fd = -1;  // Invalidate immediately
         }
         int cgi_fd = connection.m_Response.getCgiFd();
         if (cgi_fd > 0) {
+          if (connection.cgi_Added)
+          {
+            connection.cgi_Added = 0;
             epoll.remove_fd(cgi_fd);
-            close(cgi_fd);
-            connection.m_Response.cleanupCgi();
+          }
+          close(cgi_fd);
+          connection.m_Response.cleanupCgi();
         }
     } catch (...) {
         DEBUG_LOG("Error closing FDs");
@@ -532,11 +557,17 @@ void WebServer::log_connection(const struct sockaddr_storage &addr) {
 void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
     Connection *conn = *it;
     if (conn->client_fd > 0) {
-        epoll.remove_fd(conn->client_fd);
+        if (conn->client_Added){
+          epoll.remove_fd(conn->client_fd);
+        conn->cgi_Added = 0;
+        }
         close(conn->client_fd);
     }
     if (conn->m_Response.getCgiFd() > 0) {
-        epoll.remove_fd(conn->m_Response.getCgiFd());
+        if (conn->cgi_Added){
+          epoll.remove_fd(conn->m_Response.getCgiFd());
+          conn->cgi_Added = 0;
+        }
         close(conn->m_Response.getCgiFd());
     }
     delete conn;

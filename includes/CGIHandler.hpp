@@ -34,7 +34,7 @@
 // #include "WebServer.hpp"
 #include "HTTPBody.hpp"
 
-// extern char **environ;
+extern char **environ;
 struct CGIProcess {
   CGIProcess(int socket, pid_t p_pid) : cgi_sock(socket), pid(p_pid) {}
   
@@ -45,6 +45,24 @@ struct CGIProcess {
   void cleanup(bool error);
 };
 
+// class CGIProcess {
+//     int cgi_sock;
+//     pid_t pid;
+//     time_t start_time;
+//     bool write_complete;
+//     static const int CGI_TIMEOUT = 5; // 5 seconds
+//
+// public:
+//     CGIProcess(int sock, pid_t pid);
+//     ~CGIProcess();
+//
+//     bool timed_out() const;
+//     ssize_t read(char* buff, size_t size);
+//     bool write(HTTPBody& body);
+//     void cleanup(bool error);
+//     int socket() const { return cgi_sock; }
+//     bool should_close() const { return write_complete; }
+// };
 class CGIHandler {
 
 public:
@@ -71,5 +89,6 @@ public:
   //   (void)fd;
   // }
 };
+
 
 #endif // !__cgi__

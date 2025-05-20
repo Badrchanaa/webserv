@@ -51,19 +51,33 @@ void HTTPResponse::_initCgi(const std::string path,
   std::cout << "args[0]" << args[0] << std::endl;
   std::cout << "args[1]" << args[1] << std::endl;
 
-  try {
+  // try {
     // m_Cgi = cgihandler.spawn(args);
     m_Cgi = cgihandler.spawn(args);
     if (m_Cgi) {
-      setCgiFd(m_Cgi->cgi_sock); // Assuming CGIProcess has cgi_sock member
-    } else {
-      std::cout << "i am HTTPRequest " << std::endl;
-      setError(SERVER_ERROR);
-      std::cout << "i am HTTPRequest " << std::endl;
-    }
-  } catch (const std::exception &e) {
-    std::cerr << e.what() << '\n';
-  }
+      std::cout << "111111111111111111111111111111111111111111" << std::endl;
+      setCgiFd(m_Cgi->cgi_sock);
+  //
+  //     struct epoll_event ev;
+  //     ev.events = EPOLLIN; 
+  //     ev.data.fd = m_Cgi->cgi_sock;
+  //     std::cout << m_Cgi->cgi_sock;
+  //
+  //     // if (m_Cgi->)
+  //     if (epoll_ctl(cgihandler.epoll_fd, EPOLL_CTL_MOD, m_Cgi->cgi_sock, &ev) == -1) {
+  //       // DEBUG_LOG("[Epoll] Add failed (fd: " << m_Cgi->cgi_sock << "): " << strerror(errno));
+  //       throw std::runtime_error("epoll_ctl add failed");
+      }
+  //     // DEBUG_LOG("[Epoll] Successfully added fd ");
+  //     } else {
+  //       std::cout << "i am HTTPRequest " << std::endl;
+  //       setError(SERVER_ERROR);
+  //       std::cout << "i am HTTPRequest " << std::endl;
+  //     }
+  // } catch (const std::exception &e) {
+  //   std::cerr << e.what() << '\n';
+  // }
+  //     std::cout << 111111111111111111111111111111111111111111 << std::endl;
   std::cout << "end init cgi" << std::endl;
   m_PollState = CGI_READ;
 }
@@ -407,7 +421,7 @@ void HTTPResponse::_processCgiBody() {
   ssize_t rbytes = m_Cgi->read(buff, 8192);
   buff[rbytes] = 0;
   std::cout << buff << std::endl;
-  std::cout << "read from cgi: " << rbytes << std::endl;
+  std::cout << "read from cgi: " << rbytes  << " | " << buff << std::endl;
   setError(SERVER_ERROR);
   m_State = PROCESS_HEADERS;
   m_PollState = SOCKET_WRITE;
