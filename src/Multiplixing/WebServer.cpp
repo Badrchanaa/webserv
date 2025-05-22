@@ -322,21 +322,34 @@ bool WebServer::handle_client_response(Connection &conn) {
     int cgi_fd = response.getCgiFd();
     HTTPResponse::pollState state = response.getPollState();
 
-    if (conn.cgiEvent && state == HTTPResponse::SOCKET_WRITE)
-    {
-      std::cout << "CGI Event but CONN in SOCKET_WRITE. Ignore" << std::endl;
-      return shouldDelete;
-    }
-    
+    // if (conn.cgiEvent && state == HTTPResponse::SOCKET_WRITE)
+    // {
+    //   std::cout << "CGI Event but CONN in SOCKET_WRITE. Ignore" << std::endl;
+    //   return shouldDelete;
+    // }
+    if (conn.cgiEvent && conn.events & EPOLLHUP)
+      {
+        if (conn.cgi_Added)
+        {
+          epoll.remove_fd(conn.cgi_Added, cgi_fd);
+        }
+        if (!conn.client_Added){
+          std::cout << "hello 5" << std::endl;
+          epoll.add_fd(conn.client_Added, conn.client_fd, EPOLLIN | EPOLLOUT );
+        }
+        response.setCgiDone();
+
+        return shouldDelete;
+      }
     else if (conn.cgiEvent) // if cgiEvent and Response in READ or WRITE
     {
       std::cout << "CGI Events: " << epoll.format_events(conn.events)  << std::endl;
       if ( (state == HTTPResponse::CGI_READ && !(conn.events & EPOLLIN)) ||
          (state == HTTPResponse::CGI_WRITE && !(conn.events & EPOLLOUT)))
-         {
-            std::cout << "CGI Event but CONN state doesnt match event. Ignore" << std::endl;
-            return shouldDelete;
-         }
+      {
+        std::cout << "CGI Event but CONN state doesnt match event. Ignore" << std::endl;
+        return shouldDelete;
+      }
     }
 
     response.resume(conn.cgiEvent, conn.socketEvent);
@@ -507,7 +520,7 @@ bool WebServer::handle_client(Connection &conn) {
   std::cout << "IN HANDLE CLIENT ERROR fd: " << conn.client_fd << " events:" << this->epoll.format_events(conn.events) << std::endl;
     // int fd = this->getCgiFdBasedOnClientFd(conn.client_fd);
     cgi_fd = conn.m_Response.getCgiFd();
-    if (cgi_fd != -1 && conn.cgiEvent) {
+    if (cgi_fd != -1 && conn.cgiEvent && (conn.events & EPOLLERR )) {
       try{
 
       // this->epoll.remove_fd(cgi_fd);
@@ -526,10 +539,10 @@ bool WebServer::handle_client(Connection &conn) {
       // epoll.remove_fd(client_fd);
       conn.socketEvent = false; 
       close_fds(conn);
-      isDeleted = true;
+      return true;
     }
     DEBUG_LOG("Connection closed by client (fd: " << cgi_fd << " | " << client_fd << ")" << this->epoll.format_events(conn.events));
-    return isDeleted; // hadle errors don't forget
+    // return isDeleted; // hadle errors don't forget
   }
 
   if (conn.m_State == Connection::REQUEST_PARSING &&

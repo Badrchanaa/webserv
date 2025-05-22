@@ -9,7 +9,7 @@ HTTPResponse::pollState HTTPResponse::getPollState() const {
 
 HTTPResponse::HTTPResponse(void)
     : m_State(INIT), m_PollState(SOCKET_WRITE), m_CursorPos(0),
-      m_ConfigServer(NULL), m_Location(NULL), m_Cgi(NULL), m_CgiFd(false) {
+      m_ConfigServer(NULL), m_Location(NULL), m_Cgi(NULL), m_CgiFd(0), m_CgiDone(false) {
   m_StatusCode = HTTPResponse::OK;
 }
 
@@ -57,29 +57,9 @@ void HTTPResponse::_initCgi(const std::string path,
     if (m_Cgi) {
       std::cout << "111111111111111111111111111111111111111111" << std::endl;
       setCgiFd(m_Cgi->cgi_sock);
-  //
-  //     struct epoll_event ev;
-  //     ev.events = EPOLLIN; 
-  //     ev.data.fd = m_Cgi->cgi_sock;
-  //     std::cout << m_Cgi->cgi_sock;
-  //
-  //     // if (m_Cgi->)
-  //     if (epoll_ctl(cgihandler.epoll_fd, EPOLL_CTL_MOD, m_Cgi->cgi_sock, &ev) == -1) {
-  //       // DEBUG_LOG("[Epoll] Add failed (fd: " << m_Cgi->cgi_sock << "): " << strerror(errno));
-  //       throw std::runtime_error("epoll_ctl add failed");
       }
-  //     // DEBUG_LOG("[Epoll] Successfully added fd ");
-  //     } else {
-  //       std::cout << "i am HTTPRequest " << std::endl;
-  //       setError(SERVER_ERROR);
-  //       std::cout << "i am HTTPRequest " << std::endl;
-  //     }
-  // } catch (const std::exception &e) {
-  //   std::cerr << e.what() << '\n';
-  // }
-  //     std::cout << 111111111111111111111111111111111111111111 << std::endl;
-  std::cout << "end init cgi" << std::endl;
-  m_PollState = CGI_READ;
+    std::cout << "end init cgi" << std::endl;
+    m_PollState = CGI_READ;
 }
 
 void HTTPResponse::_initBadRequest() {
@@ -420,11 +400,13 @@ void HTTPResponse::_processCgiBody() {
   char buff[8192];
   ssize_t rbytes = m_Cgi->read(buff, 8192);
   // buff[rbytes] = 0;
-  std::cout << buff << std::endl;
+  // std::cout << buff << std::endl;
   std::cout << "read from cgi: " << rbytes  << " | " << buff << std::endl;
-  setError(SERVER_ERROR);
-  m_State = PROCESS_HEADERS;
-  m_PollState = SOCKET_WRITE;
+  if (rbytes > 0)
+    appendBody(buff, rbytes);
+  // setError(SERVER_ERROR);
+  // m_State = PROCESS_HEADERS;
+  // m_PollState = SOCKET_WRITE;
 }
 
 void HTTPResponse::_processBody() {

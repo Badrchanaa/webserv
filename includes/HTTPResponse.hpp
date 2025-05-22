@@ -69,6 +69,12 @@ class HTTPResponse: public HTTPMessage
 
 		// use it to manage epoll events for this response, socket or cgi.
 		pollState		getPollState() const;
+		void			setCgiDone()
+		{
+			m_CgiDone = true;
+			m_PollState = SOCKET_WRITE;
+			m_State = PROCESS_HEADERS;
+		};
 
 		// response processing state
 		responseState	getState() const;
@@ -129,7 +135,8 @@ class HTTPResponse: public HTTPMessage
 		const ConfigServer*	m_ConfigServer;
 		const Location*		m_Location;
 		CGIProcess*			m_Cgi;
-		int m_CgiFd;
+		int		m_CgiFd;
+		bool				m_CgiDone;
 		// int client_fd;
 
 };
