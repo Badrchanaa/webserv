@@ -11,7 +11,7 @@
 #include "CGIHandler.hpp"
 #include "dirent.h"
 #include <string>
-
+// m_CgiFd
 class HTTPResponse: public HTTPMessage
 {
 	public:
@@ -129,7 +129,7 @@ class HTTPResponse: public HTTPMessage
 		const ConfigServer*	m_ConfigServer;
 		const Location*		m_Location;
 		CGIProcess*			m_Cgi;
-    int m_CgiFd;
+		int m_CgiFd;
 		// int client_fd;
 
 };

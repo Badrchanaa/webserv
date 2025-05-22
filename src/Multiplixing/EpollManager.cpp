@@ -25,10 +25,7 @@ EpollManager::EpollManager() {
     DEBUG_LOG("[Epoll] Modifying fd "
               << fd << " with events: " << format_events(events));
     struct epoll_event ev;
-    // if (!events)
-      ev.events = events;
-    // else
-    //   ev.events = events | EPOLL_ERRORS;
+    ev.events = events | EPOLL_ERRORS;
 
     ev.data.fd = fd;
 
@@ -40,11 +37,16 @@ EpollManager::EpollManager() {
     DEBUG_LOG("[Epoll] Successfully modified fd " << fd);
   }
 
-  void EpollManager::remove_fd(int fd) {
+  void EpollManager::remove_fd(bool &is_added,int fd) {
     // eventsMap::iterator it = fds.find(fd);
     // if (it != fds.end())
     //   return ;
     
+    if (fd <= 0)
+    {
+      DEBUG_LOG("[Epoll] remove_fd fd is less than 0 :  " << fd);
+      return ;
+    }
     // fds.erase(fd);
     DEBUG_LOG("[Epoll] Attempting to remove fd: " << fd);
     if (epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL) == -1) {
@@ -52,24 +54,25 @@ EpollManager::EpollManager() {
                                               << "): " << strerror(errno));
       throw std::runtime_error("epoll_ctl del failed");
     }
+    is_added = false;
     DEBUG_LOG("[Epoll] Successfully removed fd: " << fd);
   }
-
-  void EpollManager::add_fd(int fd, uint32_t events) {
+  void EpollManager::add_fd(bool &is_added, int fd, uint32_t events) {
     // eventsMap::const_iterator it = fds.find(fd);
     // if (it == fds.end())
     //   return ;
     DEBUG_LOG("[Epoll] Adding fd "
               << fd << " with events: " << format_events(events));
     struct epoll_event ev;
-    // ev.events = events | EPOLL_ERRORS;
-    ev.events = events;
+    ev.events = events | EPOLL_ERRORS;
+    // ev.events = events;
     ev.data.fd = fd;
 
     if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev) == -1) {
       DEBUG_LOG("[Epoll] Add failed (fd: " << fd << "): " << strerror(errno));
       throw std::runtime_error("epoll_ctl add failed");
     }
+    is_added = true;
     DEBUG_LOG("[Epoll] Successfully added fd " << fd);
   }
 

@@ -7,7 +7,8 @@
 #include "FileDescriptor.hpp"
 #include "HTTPRequest.hpp"
 #include "HTTPResponse.hpp"
-#include "WebServer.hpp"
+// #include "WebServer.hpp"
+#include "EpollManager.hpp"
 
 // CGI LINK: https://datatracker.ietf.org/doc/html/rfc3875
 class Connection {

@@ -419,7 +419,7 @@ void HTTPResponse::_processResource() {
 void HTTPResponse::_processCgiBody() {
   char buff[8192];
   ssize_t rbytes = m_Cgi->read(buff, 8192);
-  buff[rbytes] = 0;
+  // buff[rbytes] = 0;
   std::cout << buff << std::endl;
   std::cout << "read from cgi: " << rbytes  << " | " << buff << std::endl;
   setError(SERVER_ERROR);
@@ -463,7 +463,7 @@ bool HTTPResponse::resume(bool isCgiReady, bool isClientReady) {
     std::cout << "CLIENT READY" << std::endl;
   // RESPONSE PROCESSING (BODY -> HEADERS)
   if (m_PollState == CGI_READ && isCgiReady && m_State == PROCESS_BODY)
-    _processCgiBody();
+    return (_processCgiBody(), false);
   else if (!hasCgi() && m_State == PROCESS_BODY)
     _processBody();
   if (m_State == PROCESS_HEADERS)

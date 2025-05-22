@@ -41,17 +41,16 @@ CGIProcess *CGIHandler::spawn(char *const *args) const {
 }
 
 void CGIHandler::setup_child(int sock, char *const *args, char **env) const {
-  // for (int fd = sysconf(_SC_OPEN_MAX); fd > 2; fd--) {
-  //   if (fd != sock)
-  //     close(fd);
-  // }
-  dup2(sock, STDERR_FILENO); // Add this line
-  dup2(sock, STDIN_FILENO);
-  dup2(sock, STDOUT_FILENO);
-  close(sock);
+  // (void)sock;
+  // dup2(sock, STDERR_FILENO); // Add this line
+  if (dup2(sock, STDIN_FILENO) == -1)
+    std::cerr << "dup2 0 failed: " << strerror(errno) << std::endl;
+  if (dup2(sock, STDOUT_FILENO) == -1)
+    std::cerr << "dup2 1 failed: " << strerror(errno) << std::endl;
+  // close(sock);
 
   (void)env;
-  std::cout << "test " << std::endl;
+  std::cout << "test " << sock << std::endl;
   std::cout << "args[0] :: " << args[0] << std::endl;
   std::cout << "args[1] :: " << args[1] << std::endl;
 
@@ -78,12 +77,9 @@ ssize_t CGIProcess::read(char *buff, size_t size) {
   ssize_t received = recv(this->cgi_sock, buff, size, 0);
   std::cout << "received: " << received << " from: " << cgi_sock << std::endl;
 
-  if (received < 0) {
+  if (received < 0) { // -1
     std::cout << "++++++++++++++++++++++++++++" << std::endl;
     std::cout << "received == < 0" << std::endl;
-    if (errno == EAGAIN || errno == EWOULDBLOCK) {
-      return 0; // Not a fatal error for non-blocking sockets
-    }
     this->cleanup(true);
     std::cout << "++++++++++++++++++++++++++++" << std::endl;
   } else if (received == 0) {
@@ -92,15 +88,12 @@ ssize_t CGIProcess::read(char *buff, size_t size) {
     this->cleanup(false);
     std::cout << "----------------------------" << std::endl;
   }
+  std::cout << "RECEIVED: " << received << std::endl;
   return received;
 }
 
 // In CGIHandler
 void CGIProcess::cleanup(bool error) {
-  if (cgi_sock != -1) {
-    close(cgi_sock);
-    cgi_sock = -1;
-  }
 
   if (error) {
     kill(pid, SIGKILL);
@@ -108,9 +101,14 @@ void CGIProcess::cleanup(bool error) {
   }
 
   int status;
-  if (waitpid(pid, &status, WNOHANG) == 0) {
+  if (waitpid(pid, &status, 0) == 0) {
     // Process still running, wait normally
-    waitpid(pid, &status, 0);
+    // waitpid(pid, &status, 0);
+  }
+
+  if (cgi_sock != -1) {
+    // close(cgi_sock);
+    cgi_sock = -1;
   }
 
   if (WIFEXITED(status)) {

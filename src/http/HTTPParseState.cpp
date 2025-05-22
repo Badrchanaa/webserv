@@ -32,14 +32,22 @@ void	HTTPParseState::appendHeaderValue(const char *buff, size_t start, size_t en
 {
 	if (start == end)
 		return;
-	m_HeaderValue.append(buff, start, end - start);
+	for (size_t i = start; i < end; i++)
+	{
+		m_HeaderValue += buff[i];
+	}
+	// m_HeaderValue.append(buff, start, end - start);
 }
 
 void	HTTPParseState::appendHeaderField(const char *buff, size_t start, size_t end)
 {
 	if (start == end)
 		return;
-	m_HeaderField.append(buff, start, end - start);
+	for (size_t i = start; i < end; i++)
+	{
+		m_HeaderField += buff[i];
+	}
+	// m_HeaderField.append(buff, start, end - start);
 }
 
 void	HTTPParseState::clearHeader()

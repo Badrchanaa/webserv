@@ -117,7 +117,7 @@ size_t	HTTPParser::_parseTarget(HTTPRequest &request, char *buff, size_t start, 
 	}
 	if (i == len)
 	{
-		request.appendToPath(buff, start, len);
+		request.appendToPath(buff, start, i);
 		parseState.setReadBytes(targetSize);
 		return i;
 	}

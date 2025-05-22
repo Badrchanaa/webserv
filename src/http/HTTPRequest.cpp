@@ -201,7 +201,12 @@ void	HTTPRequest::reset()
 
 void	HTTPRequest::appendToPath(const char *buff, size_t start, size_t len)
 {
-	m_Path.append(buff, start, len - start);
+	std::cout << "APPENDING TO PATH: start: " << start << " len: " << len << std::endl;
+	for (size_t i = start; i < len; i++)
+	{
+		m_Path += buff[i];
+	}
+	// m_Path.append(buff + start, 0, len - start);
 }
 
 // HTTPRequest::HTTPRequest(const HTTPRequest &other)
