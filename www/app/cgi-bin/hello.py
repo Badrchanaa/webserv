@@ -1,2 +1,6 @@
 #!/usr/bin/python3
-print("wa ta sir t9wd")
+
+file = open("Makefile")
+
+for line in file.readlines():
+    print(line)
