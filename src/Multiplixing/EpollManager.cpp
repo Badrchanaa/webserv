@@ -37,7 +37,7 @@ EpollManager::EpollManager() {
     DEBUG_LOG("[Epoll] Successfully modified fd " << fd);
   }
 
-  void EpollManager::remove_fd(bool &is_added, std::time_t &last_activity, int fd) {
+  void EpollManager::remove_fd(bool &is_added, int fd) {
     
     if (fd <= 0)
     {
@@ -51,7 +51,6 @@ EpollManager::EpollManager() {
       throw std::runtime_error("epoll_ctl del failed");
     }
     is_added = false;
-    last_activity = 0;
     DEBUG_LOG("[Epoll] Successfully removed fd: " << fd);
   }
 

@@ -29,8 +29,9 @@ public:
   bool m_KeepAlive;
   HTTPResponse m_Response;
   connectionState m_State;
+  std::vector<ConfigServer> &servers;
 
-  /// Added by regex33
+/// Added by regex33
   // Config &config;
   // CGIHandler &Cgihander;
   // FileDescriptor client_fd;
@@ -47,13 +48,14 @@ public:
   uint32_t events;
 
   // Time out
-  std::time_t cgi_last_activity;
-  std::time_t client_last_activity;
+  // std::time_t cgi_last_activity;
+  // std::time_t client_last_activity;
+  std::time_t last_activity;
   /* Reference to specific server config */
   // ConfigServer &config_server; 
                                
   // Connection(CGIHandler &cgihandler, std::vector<ConfigServer> &server, Config &conf, int f);
-  Connection(std::vector<ConfigServer> &server, int f);
+  Connection(std::vector<ConfigServer> &servers, int f);
   ~Connection()
   {
   } 

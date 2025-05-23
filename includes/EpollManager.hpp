@@ -34,7 +34,7 @@ public:
   ~EpollManager();
 
   void mod_fd(int fd, uint32_t events);
-  void remove_fd(bool &is_added, std::time_t  &last_activity,int fd);
+  void remove_fd(bool &is_added, int fd);
   void add_fd(bool &is_added, int fd, uint32_t events);
 // private:
   std::string format_events(uint32_t events);

@@ -77,6 +77,7 @@ public:
   void accept_connections(int listen_fd);
 
   void setup_epoll();
+  void handle_connection_timeout(std::list<Connection *>::iterator &it);
   bool handle_client_request(Connection &conn);
   bool handle_client_response(Connection &conn);
   // void handle_client(int fd, uint32_t events);
@@ -85,6 +86,7 @@ public:
   void log_request(const Connection &conn);
   Connection *find_connection(int fd);
   void cleanup_connection(std::list<Connection *>::iterator &it);
+  // void cleanup_connection(Connection *conn);
   void set_nonblocking(int fd);
 
   Connection &connection_ref(int fd);

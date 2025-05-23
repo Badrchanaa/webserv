@@ -6,7 +6,7 @@
 //       std::cout << "hello test test" << std::endl;
 //   }
 Connection::Connection(std::vector<ConfigServer> &servers, int f)
-      : cgi_Added(false) , client_Added(false), m_State(REQUEST_PARSING), client_fd(f), m_Request(servers), hasEvent(false), cgiEvent(false) , socketEvent(false), events(0), cgi_last_activity(false), client_last_activity(false) {
+      : cgi_Added(false) , client_Added(false), m_State(REQUEST_PARSING), servers(servers), client_fd(f), m_Request(servers), hasEvent(false), cgiEvent(false) , socketEvent(false), events(0), last_activity(std::time(NULL)) {
 
   }
   // Connection(CGIHandler &cgihandler, Config &conf, int f,
@@ -27,7 +27,7 @@ void Connection::reset() {
 
     if (m_Response.getCgiFd() != -1) {
         close(m_Response.getCgiFd());
-        m_Response.cleanupCgi();
+        m_Response.cleanupCgi(false);
     }
 
     m_Request.reset();
@@ -41,8 +41,20 @@ bool Connection::keepAlive() { return this->m_KeepAlive; }
   void Connection::init_response(EpollManager& epollManager, CGIHandler& cgiHandler) {
   this->m_State = RESPONSE_PROCESSING;
   (void) epollManager;
+  const ConfigServer *configServer;
+  configServer = m_Request.getServer(); 
+  if (!configServer)
+  {
+    std::cout << "CANNOT FIND CONFIGSERVER IN REQUEST" << std::endl;
+    configServer = &(Config::getServerByName(servers, ""));
+  }
+  else
+  {
+    std::cout << "I FOUND CONFIGSERVER IN REQUEST" << std::endl;
+  }
+  
   // Initialize response and CGI
-  this->m_Response.init(this->m_Request, cgiHandler, this->m_Request.getServer(), this->client_fd);
+  this->m_Response.init(this->m_Request, cgiHandler, configServer, this->client_fd);
 
   // Store CGI FD in response
   // if (m_Response.hasCgi()) {

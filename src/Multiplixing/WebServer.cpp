@@ -199,11 +199,11 @@ WebServer::~WebServer() {
        it != listener_descriptors.end(); ++it) {
     delete *it;
   }
-  for (std::list<Connection *>::iterator it = connections.begin();
-       it != connections.end(); ++it) {
-    delete *it;
-    this->connections.erase(it);
-  }
+  // for (std::list<Connection *>::iterator it = connections.begin();
+  //      it != connections.end(); ++it) {
+  //   delete *it;
+  //   this->connections.erase(it);
+  // }
 }
 
 WebServer::WebServer() : running(true) {
@@ -221,13 +221,15 @@ Connection &WebServer::getClientConnection(int fd, uint32_t events) {
   for (std::list<Connection *>::iterator it = connections.begin();
        it != connections.end(); ++it) {
     Connection &conn = *(*it);
-
+    conn.resetEvents();
     if (conn.client_fd == fd)
       conn.socketEvent = true;
     if (conn.m_Response.getCgiFd() == fd)
       conn.cgiEvent = true;
-    if (conn.socketEvent || conn.cgiEvent)
-      return conn;
+    if ((conn.socketEvent || conn.cgiEvent))
+    {
+        return conn;
+    }
   }
   throw std::runtime_error("Connection not found");
 }
@@ -255,20 +257,9 @@ void WebServer::run() {
         DEBUG_LOG("New connection on listener fd: " << events[i].data.fd);
         this->accept_connections(events[i].data.fd);
       } else {
-        Connection &conn =
-            this->getClientConnection(events[i].data.fd, events[i].events);
+        Connection &conn = this->getClientConnection(events[i].data.fd, events[i].events);
         conn.hasEvent = true;
         conn.events |= events[i].events;
-
-        // Update last activity times based on event type
-        // std::cout << "Before -> Client_last_activity" << conn.client_last_activity << " | cgi : " << conn.cgi_last_activity << std::endl; 
-        if (conn.socketEvent) {
-          conn.client_last_activity = current_time;
-        }
-        // if (conn.cgiEvent) {
-        //   conn.cgi_last_activity = current_time;
-        // }
-        // std::cout << "After -> Client_last_activity" << conn.client_last_activity << " | cgi : " << conn.cgi_last_activity << std::endl; 
       }
     }
 
@@ -278,60 +269,81 @@ void WebServer::run() {
       std::cout << "===============================" << std::endl;
     }
 
-    for (std::list<Connection *>::iterator it = this->connections.begin();
-         it != connections.end();) {
+    for (std::list<Connection *>::iterator it = this->connections.begin(); it != connections.end();)
+    {
       Connection *conn = *it;
       if ((*it)->hasEvent) {
         DEBUG_LOG("[cgiFd] : " << conn->m_Response.getCgiFd() << " | client_fd : "
           << conn->client_fd  << " with events: " << epoll.format_events(conn->events) << std::endl);
         bool connectionDeleted = this->handle_client(*conn);
         std::cout << "connectionDeleted " << connectionDeleted  << std::endl;
-        if (!connectionDeleted) {
-          conn->resetEvents();
-          it++;
-        } else {
-          cleanup_connection(it);
-        }
-      }
-      else {
-        if (conn->client_last_activity && current_time - conn->client_last_activity >= TIMEOUT_SEC) {
-
-          DEBUG_LOG("client connection timed out: " << "client_last_activity : " << conn->client_last_activity << " fd  : " << conn->client_fd << " current timeout : " << (current_time - conn->client_last_activity));
-          exit(1);
-          conn->m_Response.setError(HTTPResponse::SERVER_ERROR);
-          close_fds(*conn);
-          cleanup_connection(it);
-        //   // continue;
-        }
-        else if (conn->cgi_last_activity && conn->m_Response.getCgiFd() != -1 && (current_time - conn->cgi_last_activity >= TIMEOUT_SEC)) {
-          DEBUG_LOG("CGI process timed out: " << conn->m_Response.getCgiFd() << " current timeout : " << (current_time - conn->cgi_last_activity));
-          exit(1);
-          kill(conn->m_Response.getCGIProcessPid(), SIGKILL);
-          close(conn->m_Response.getCgiFd());
-          if (conn->cgi_Added) {
-            epoll.remove_fd(conn->cgi_Added, conn->cgi_last_activity, conn->m_Response.getCgiFd());
-          }
-          conn->m_Response.cleanupCgi();
-          // conn->m_Response.setError(HTTPResponse::SERVER_ERROR);
-          // conn->m_Response.setStatus(504);
-          conn->m_State = Connection::RESPONSE_PROCESSING;
-          bool shouldDelete = handle_client_response(*conn);
-          if (shouldDelete) {
-            cleanup_connection(it);
-            // continue;
-          } else {
+        if (!connectionDeleted) { // it++
+          std::cout << "FIRST TIMEOUT CASE" << std::endl;
+          if (current_time - conn->last_activity >= TIMEOUT_SEC) 
+            handle_connection_timeout(it);
+          else {
             conn->resetEvents();
             it++;
           }
+        } else {
+          // 
+          cleanup_connection(it);
         }
-        // } else {
-        //   it++;
-        // }
       }
-      it++;
+      else
+      {
+          // exit(1);
+          // conn->m_Response.setError(HTTPResponse::SERVER_ERROR);
+          // close_fds(*conn);
+          // cleanup_connection(it);
+        std::cout << "SECOND TIMEOUT CASE" << std::endl;
+        if (current_time - conn->last_activity >= TIMEOUT_SEC) 
+          handle_connection_timeout(it);
+        else
+          it++;
+
+      }
+      // it++;
     }
-    std::cout << "HI ------------ " << std::endl;
+    std::cout << "RUN END ------------ " << std::endl;
   }
+}
+
+void WebServer::handle_connection_timeout(std::list<Connection *>::iterator &it)
+{
+  std::cout << "CONNECTION TIMEOUT" << std::endl;
+    Connection *conn = *it;
+      //client
+    if (conn->cgi_Added) // Timeout in CGI
+    {
+      // kill(conn->m_Response.getCGIProcessPid(), SIGKILL);
+      // close(conn->m_Response.getCgiFd());
+      epoll.remove_fd(conn->cgi_Added, conn->m_Response.getCgiFd());
+      epoll.add_fd(conn->client_Added, conn->client_fd, EPOLL_READ | EPOLL_WRITE);
+      conn->m_Response.cleanupCgi(true);
+      conn->m_Response.setError(HTTPResponse::GATEWAY_TIMEOUT);
+      std::cout << "AFTER SET ERROR" << std::endl;
+      // conn->m_State = Connection::RESPONSE_PROCESSING;
+      // bool shouldDelete = handle_client_response(*conn);
+    }
+    else if (conn->client_Added){
+      if (conn->m_State == Connection::RESPONSE_PROCESSING)// client cannot receive
+      {
+      std::cout << "Client TimeOUt" << std::endl;
+        close_fds(*conn);
+        return cleanup_connection(it);
+      }
+      else // client didnt send full request
+      {
+        std::cout << "TIMEOUT IN REQUEST" << std::endl;
+        conn->m_Request.getParseState().setError(); // ???? 
+        conn->init_response(epoll, cgi);
+        conn->m_Response.setError(HTTPResponse::GATEWAY_TIMEOUT);
+      }
+    }
+    std::cout << "TIMEOUT FUNCTION END" << std::endl;
+    conn->last_activity = std::time(NULL);
+    it++;
 }
 
 
@@ -350,9 +362,7 @@ void WebServer::accept_connections(int listen_fd) {
   }
 
   Connection *conn = new Connection(server_conf, new_fd);
-  ////// this is just for test
-  conn->cgi_last_activity = std::time(NULL);
-  /////////////////////
+  conn->last_activity = std::time(NULL);
 
   connections.push_back(conn);
   // epoll.add_fd(new_fd, EPOLL_READ);
@@ -380,7 +390,7 @@ bool WebServer::handle_client_response(Connection &conn) {
       {
         if (conn.cgi_Added)
         {
-          epoll.remove_fd(conn.cgi_Added,  conn.cgi_last_activity,cgi_fd);
+          epoll.remove_fd(conn.cgi_Added, cgi_fd);
         }
         if (!conn.client_Added){
           // std::cout << "hello 5" << std::endl;
@@ -401,18 +411,19 @@ bool WebServer::handle_client_response(Connection &conn) {
       }
     }
 
+    conn.last_activity = std::time(NULL);
     response.resume(conn.cgiEvent, conn.socketEvent);
 
     if (response.isDone()) {
         // Clean up CGI resources first
-        if (cgi_fd > 0) {
+        if (response.hasCgi()) {
             try {
               if (conn.cgi_Added){
                 conn.cgi_Added = 0;
-                epoll.remove_fd(conn.cgi_Added,  conn.cgi_last_activity,cgi_fd);
+                epoll.remove_fd(conn.cgi_Added, cgi_fd);
               }
               close(cgi_fd);
-              response.cleanupCgi();
+              response.cleanupCgi(false);
             } catch (...) {
                 DEBUG_LOG("Error cleaning up CGI fd: " << cgi_fd);
             }
@@ -448,7 +459,7 @@ bool WebServer::handle_client_response(Connection &conn) {
                   std::cout << "CONN in CGI_READ" << std::endl;
                   if (conn.client_Added)
                   {
-                    epoll.remove_fd(conn.client_Added,  conn.client_last_activity,conn.client_fd);
+                    epoll.remove_fd(conn.client_Added, conn.client_fd);
                   }
                   if (!conn.cgi_Added){
                     std::cout << "add cgi fd: " << cgi_fd << std::endl;
@@ -463,7 +474,7 @@ bool WebServer::handle_client_response(Connection &conn) {
                   std::cout << "CONN in CGI_WRITE" << std::endl;
                   if (conn.client_Added)
                   {
-                    epoll.remove_fd(conn.client_Added,  conn.client_last_activity,conn.client_fd);
+                    epoll.remove_fd(conn.client_Added, conn.client_fd);
                   }
                   if (!conn.cgi_Added){
                     std::cout << "add cgi fd : " << cgi_fd << std::endl;
@@ -477,7 +488,7 @@ bool WebServer::handle_client_response(Connection &conn) {
                   std::cout << "CONN in SOCKET_WRITE" << std::endl;
                   if (conn.cgi_Added)
                   {
-                    epoll.remove_fd(conn.cgi_Added,  conn.cgi_last_activity,cgi_fd);
+                    epoll.remove_fd(conn.cgi_Added, cgi_fd);
                   }
                   if (!conn.client_Added){
                     std::cout << "hello 5" << std::endl;
@@ -506,7 +517,7 @@ void WebServer::close_fds(Connection &connection) {
         if (connection.client_fd > 0) {
           if (connection.client_Added)
           {
-            epoll.remove_fd(connection.client_Added,  connection.client_last_activity,connection.client_fd);
+            epoll.remove_fd(connection.client_Added, connection.client_fd);
           }
           close(connection.client_fd);
           connection.client_fd = -1;  // Invalidate immediately
@@ -515,10 +526,10 @@ void WebServer::close_fds(Connection &connection) {
         if (cgi_fd > 0) {
           if (connection.cgi_Added)
           {
-            epoll.remove_fd(connection.cgi_Added,  connection.cgi_last_activity,cgi_fd);
+            epoll.remove_fd(connection.cgi_Added, cgi_fd);
           }
           close(cgi_fd);
-          connection.m_Response.cleanupCgi();
+          connection.m_Response.cleanupCgi(false);
         }
     } catch (...) {
         DEBUG_LOG("Error closing FDs");
@@ -531,6 +542,7 @@ bool WebServer::handle_client_request(Connection &connection) {
   bool isDeleted;
 
   isDeleted = false;
+  connection.last_activity = std::time(NULL);
   bytes_received = recv(connection.client_fd, buffer, sizeof(buffer), 0);
   if (bytes_received == 0) {
     // Should send response ??
@@ -550,7 +562,6 @@ bool WebServer::handle_client_request(Connection &connection) {
   HTTPRequest &request = connection.m_Request;
   HTTPParser::parse(request, buffer, bytes_received);
   if (request.isComplete()) {
-    connection.m_State = Connection::RESPONSE_PROCESSING;
     connection.init_response(epoll, cgi);
     isDeleted = this->handle_client_response(connection);
   }
@@ -564,16 +575,16 @@ bool WebServer::handle_client(Connection &conn) {
   int client_fd = -1;
   isDeleted = false;
 
-  // std::cout << "ENTER HANDLE CLIENT" << std::endl;
+  std::cout << "ENTER HANDLE CLIENT fd: " << conn.client_fd << std::endl;
   if (conn.events & EPOLL_ERRORS) {
   // std::cout << "IN HANDLE CLIENT ERROR fd: " << conn.client_fd << " events:" << this->epoll.format_events(conn.events) << std::endl;
     // int fd = this->getCgiFdBasedOnClientFd(conn.client_fd);
     cgi_fd = conn.m_Response.getCgiFd();
-    if (cgi_fd != -1 && conn.cgiEvent && (conn.events & EPOLLERR )) {
+    if (cgi_fd != -1 && conn.cgiEvent && (conn.events & EPOLLERR)) {
       try{
 
       // this->epoll.remove_fd(cgi_fd);
-      conn.m_Response.cleanupCgi();
+      conn.m_Response.cleanupCgi(true);
       // close(cgi_fd);
       conn.cgiEvent = false; 
       }
@@ -587,6 +598,7 @@ bool WebServer::handle_client(Connection &conn) {
       // client_fd = conn.client_fd;
       // epoll.remove_fd(client_fd);
       conn.socketEvent = false; 
+      // cleanup_connection(&conn);
       close_fds(conn);
       return true;
     }
@@ -597,10 +609,10 @@ bool WebServer::handle_client(Connection &conn) {
   if (conn.m_State == Connection::REQUEST_PARSING &&
       (conn.events & EPOLL_READ)) {
         std::cout << "CONNECTION IN REQUEST PARSING" << std::endl;
-    isDeleted = this->handle_client_request(conn);
+        isDeleted = this->handle_client_request(conn);
   } else if (conn.m_State == Connection::RESPONSE_PROCESSING) {
         std::cout << "CONNECTION IN RESPONSE PROCESSING" << std::endl;
-    isDeleted = this->handle_client_response(conn);
+        isDeleted = this->handle_client_response(conn);
   }
 
   return isDeleted;
@@ -636,20 +648,21 @@ void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
     Connection *conn = *it;
     if (conn->client_fd > 0) {
         if (conn->client_Added){
-          epoll.remove_fd(conn->client_Added, conn->client_last_activity, conn->client_fd);
+          epoll.remove_fd(conn->client_Added, conn->client_fd);
         }
         close(conn->client_fd);
     }
-    if (conn->m_Response.getCgiFd() > 0) {
+    if (conn->m_Response.hasCgi() && conn->m_Response.getCgiFd() > 0) {
         if (conn->cgi_Added){
-          epoll.remove_fd(conn->cgi_Added,conn->cgi_last_activity ,conn->m_Response.getCgiFd());
+          epoll.remove_fd(conn->cgi_Added, conn->m_Response.getCgiFd());
         }
         close(conn->m_Response.getCgiFd());
+        if  (conn->m_Response.getCGIProcessPid() > 0)
+          kill(conn->m_Response.getCGIProcessPid(), SIGKILL);
     }
     delete conn;
     it = connections.erase(it);
 }
-
 
 int main() {
   try {

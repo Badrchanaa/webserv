@@ -38,8 +38,8 @@ void HTTPResponse::setupCgiEnv() {
 
   this->cgi_env.push_back("REQUEST_METHOD=" + std::string(m_Request->getMethodStr()));
   this->cgi_env.push_back("QUERY_STRING=" + m_Request->getQuery());
-  this->cgi_env.push_back("CONTENT_LENGTH=" + m_Request->getHeader("Content-Length"));
-  this->cgi_env.push_back("CONTENT_TYPE=" + m_Request->getHeader("Content-Type"));
+  this->cgi_env.push_back("CONTENT_LENGTH=" + m_Request->getHeader("content-length"));
+  this->cgi_env.push_back("CONTENT_TYPE=" + m_Request->getHeader("content-type"));
   this->cgi_env.push_back("SERVER_PROTOCOL=HTTP/1.1");
 
   for (HTTPRequest::HeaderMap::iterator it = headers.begin(); it != headers.end(); ++it) {
@@ -50,7 +50,7 @@ void HTTPResponse::setupCgiEnv() {
   }
 
   for (std::vector<std::string>::iterator it = this->cgi_env.begin(); it != this->cgi_env.end(); ++it) {
-      // std::cout << " regex char * : " << const_cast<char*>((*it).c_str()) << std::endl;
+      std::cout << " regex char * : " << const_cast<char*>((*it).c_str()) << std::endl;
       this->env_ptrs.push_back(const_cast<char*>((*it).c_str()));
   }
   // this->env_ptrs.push_back(NULL);
@@ -153,26 +153,25 @@ void HTTPResponse::init(HTTPRequest const &request,
   this->m_ConfigServer = configServer;
 
   m_State = PROCESS_BODY;
-  if (request.isError()) {
-    m_StatusCode = HTTPResponse::BAD_REQUEST;
-    return;
-  }
   // if (request.isError())
   // 	return _initBadRequest();
 
   // check for path traversal
+
   if (!_safePath(request.getPath())) {
     std::cout << "NOT A SAFE PATH" << std::endl;
-    m_StatusCode = NOT_FOUND;
-    return;
+    return setError(NOT_FOUND);
   }
-  std::cout << "request path" << m_Request->getPath() << std::endl;
-  std::cout << "here" << std::endl;
   m_Location = &configServer->getLocation(request.getPath());
-  std::cout << "here 11111111" << std::endl;
+  
+  if (request.isError()) {
+    m_StatusCode = HTTPResponse::BAD_REQUEST;
+    return setError(BAD_REQUEST);
+  }
+
   if (m_Location->isCgiPath(request.getPath()))
     return _initCgi(request.getPath(), cgihandler, configServer);
-  std::cout << "here 22222" << std::endl;
+  
   std::cout << "location root: " << m_Location->root << std::endl;
   std::cout << "location uri: " << m_Location->uri << std::endl;
 
@@ -221,6 +220,10 @@ const std::string HTTPResponse::_statusToString() const {
     return std::string("Not Found");
   case 500:
     return std::string("Internal Server Error");
+  case 501:
+    return std::string("Not Implemented");
+  case 504:
+    return std::string("Gateway Timeout");
   default:
     return std::string("UNKNOWN STATUS");
   }
@@ -311,8 +314,15 @@ const std::string HTTPResponse::_getDefaultErrorFile() const {
   defaultPages[FORBIDDEN] = "./html/error_403.html";
   defaultPages[SERVER_ERROR] = "./html/error_500.html";
   defaultPages[NOT_IMPLEMENTED] = "./html/error_501.html";
+  defaultPages[GATEWAY_TIMEOUT] = "./html/error_504.html";
 
-  return std::string(defaultPages[m_StatusCode]);
+  const char * filename = defaultPages[m_StatusCode];
+  if (!filename)
+  {
+    std::cout << "CANNOT FIND DEFAULT ERROR PAGE" << std::endl;
+    return std::string(defaultPages[SERVER_ERROR]);
+  }
+  return std::string(filename);
 }
 
 bool HTTPResponse::_validFile(const std::string filename) const {
@@ -347,20 +357,32 @@ void HTTPResponse::_readFileToBody(const std::string filename) {
   }
 }
 
-void HTTPResponse::_processErrorBody() {
+void HTTPResponse::_processErrorBody()
+{
   std::cout << "PROCESS ERROR BODY" << std::endl;
   const std::map<int, std::string> &errors = m_ConfigServer->errors;
   std::map<int, std::string>::const_iterator it;
   std::string filename;
+  std::cout << "AFTER -----" << std::endl;
 
-  // Temporarily add quotes to look for key.
   it = errors.find(static_cast<int>(m_StatusCode));
   if (it == errors.end())
+  {
+    std::cout << "Cant find config error page" << std::endl;
     filename = _getDefaultErrorFile();
+  }
   else
+  {
+    std::cout << "[RESPONSE] Found config error page" << std::endl;
+    if (!m_Location)
+    {
+      std::cout << "NO LOCATION" << std::endl;
+    }
     filename = "./" + m_Location->root + "/" + it->second;
+  }
   std::cout << "FILENAME: " << filename << std::endl;
-  if (!_validFile(filename)) {
+  if (!_validFile(filename))
+  {
     std::string body;
     body = "<html><body><h1>Unexpected error";
     body += "</h1><p>(Default WebServ Error Page)</body></html>";
@@ -405,6 +427,7 @@ void HTTPResponse::_processDirectoryListing() {
 }
 
 void HTTPResponse::setError(statusCode status) {
+  m_Body.clear();
   std::cout << "[RESPONSE] set error: " << status << std::endl;
   m_StatusCode = status;
   _processErrorBody();

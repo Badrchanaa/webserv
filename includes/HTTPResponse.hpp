@@ -42,6 +42,7 @@ class HTTPResponse: public HTTPMessage
 			NOT_FOUND = 404,
 			SERVER_ERROR = 500,
 			NOT_IMPLEMENTED = 501,
+			GATEWAY_TIMEOUT = 504,
 		}	statusCode;
 	
 	public:
@@ -93,9 +94,9 @@ class HTTPResponse: public HTTPMessage
   // int getCgiFd() const { return m_CgiFd; }
     void setCgiFd(int fd) { m_CgiFd = fd; }
     void clearCgiSocket() { m_CgiFd = -1; }
-    void cleanupCgi() {
+    void cleanupCgi(bool error) {
       if (m_Cgi) {
-          m_Cgi->cleanup(false);
+          m_Cgi->cleanup(error);
           m_Cgi = NULL;
       }
       m_CgiFd = -1;  

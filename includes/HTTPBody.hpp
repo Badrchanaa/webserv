@@ -23,6 +23,10 @@ public:
   size_t getSize() const;
   void setOffset(size_t offset);
   size_t getOffset();
+  void   clear()
+  {
+    m_VectorBuffer.clear();
+  }
 
 private:
   bool _switchToFile();

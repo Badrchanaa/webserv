@@ -10,7 +10,7 @@ HTTPParseState &HTTPRequest::getParseState()
 
 HTTPRequest::HTTPRequest(std::vector<ConfigServer> &servers): HTTPMessage(),
 	m_Error(ERR_NONE), m_TransferEncoding(DEFAULT),
-	m_MultipartForm(NULL), m_ConfigServers(servers)
+	m_MultipartForm(NULL), m_ConfigServers(servers), m_ConfigServer(NULL)
 {
 	m_ParseState.setPrevChar('\n');
 }
