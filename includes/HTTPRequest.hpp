@@ -44,7 +44,6 @@ class HTTPRequest: public HTTPMessage
 		void				appendToPath(const char *buff, size_t start, size_t len);
 		// bool				appendBody(const char *buff, size_t len);
 		bool				validPath();
-		const std::string	getQuery() const;
 		// std::string			getBodyStr() const;
 		const std::string&	getPath() const;
 		bool				isTransferChunked() const;
@@ -55,6 +54,10 @@ class HTTPRequest: public HTTPMessage
 		const ConfigServer*	getServer() const;
 		void				reset();
 
+		// added by regex 
+		const std::string	getQuery() const{
+			return this->m_Query;
+		}
 	private:
 		bool				_validateHeaders();
 		bool				_checkTransferChunked();
@@ -73,6 +76,8 @@ class HTTPRequest: public HTTPMessage
 		*/
 		std::vector<ConfigServer>		&m_ConfigServers;
 		const ConfigServer				*m_ConfigServer;
+
+
 };
 
 #endif

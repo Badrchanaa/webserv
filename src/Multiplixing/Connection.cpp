@@ -6,7 +6,7 @@
 //       std::cout << "hello test test" << std::endl;
 //   }
 Connection::Connection(std::vector<ConfigServer> &servers, int f)
-      : cgi_Added(false) , client_Added(false), m_State(REQUEST_PARSING), client_fd(f), m_Request(servers), hasEvent(false), cgiEvent(false) , socketEvent(false), events(0) {
+      : cgi_Added(false) , client_Added(false), m_State(REQUEST_PARSING), client_fd(f), m_Request(servers), hasEvent(false), cgiEvent(false) , socketEvent(false), events(0), cgi_last_activity(false), client_last_activity(false) {
 
   }
   // Connection(CGIHandler &cgihandler, Config &conf, int f,

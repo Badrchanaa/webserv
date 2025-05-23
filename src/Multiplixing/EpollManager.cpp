@@ -37,17 +37,13 @@ EpollManager::EpollManager() {
     DEBUG_LOG("[Epoll] Successfully modified fd " << fd);
   }
 
-  void EpollManager::remove_fd(bool &is_added,int fd) {
-    // eventsMap::iterator it = fds.find(fd);
-    // if (it != fds.end())
-    //   return ;
+  void EpollManager::remove_fd(bool &is_added, std::time_t &last_activity, int fd) {
     
     if (fd <= 0)
     {
       DEBUG_LOG("[Epoll] remove_fd fd is less than 0 :  " << fd);
       return ;
     }
-    // fds.erase(fd);
     DEBUG_LOG("[Epoll] Attempting to remove fd: " << fd);
     if (epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL) == -1) {
       DEBUG_LOG("[Epoll] Remove failed (fd: " << fd
@@ -55,8 +51,10 @@ EpollManager::EpollManager() {
       throw std::runtime_error("epoll_ctl del failed");
     }
     is_added = false;
+    last_activity = 0;
     DEBUG_LOG("[Epoll] Successfully removed fd: " << fd);
   }
+
   void EpollManager::add_fd(bool &is_added, int fd, uint32_t events) {
     // eventsMap::const_iterator it = fds.find(fd);
     // if (it == fds.end())

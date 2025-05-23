@@ -40,7 +40,11 @@ CGIProcess *CGIHandler::spawn(char *const *args) const {
   return proc;
 }
 
+
+
+
 void CGIHandler::setup_child(int sock, char *const *args, char **env) const {
+  (void)env;
   // (void)sock;
   // dup2(sock, STDERR_FILENO); // Add this line
   if (dup2(sock, STDIN_FILENO) == -1)
@@ -49,7 +53,6 @@ void CGIHandler::setup_child(int sock, char *const *args, char **env) const {
     std::cerr << "dup2 1 failed: " << strerror(errno) << std::endl;
   // close(sock);
 
-  (void)env;
   std::cout << "test " << sock << std::endl;
   std::cout << "args[0] :: " << args[0] << std::endl;
   std::cout << "args[1] :: " << args[1] << std::endl;

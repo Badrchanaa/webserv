@@ -9,6 +9,7 @@
 #include "HTTPResponse.hpp"
 // #include "WebServer.hpp"
 #include "EpollManager.hpp"
+#include <ctime>
 
 // CGI LINK: https://datatracker.ietf.org/doc/html/rfc3875
 class Connection {
@@ -45,6 +46,9 @@ public:
 
   uint32_t events;
 
+  // Time out
+  std::time_t cgi_last_activity;
+  std::time_t client_last_activity;
   /* Reference to specific server config */
   // ConfigServer &config_server; 
                                

@@ -26,6 +26,36 @@ bool HTTPResponse::_isCgiPath(const std::string path,
   return false;
 }
 
+void HTTPResponse::setupCgiEnv() {
+  HTTPRequest::HeaderMap headers = m_Request->getHeaders();
+  this->cgi_env.clear();
+  this->env_ptrs.clear();
+
+  // std::cout << "| " << std::string(m_Request->getMethodStr()) << std::endl;
+  // std::cout << "| " << m_Request->getQuery() << std::endl;
+  // std::cout << "| " << m_Request->getHeader("Content-Length") << std::endl;
+  // std::cout << "| " << m_Request->getHeader("Content-Type") << std::endl;
+
+  this->cgi_env.push_back("REQUEST_METHOD=" + std::string(m_Request->getMethodStr()));
+  this->cgi_env.push_back("QUERY_STRING=" + m_Request->getQuery());
+  this->cgi_env.push_back("CONTENT_LENGTH=" + m_Request->getHeader("Content-Length"));
+  this->cgi_env.push_back("CONTENT_TYPE=" + m_Request->getHeader("Content-Type"));
+  this->cgi_env.push_back("SERVER_PROTOCOL=HTTP/1.1");
+
+  for (HTTPRequest::HeaderMap::iterator it = headers.begin(); it != headers.end(); ++it) {
+      std::string cgi_key = "HTTP_" + it->first;
+      // std::cout << " regex : " << cgi_key << std::endl;
+      std::replace(cgi_key.begin(), cgi_key.end(), '-', '_');
+      this->cgi_env.push_back(cgi_key + "=" + it->second);
+  }
+
+  for (std::vector<std::string>::iterator it = this->cgi_env.begin(); it != this->cgi_env.end(); ++it) {
+      // std::cout << " regex char * : " << const_cast<char*>((*it).c_str()) << std::endl;
+      this->env_ptrs.push_back(const_cast<char*>((*it).c_str()));
+  }
+  // this->env_ptrs.push_back(NULL);
+}
+
 void HTTPResponse::_initCgi(const std::string path,
                             const CGIHandler &cgihandler,
                             const ConfigServer *configServer) {
@@ -46,18 +76,27 @@ void HTTPResponse::_initCgi(const std::string path,
     return;
   }
 
+  this->setupCgiEnv();
+
+  std::cout << "Headers 111111111111111111111111111111111111111111" << std::endl;
+  // for (size_t i = 0; i < this->env_ptrs.size(); ++i) {
+  //     std::cout << i << " -> " << this->env_ptrs[i] << std::endl;
+  // }
+  for (std::vector<char *>::iterator it = this->env_ptrs.begin(); it != this->env_ptrs.end(); ++it) {
+      std::cout << "  char * : " << *it << std::endl;
+  }
+  std::cout << "end Headers 111111111111111111111111111111111111111111" << std::endl;
+
   char *const args[3] = {const_cast<char *const>(pathName.c_str()),
                          const_cast<char *const>(scriptName.c_str()), NULL};
   std::cout << "args[0]" << args[0] << std::endl;
   std::cout << "args[1]" << args[1] << std::endl;
 
-  // try {
-    // m_Cgi = cgihandler.spawn(args);
     m_Cgi = cgihandler.spawn(args);
     if (m_Cgi) {
       std::cout << "111111111111111111111111111111111111111111" << std::endl;
       setCgiFd(m_Cgi->cgi_sock);
-      }
+    }
     std::cout << "end init cgi" << std::endl;
     m_PollState = CGI_READ;
 }

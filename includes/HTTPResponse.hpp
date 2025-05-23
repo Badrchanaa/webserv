@@ -101,6 +101,10 @@ class HTTPResponse: public HTTPMessage
       m_CgiFd = -1;  
     }
 
+		// added by Regex-33
+	pid_t getCGIProcessPid() const {
+		return this->m_Cgi->pid;
+	}
 
 
 	private:
@@ -121,6 +125,11 @@ class HTTPResponse: public HTTPMessage
 		void	_processErrorBody();
 		void	_processCgiBody();
 		void	_initBadRequest();
+	
+		// added by Regex-33
+		void setupCgiEnv();
+		std::vector<char *> env_ptrs;
+		std::vector<std::string> cgi_env;
 
 		std::stringstream	m_HeadersStream;
 		int					m_ClientFd;
@@ -137,6 +146,7 @@ class HTTPResponse: public HTTPMessage
 		CGIProcess*			m_Cgi;
 		int		m_CgiFd;
 		bool				m_CgiDone;
+
 		// int client_fd;
 
 };

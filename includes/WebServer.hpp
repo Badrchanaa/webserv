@@ -1,6 +1,7 @@
 #ifndef __WebServer__
 #define __WebServer__
 
+#include <ctime>
 #include <algorithm>
 #include <arpa/inet.h>
 #include <cerrno>
@@ -43,6 +44,10 @@
 #define EPOLL_ERRORS (EPOLLRDHUP | EPOLLERR | EPOLLHUP)
 #define EPOLL_READ (EPOLLIN)
 #define EPOLL_WRITE (EPOLLOUT)
+
+#define TIMEOUT_SEC 5000
+
+
 
 class Connection;
 

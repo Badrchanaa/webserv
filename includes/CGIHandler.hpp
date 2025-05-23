@@ -45,35 +45,9 @@ struct CGIProcess {
   void cleanup(bool error);
 };
 
-// class CGIProcess {
-//     int cgi_sock;
-//     pid_t pid;
-//     time_t start_time;
-//     bool write_complete;
-//     static const int CGI_TIMEOUT = 5; // 5 seconds
-//
-// public:
-//     CGIProcess(int sock, pid_t pid);
-//     ~CGIProcess();
-//
-//     bool timed_out() const;
-//     ssize_t read(char* buff, size_t size);
-//     bool write(HTTPBody& body);
-//     void cleanup(bool error);
-//     int socket() const { return cgi_sock; }
-//     bool should_close() const { return write_complete; }
-// };
 class CGIHandler {
 
 public:
-// private:
-  // std::map<int, CGIProcess> processes;
-  // explicit  CGIHandler(int ep_fd = 0) : epoll_fd(ep_fd) {}
-  // bool is_cgi_socket(int fd) const;
-  // CGIHandler(int efd);
-  // read(index.html);
-  // void cleanup_by_fd(int fd);
-  // /
   int epoll_fd;
   CGIHandler(int ep_fd = -1) : epoll_fd(ep_fd) { }
   int is_cgi_socket(int fd) const;
@@ -83,11 +57,6 @@ public:
   void check_zombies();
   void setup_child(int sock, char * const *args,
                    char **env) const;
-  // void cleanup(const CGIProcess &proc, bool error);
-  // void  cleanup_by_fd(int fd)
-  // {
-  //   (void)fd;
-  // }
 };
 
 
