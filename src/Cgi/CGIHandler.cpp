@@ -78,6 +78,7 @@ bool CGIProcess::write(HTTPBody &body) {
 
 ssize_t CGIProcess::read(char *buff, size_t size) {
   ssize_t received = recv(this->cgi_sock, buff, size, 0);
+  
   std::cout << "received: " << received << " from: " << cgi_sock << std::endl;
 
   if (received < 0) { // -1

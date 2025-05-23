@@ -45,7 +45,7 @@
 #define EPOLL_READ (EPOLLIN)
 #define EPOLL_WRITE (EPOLLOUT)
 
-#define TIMEOUT_SEC 5000
+#define TIMEOUT_SEC 5
 
 
 
