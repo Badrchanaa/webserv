@@ -221,12 +221,12 @@ Connection &WebServer::getClientConnection(int fd, uint32_t events) {
   for (std::list<Connection *>::iterator it = connections.begin();
        it != connections.end(); ++it) {
     Connection &conn = *(*it);
-    conn.resetEvents();
+    // conn.resetEvents();
     if (conn.client_fd == fd)
       conn.socketEvent = true;
     if (conn.m_Response.getCgiFd() == fd)
       conn.cgiEvent = true;
-    if ((conn.socketEvent || conn.cgiEvent))
+    if ((conn.client_fd == fd && conn.socketEvent) || (conn.m_Response.getCgiFd() == fd && conn.cgiEvent))
     {
         return conn;
     }
@@ -263,11 +263,6 @@ void WebServer::run() {
       }
     }
 
-    if (n == 0) {
-      std::cout << "===============================" << std::endl;
-      std::cout << "EpollWait timeout" << std::endl;
-      std::cout << "===============================" << std::endl;
-    }
 
     for (std::list<Connection *>::iterator it = this->connections.begin(); it != connections.end();)
     {
@@ -327,19 +322,19 @@ void WebServer::handle_connection_timeout(std::list<Connection *>::iterator &it)
       // bool shouldDelete = handle_client_response(*conn);
     }
     else if (conn->client_Added){
-      if (conn->m_State == Connection::RESPONSE_PROCESSING)// client cannot receive
-      {
-      std::cout << "Client TimeOUt" << std::endl;
+      // if (conn->m_State == Connection::RESPONSE_PROCESSING)// client cannot receive
+      // {
+      // std::cout << "Client TimeOUt" << std::endl;
         close_fds(*conn);
         return cleanup_connection(it);
-      }
-      else // client didnt send full request
-      {
-        std::cout << "TIMEOUT IN REQUEST" << std::endl;
-        conn->m_Request.getParseState().setError(); // ???? 
-        conn->init_response(epoll, cgi);
-        conn->m_Response.setError(HTTPResponse::GATEWAY_TIMEOUT);
-      }
+      // }
+      // else // client didnt send full request
+      // {
+      //   std::cout << "TIMEOUT IN REQUEST" << std::endl;
+      //   conn->m_Request.getParseState().setError(); // ???? 
+      //   conn->init_response(epoll, cgi);
+      //   conn->m_Response.setError(HTTPResponse::GATEWAY_TIMEOUT);
+      // }
     }
     std::cout << "TIMEOUT FUNCTION END" << std::endl;
     conn->last_activity = std::time(NULL);
