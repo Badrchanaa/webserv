@@ -71,10 +71,18 @@ class HTTPResponse: public HTTPMessage
 		// use it to manage epoll events for this response, socket or cgi.
 		pollState		getPollState() const;
 		void			setCgiDone()
-		{
+		{ 
+			// char buff[8192];
+			// ssize_t rbytes = m_Cgi->read(buff, 8192);
+			// if (rbytes > 0)
+			// {
+			// 	std::cout << "!!!!!CAN STILL READ AFTER HANGUP" << std::endl;
+			// }
+			// std::cout << "CGI DONE" << std::endl;
 			m_CgiDone = true;
-			m_PollState = SOCKET_WRITE;
-			m_State = PROCESS_HEADERS;
+			// m_PollState = SOCKET_WRITE;
+			// m_State = PROCESS_HEADERS;
+
 		};
 
 		// response processing state

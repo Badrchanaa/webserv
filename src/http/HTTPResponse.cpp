@@ -459,6 +459,8 @@ void HTTPResponse::_processResource() {
 }
 
 void HTTPResponse::_processCgiBody() {
+  
+  std::cout << "PROCESS CGI BODY" << std::endl;
   char buff[8192];
   ssize_t rbytes = m_Cgi->read(buff, 8192);
   // buff[rbytes] = 0;
@@ -466,6 +468,13 @@ void HTTPResponse::_processCgiBody() {
   std::cout << "read from cgi: " << rbytes  << " | " << buff << std::endl;
   if (rbytes > 0)
     appendBody(buff, rbytes);
+
+  if (rbytes < 8192 && m_CgiDone)
+  {
+    std::cout << "CGI READ FINISHED" << std::endl;
+    m_PollState = SOCKET_WRITE;
+    m_State = PROCESS_HEADERS;
+  }
   // setError(SERVER_ERROR);
   // m_State = PROCESS_HEADERS;
   // m_PollState = SOCKET_WRITE;
@@ -500,14 +509,18 @@ void HTTPResponse::_sendBody() {
 }
 
 bool HTTPResponse::resume(bool isCgiReady, bool isClientReady) {
-  std::cout << "ENTER RESUME" << std::endl;
+  std::cout << "ENTER RESUME cgi: " << isCgiReady << " client: " << isClientReady << std::endl;
   if (isCgiReady)
     std::cout << "CGI READY" << std::endl;
   if (isClientReady)
     std::cout << "CLIENT READY" << std::endl;
+
   // RESPONSE PROCESSING (BODY -> HEADERS)
-  if (m_PollState == CGI_READ && isCgiReady && m_State == PROCESS_BODY)
+  if (m_PollState == CGI_READ && isCgiReady)
     return (_processCgiBody(), false);
+  
+  if (!isClientReady)
+    return false;
   else if (!hasCgi() && m_State == PROCESS_BODY)
     _processBody();
   if (m_State == PROCESS_HEADERS)

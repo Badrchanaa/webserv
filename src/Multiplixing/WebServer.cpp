@@ -223,9 +223,20 @@ Connection &WebServer::getClientConnection(int fd, uint32_t events) {
     Connection &conn = *(*it);
     // conn.resetEvents();
     if (conn.client_fd == fd)
+    {
       conn.socketEvent = true;
+      std::cout << "[Connection: " << conn.client_fd << "] EVENT ON CLIENT FD: " << epoll.format_events(events) << std::endl;
+    }
+    // else
+    //   conn.socketEvent = false;
     if (conn.m_Response.getCgiFd() == fd)
+    {
+
       conn.cgiEvent = true;
+      std::cout << "[Connection: " << conn.client_fd << "] EVENT ON CGI FD: " << epoll.format_events(events) << std::endl;
+    }
+    // else
+    //   conn.cgiEvent = false;
     if ((conn.client_fd == fd && conn.socketEvent) || (conn.m_Response.getCgiFd() == fd && conn.cgiEvent))
     {
         return conn;
@@ -260,6 +271,7 @@ void WebServer::run() {
         Connection &conn = this->getClientConnection(events[i].data.fd, events[i].events);
         conn.hasEvent = true;
         conn.events |= events[i].events;
+
       }
     }
 
@@ -273,7 +285,7 @@ void WebServer::run() {
         bool connectionDeleted = this->handle_client(*conn);
         std::cout << "connectionDeleted " << connectionDeleted  << std::endl;
         if (!connectionDeleted) { // it++
-          std::cout << "FIRST TIMEOUT CASE" << std::endl;
+          // std::cout << "FIRST TIMEOUT CASE" << std::endl;
           if (current_time - conn->last_activity >= TIMEOUT_SEC) 
             handle_connection_timeout(it);
           else {
@@ -291,7 +303,7 @@ void WebServer::run() {
           // conn->m_Response.setError(HTTPResponse::SERVER_ERROR);
           // close_fds(*conn);
           // cleanup_connection(it);
-        std::cout << "SECOND TIMEOUT CASE" << std::endl;
+        // std::cout << "SECOND TIMEOUT CASE" << std::endl;
         if (current_time - conn->last_activity >= TIMEOUT_SEC) 
           handle_connection_timeout(it);
         else
@@ -382,19 +394,17 @@ bool WebServer::handle_client_response(Connection &conn) {
     //   return shouldDelete;
     // }
     if (conn.cgiEvent && conn.events & EPOLLHUP)
-      {
-        if (conn.cgi_Added)
-        {
-          epoll.remove_fd(conn.cgi_Added, cgi_fd);
-        }
-        if (!conn.client_Added){
-          // std::cout << "hello 5" << std::endl;
-          epoll.add_fd(conn.client_Added, conn.client_fd, EPOLLIN | EPOLLOUT );
-        }
+    {
+        // if (conn.cgi_Added)
+        // {
+        //   epoll.remove_fd(conn.cgi_Added, cgi_fd);
+        // }
+        // if (!conn.client_Added){
+        //   // std::cout << "hello 5" << std::endl;
+        //   epoll.add_fd(conn.client_Added, conn.client_fd, EPOLLIN | EPOLLOUT );
+        // }
         response.setCgiDone();
-
-        return shouldDelete;
-      }
+    }
     else if (conn.cgiEvent) // if cgiEvent and Response in READ or WRITE
     {
       // std::cout << "CGI Events: " << epoll.format_events(conn.events)  << std::endl;
@@ -405,6 +415,8 @@ bool WebServer::handle_client_response(Connection &conn) {
         return shouldDelete;
       }
     }
+    if (state == !HTTPResponse::SOCKET_WRITE && conn.socketEvent)
+      return shouldDelete;
 
     conn.last_activity = std::time(NULL);
     response.resume(conn.cgiEvent, conn.socketEvent);
@@ -567,7 +579,7 @@ bool WebServer::handle_client(Connection &conn) {
 
   bool isDeleted;
   int cgi_fd = -1;
-  int client_fd = -1;
+  // int client_fd = -1;
   isDeleted = false;
 
   std::cout << "ENTER HANDLE CLIENT fd: " << conn.client_fd << std::endl;
@@ -597,7 +609,7 @@ bool WebServer::handle_client(Connection &conn) {
       close_fds(conn);
       return true;
     }
-    DEBUG_LOG("Connection closed by client (fd: " << cgi_fd << " | " << client_fd << ")" << this->epoll.format_events(conn.events));
+    // DEBUG_LOG("Connection closed by client (fd: " << cgi_fd << " | " << client_fd << ")" << this->epoll.format_events(conn.events));
     // return isDeleted; // hadle errors don't forget
   }
 

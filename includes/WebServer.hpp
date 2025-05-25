@@ -33,13 +33,13 @@
 #include "EpollManager.hpp"
 #include "FileDescriptor.hpp"
 
-#define DEBUG_LOG(msg) std::cout << "[Server] " << msg << std::endl
+// #define DEBUG_LOG(msg) std::cout << "[Server] " << msg << std::endl
+#define DEBUG_LOG(msg) ((void)10)
 #define CLIENT_LOG(msg) std::cerr << "[Client] " << msg << std::end
 
 #define MAX_EVENTS 1024
 #define BUFFER_SIZE 350
 #define BACKLOG 128
-#define PORT "1337"
 
 #define EPOLL_ERRORS (EPOLLRDHUP | EPOLLERR | EPOLLHUP)
 #define EPOLL_READ (EPOLLIN)
