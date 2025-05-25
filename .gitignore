@@ -3,3 +3,5 @@
 webserv
 .env
 .clangd
+logs*
+error_logs
