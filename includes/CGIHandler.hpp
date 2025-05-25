@@ -53,11 +53,11 @@ public:
   int is_cgi_socket(int fd) const;
   int getCgiSocket(int c_fd) const;
   // CGIProcess *spawn(char * const *args) const;
-  CGIProcess *spawn(std::string &pathName, std::string &scriptName) const;
+  CGIProcess *spawn(std::string &pathName, std::string &scriptName, char **env) const;
   void handle_cgi_request(int fd, uint32_t events);
   void check_zombies();
   // void setup_child(int sock, char * const *args) const;
-  void setup_child(int sock, std::string &pathName, std::string &scriptName) const;
+  void setup_child(int sock, std::string &pathName, std::string &scriptName, char **env) const;
 };
 
 

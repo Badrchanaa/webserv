@@ -1,7 +1,7 @@
 #include "../../includes/CGIHandler.hpp"
 #include "../../includes/WebServer.hpp"
 
-CGIProcess *CGIHandler::spawn(std::string &pathName, std::string &scriptName) const {
+CGIProcess *CGIHandler::spawn(std::string &pathName, std::string &scriptName, char **env) const {
   CGIProcess *proc = NULL;
   int sockets[2];
   std::cout << "SOCKET PAIR CALLED" << std::endl;
@@ -17,7 +17,8 @@ CGIProcess *CGIHandler::spawn(std::string &pathName, std::string &scriptName) co
 
   if (pid == 0) {
     close(sockets[0]);
-    setup_child(sockets[1], pathName, scriptName);
+    // setup_child(sockets[1], pathName, scriptName, environ);
+    setup_child(sockets[1], pathName, scriptName, env);
   }
   close(sockets[1]);
 
@@ -28,7 +29,7 @@ CGIProcess *CGIHandler::spawn(std::string &pathName, std::string &scriptName) co
 }
 
 
-void CGIHandler::setup_child(int sock, std::string &pathName, std::string &scriptName) const
+void CGIHandler::setup_child(int sock, std::string &pathName, std::string &scriptName, char **env) const
 {
   sighandler_t handler;
 
@@ -56,6 +57,12 @@ void CGIHandler::setup_child(int sock, std::string &pathName, std::string &scrip
   // std::cout << "args[0] :: " << args[0] << std::endl;
   // std::cout << "args[1] :: " << args[1] << std::endl;
 
+  // setenv("SCRIPT_FILENAME", "/path/to/script.php", 1);
+  // setenv("PHP_SELF", "app/cgi-bin/script.php", 1);
+  // setenv("SERVER_SOFTWARE", "WEBSERV/1.0", 1);
+
+    (void)env;
+  // execve(args[0], args, env);
   execve(args[0], args, environ);
   std::cerr << "execve failed: " << strerror(errno) << std::endl;
   exit(EXIT_FAILURE);

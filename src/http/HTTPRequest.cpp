@@ -32,8 +32,12 @@ void	HTTPRequest::onHeadersParsed()
 	// TODO: do not ignore request parameters!!
 	size_t pos = m_Path.find('?');
 	if (pos != std::string::npos)
-		m_Path.substr(0, pos);
-
+	{
+		m_Path = m_Path.substr(0, pos);
+		m_Query.assign(&m_Path[pos + 1]);
+		std::cout << "REQUEST PATH: " << m_Path << std::endl;
+		std::cout << "REQUEST QUERY: " << m_Query << std::endl;
+	}
 	if (!this->_validateHeaders())
 		m_ParseState.setError();
 	if (m_Error == ERR_INVALID_CONTENT_LENGTH)

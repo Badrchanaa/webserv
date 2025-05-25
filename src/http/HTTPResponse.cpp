@@ -73,11 +73,10 @@ void HTTPResponse::setupCgiEnv() {
   // std::cout << "| " << m_Request->getHeader("Content-Length") << std::endl;
   // std::cout << "| " << m_Request->getHeader("Content-Type") << std::endl;
 
-  this->cgi_env.push_back("REQUEST_METHOD=" + std::string(m_Request->getMethodStr()));
-  this->cgi_env.push_back("QUERY_STRING=" + m_Request->getQuery());
-  this->cgi_env.push_back("CONTENT_LENGTH=" + m_Request->getHeader("content-length"));
-  this->cgi_env.push_back("CONTENT_TYPE=" + m_Request->getHeader("content-type"));
-  this->cgi_env.push_back("SERVER_PROTOCOL=HTTP/1.1");
+  for (int i = 0; environ[i]; i++)
+  {
+      this->cgi_env.push_back(std::string(environ[i]));
+  }
 
   for (HTTPRequest::HeaderMap::iterator it = headers.begin(); it != headers.end(); ++it) {
       std::string str = it->first;
@@ -87,17 +86,44 @@ void HTTPResponse::setupCgiEnv() {
       std::replace(cgi_key.begin(), cgi_key.end(), '-', '_');
       this->cgi_env.push_back(cgi_key + "=" + it->second);
   }
+  // this->cgi_env.push_back("REQUEST_METHOD=" + std::string(m_Request->getMethodStr()));
+  
+  setenv("SCRIPT_NAME", "cgi-bin/script.php", 1);
+  setenv("SCRIPT_FILENAME", "./hello.php", 1);
+  setenv("SCRIPT_PATH", "/home/bchanaa/Desktop/webserv/www/app/cgi-bin/", 1);
+
+  setenv("REQUEST_METHOD", "GET", 1);
+  setenv("DOCUMENT_ROOT", "/home/bchanaa/Desktop/webserv/www/", 1);
+  setenv("QUERY_STRING", "name=value&foo=bar", 1);  // From URL after ?
+  setenv("REQUEST_URI", "/orog?name=value&foo=bar", 1);  // From URL after ?
+  setenv("REQUEST_PATH", "/orog", 1);  // From URL after ?
+  setenv("SERVER_PROTOCOL", "HTTP/1.1", 1);
+  setenv("GATEWAY_INTERFACE", "CGI/1.1", 1);
+  setenv("REDIRECT_STATUS", "1", 1);  // Critical for PHP CGI
+
+  this->cgi_env.push_back("SCRIPT_NAME=hello.php");
+  // this->cgi_env.push_back("REQUEST_METHOD=");
+  this->cgi_env.push_back("QUERY_STRING=" + m_Request->getQuery());
+  this->cgi_env.push_back("PATH_INFO=/");
+  if (m_Request->hasHeader("content-length"))
+    this->cgi_env.push_back("CONTENT_LENGTH=" + m_Request->getHeader("content-length"));
+  if (m_Request->hasHeader("content-type"))
+    this->cgi_env.push_back("CONTENT_TYPE=" + m_Request->getHeader("content-type"));
+  this->cgi_env.push_back("SERVER_PROTOCOL=HTTP/1.1");
+  this->cgi_env.push_back("GATEWAY_INTERFACE=CGI/1.1");
 
   for (std::vector<std::string>::iterator it = this->cgi_env.begin(); it != this->cgi_env.end(); ++it) {
       std::cout << " regex char * : " << const_cast<char*>((*it).c_str()) << std::endl;
       this->env_ptrs.push_back(const_cast<char*>((*it).c_str()));
   }
+  this->env_ptrs.push_back(NULL);
   // this->env_ptrs.push_back(NULL);
 }
 
 void HTTPResponse::_initCgi(const std::string path,
                             const CGIHandler &cgihandler,
-                            const ConfigServer *configServer) {
+                            const ConfigServer *configServer)
+{
   (void)path;
   (void)configServer;
   (void)cgihandler;
@@ -117,11 +143,12 @@ void HTTPResponse::_initCgi(const std::string path,
 
   this->setupCgiEnv();
 
-    m_Cgi = cgihandler.spawn(pathName, scriptName);
+    m_Cgi = cgihandler.spawn(pathName, scriptName, static_cast<char **>(&this->env_ptrs[0]));
     if (m_Cgi)
       setCgiFd(m_Cgi->cgi_sock);
     std::cout << "end init cgi" << std::endl;
     m_PollState = CGI_READ;
+    _debugBody();
 }
 
 void HTTPResponse::_initBadRequest() {
@@ -308,6 +335,8 @@ void HTTPResponse::_debugBody() {
     responseStream << "<h4>PARSE SUCCESS</h4>";
   responseStream << "<h4>method: " << m_Request->getMethodStr() << "<h4>";
   responseStream << "request path: '" << m_Request->getPath() << "'"
+                 << std::endl;
+  responseStream << "request query: '" << m_Request->getQuery() << "'"
                  << std::endl;
   responseStream << "<table>";
   responseStream << "<h1>REQUEST HEADERS</h1>";
