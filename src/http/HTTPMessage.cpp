@@ -23,7 +23,7 @@ bool	HTTPMessage::isParseComplete() const
 	return state == HTTPParseState::REQ_DONE || state == HTTPParseState::REQ_ERROR;
 }
 
-const HTTPBody&	HTTPMessage::getBody() const
+HTTPBody&	HTTPMessage::getBody()
 {
 	return m_Body;
 }

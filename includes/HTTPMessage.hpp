@@ -30,7 +30,7 @@ class HTTPMessage
 		const HeaderMap&	getHeaders() const;
 		std::string			getHeader(std::string &key) const;
 		std::string			getHeader(const char *key) const;
-		const HTTPBody&		getBody() const;
+		HTTPBody&			getBody();
 		bool	            appendBody(const char *buff, size_t len);
 		bool	            appendBody(const std::string str);
 		bool	            appendBody(const std::vector<char>& vec);

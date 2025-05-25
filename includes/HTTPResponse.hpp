@@ -54,11 +54,12 @@ class HTTPResponse: public HTTPMessage
 		/// @brief initializes response from parsed request
 		/// @param request /// @param cgihandler 
 		/// @param fd 
-		void	init(const HTTPRequest &request, const CGIHandler &cgihandler, const ConfigServer *configServer, int fd);
+		void	init(HTTPRequest &request, const CGIHandler &cgihandler, const ConfigServer *configServer, int fd);
 		
 		/// @brief process CGI Headers after parsing
 		virtual void		onHeadersParsed();
 		virtual void		onBodyDone();
+		void				_writeToCgi();
 
 
 		// response is sent, IS DONE
@@ -148,7 +149,7 @@ class HTTPResponse: public HTTPMessage
 		std::stringstream	m_HeadersStream;
 		int					m_ClientFd;
 		statusCode			m_StatusCode;
-		const HTTPRequest*	m_Request;
+		HTTPRequest*		m_Request;
 		responseState		m_State;
 		pollState			m_PollState;
 		// ConfigServer*	m_ConfigServer;

@@ -41,7 +41,7 @@ struct CGIProcess {
   int cgi_sock;
   pid_t pid;
   ssize_t read(char *buff, size_t size);
-  bool write(HTTPBody &body); // 
+  ssize_t write(HTTPBody &body); // 
   void cleanup(bool error);
 };
 

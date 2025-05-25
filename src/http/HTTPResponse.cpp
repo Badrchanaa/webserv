@@ -87,7 +87,7 @@ void HTTPResponse::setupCgiEnv() {
       this->cgi_env.push_back(cgi_key + "=" + it->second);
   }
   // this->cgi_env.push_back("REQUEST_METHOD=" + std::string(m_Request->getMethodStr()));
-  
+
   setenv("SCRIPT_NAME", "cgi-bin/script.php", 1);
   setenv("SCRIPT_FILENAME", "./hello.php", 1);
   setenv("SCRIPT_PATH", "/home/bchanaa/Desktop/webserv/www/app/cgi-bin/", 1);
@@ -147,7 +147,10 @@ void HTTPResponse::_initCgi(const std::string path,
     if (m_Cgi)
       setCgiFd(m_Cgi->cgi_sock);
     std::cout << "end init cgi" << std::endl;
-    m_PollState = CGI_READ;
+    if (m_Request->getBody().getSize() > 0)
+      m_PollState = CGI_WRITE;
+    else
+      m_PollState = CGI_READ;
     _debugBody();
 }
 
@@ -192,7 +195,7 @@ bool _safePath(const std::string path) {
   return count >= 0;
 }
 
-void HTTPResponse::init(HTTPRequest const &request,
+void HTTPResponse::init(HTTPRequest &request,
                         CGIHandler const &cgihandler,
                         ConfigServer const *configServer, int fd) {
   std::string resourcePath;
@@ -540,6 +543,16 @@ void HTTPResponse::_processBody() {
   m_State = PROCESS_HEADERS;
 }
 
+
+void HTTPResponse::_writeToCgi()
+{
+  HTTPBody &body = m_Request->getBody();
+  ssize_t sent = m_Cgi->write(body);
+  std::cout << "WROTE " << sent << " bytes to CGI" << std::endl;
+  if (body.getSize() == 0)
+    m_PollState = CGI_READ;
+}
+
 void HTTPResponse::_sendBody() {
   std::cout << "PROCESS BODY" << std::endl;
   const char *bodyBuffer = m_Body.getBuffer();
@@ -548,7 +561,9 @@ void HTTPResponse::_sendBody() {
   // write(1, buff, size);
 
   ssize_t wBytes = send(m_ClientFd, bodyBuffer, size, 0);
-  if (wBytes < 0) {
+  if (wBytes < 0)
+  {
+    std::cout << "[RESPONSE ERROR]: could not send response to client." << std::endl;
     m_State = DONE;
     return;
   }
@@ -569,7 +584,9 @@ bool HTTPResponse::resume(bool isCgiReady, bool isClientReady) {
     std::cout << "CLIENT READY" << std::endl;
 
   // RESPONSE PROCESSING (BODY -> HEADERS)
-  if (m_PollState == CGI_READ && isCgiReady)
+  if (m_PollState == CGI_WRITE && isCgiReady)
+    return (_writeToCgi(), false);
+  else if (m_PollState == CGI_READ && isCgiReady)
     return (_processCgiBody(), false);
   
   if (!isClientReady)

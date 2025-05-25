@@ -8,4 +8,9 @@ echo "protocol: ";
 echo $_SERVER['SERVER_PROTOCOL'];
 echo "data:";
 echo $_GET['data'];
+if ($_SERVER['REQUEST_METHOD'] == "POST")
+{
+	echo "REQUEST JSON:";
+	echo file_get_contents('php://input');
+}
 ?>
