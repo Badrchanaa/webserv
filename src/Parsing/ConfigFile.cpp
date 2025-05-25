@@ -1,5 +1,164 @@
 #include "Config.hpp"
 #include <sys/wait.h>
+#include <iostream>
+
+void Config::printServersWithLocations() const {
+    for (size_t i = 0; i < this->servers.size(); ++i) {
+        const ConfigServer& server = this->servers[i];
+        std::cout << "=== Server " << i + 1 << " ===" << std::endl;
+        
+        std::cout << "Host: " << server.host << std::endl;
+        std::cout << "Ports: ";
+        for (size_t j = 0; j < server.ports.size(); ++j) {
+            std::cout << server.ports[j];
+            if (j != server.ports.size() - 1)
+                std::cout << ", ";
+        }
+        std::cout << std::endl;
+
+        std::cout << "Server Names: ";
+        for (size_t j = 0; j < server.server_names.size(); ++j) {
+            std::cout << server.server_names[j];
+            if (j != server.server_names.size() - 1)
+                std::cout << ", ";
+        }
+        std::cout << std::endl;
+
+        std::cout << "Body Size: " << server.body_size << std::endl;
+        std::cout << "Timeout: " << server.timeout << std::endl;
+
+        std::cout << "Error Pages:" << std::endl;
+        for (std::map<int, std::string>::const_iterator it = server.errors.begin(); it != server.errors.end(); ++it) {
+            std::cout << "  " << it->first << " => " << it->second << std::endl;
+        }
+
+        std::cout << "--- Locations ---" << std::endl;
+        for (size_t k = 0; k < server.locations.size(); ++k) {
+            const Location& loc = server.locations[k];
+            std::cout << "  Location URI: " << loc.uri << std::endl;
+            std::cout << "    Root: " << loc.root << std::endl;
+            std::cout << "    Autoindex: " << (loc.autoindex ? "on" : "off") << std::endl;
+            std::cout << "    Upload Path: " << loc.upload << std::endl;
+
+            if (!loc.cgi_uri.empty())
+                std::cout << "    CGI URI: " << loc.cgi_uri << std::endl;
+
+            std::cout << "    Index Files: ";
+            for (size_t m = 0; m < loc.indexes.size(); ++m) {
+                std::cout << loc.indexes[m];
+                if (m != loc.indexes.size() - 1)
+                    std::cout << ", ";
+            }
+            std::cout << std::endl;
+
+            if (!loc.cgi.empty()) {
+                std::cout << "    CGI Handlers:" << std::endl;
+                for (std::map<std::string, std::string>::const_iterator it = loc.cgi.begin(); it != loc.cgi.end(); ++it) {
+                    std::cout << "      " << it->first << " => " << it->second << std::endl;
+                }
+            }
+
+            std::cout << "    Allowed Methods: " << loc.allowed_methods << std::endl;
+            std::cout << "    Allowed CGI Methods: " << loc.allowed_cgi_methods << std::endl;
+        }
+
+        std::cout << std::endl;
+    }
+}
+
+void Config::creatDefaultServer() {
+  this->ResetParsingState();
+  this->currentServer.ports.push_back(4000);
+  this->currentServer.server_names.push_back("localhost");
+  this->currentServer.host = "127.0.0.1";
+  this->currentServer.body_size = "400M";
+  this->currentServer.timeout = 5;
+  this->currentServer.errors[500] = "errors/500.html";
+  this->currentServer.errors[501] = "errors/501.html";
+  this->currentServer.errors[504] = "errors/504.html";
+  this->currentServer.errors[404] = "errors/404.html";
+  this->currentServer.errors[403] = "errors/403.html";
+  this->currentServer.errors[405] = "errors/405.html";
+  this->currentServer.errors[400] = "errors/400.html";
+
+  // ---- Default Location 
+  this->currentLocation = Location();
+  this->currentLocation.uri = "/";
+  this->currentLocation.root = "www";
+  this->currentLocation.autoindex = true;
+  this->currentLocation.upload = "/upload";
+  // this->currentLocation.cgi_uri = "/cgi-bin/";
+
+  this->currentLocation.indexes.push_back("index.html");
+  this->currentLocation.indexes.push_back("index.php");
+
+  // this->currentLocation.cgi[".py"] = "/usr/bin/python3";
+  // this->currentLocation.cgi[".php"] = "/usr/bin/php-cgi";
+  
+  this->currentLocation.allowed_methods = 7; 
+  // this->currentLocation.allowed_cgi_methods = 3;
+
+  this->currentServer.locations.push_back(this->currentLocation);
+
+  // ---- Second Location 
+  this->currentLocation = Location();
+  this->currentLocation.uri = "/app";
+  this->currentLocation.root = "www";
+  this->currentLocation.autoindex = true;
+  this->currentLocation.upload = "/upload";
+  this->currentLocation.cgi_uri = "/cgi-bin/";
+
+  this->currentLocation.indexes.push_back("index.html");
+  this->currentLocation.indexes.push_back("index.php");
+
+  this->currentLocation.cgi[".py"] = "/usr/bin/python3";
+  this->currentLocation.cgi[".php"] = "/usr/bin/php-cgi";
+  
+  this->currentLocation.allowed_methods = 7; 
+  this->currentLocation.allowed_cgi_methods = 3;
+
+  this->currentServer.locations.push_back(this->currentLocation);
+
+  this->servers.push_back(this->currentServer);
+}
+
+Config::Config() { }
+Config::~Config() {}
+Config::Config(const Config &other) { *this = other; }
+Config &Config::operator=(const Config &other) {
+  (void)other;
+  return *this;
+}
+
+
+int Config::ServersNumber() { return this->servers.size(); }
+ConfigServer &Config::getServer(int index) { return this->servers[index]; }
+void Config::AddServer(ConfigServer &ref) { this->servers.push_back(ref); }
+
+int Config::safe_atoi(const char* str) {
+    long result = 0;
+    int sign = 1;
+
+    while (isspace(*str)) str++;
+    
+    if (*str == '-') { sign = -1; str++; }
+    else if (*str == '+') { str++; }
+    
+    while (isdigit(*str)) {
+        result = result * 10 + (*str - '0');
+        
+        if (sign == 1 && result > INT_MAX) {
+            return INT_MAX;
+        }
+        if (sign == -1 && -result < INT_MIN) {
+            return INT_MIN;
+        }
+        str++;
+    }
+    
+    return static_cast<int>(result * sign);
+}
+
 
 const ConfigServer &Config::getServerByName(std::vector<ConfigServer> &servers,
                                             std::string name) {
@@ -38,11 +197,12 @@ void Config::ProcessPortValue(const std::string &value) {
   std::istringstream iss(value);
   std::string port_str;
   while (iss >> port_str) {
-    if (port_str.find_first_not_of("0123456789") != std::string::npos) {
-      std::cerr << "Invalid port number: " << port_str << std::endl;
-      exit(EXIT_FAILURE);
-    }
-    currentServer.ports.push_back(std::atoi(port_str.c_str()));
+    if (port_str.find_first_not_of("0123456789") != std::string::npos)
+      throw std::runtime_error("Invalid port number: " + port_str + "!");
+    long temp = this->safe_atoi(port_str.c_str());
+    if (temp >= INT_MAX || temp <= INT_MIN)
+      throw std::runtime_error("Invalid port number: " + port_str + "!");
+    currentServer.ports.push_back(temp);
   }
 }
 
@@ -64,7 +224,13 @@ void Config::ProcessServerKeyValue(const std::string &key,
     this->currentServer.host = value;
   } else if (key == "body_size") {
     this->currentServer.body_size = value;
+  } else if (key == "timeout") {
+    long temp = this->safe_atoi(value.c_str());
+    if (!validate_timeout(value) || temp >= INT_MAX || temp <= INT_MIN)
+      throw std::runtime_error("Invalid Timeout number");
+    this->currentServer.timeout = temp;
   }
+
 }
 
 void Config::HandleIndentOne(const std::string &trimmed) {
@@ -73,22 +239,20 @@ void Config::HandleIndentOne(const std::string &trimmed) {
     this->FinalizeLocation();
     this->context = "errors";
   } else if (trimmed == "location:") {
-    // std::cout << "++++++++++++++++++++++++++++++++++++++" << std::endl;
-    // std::cout << "i am here location" << std::endl;
-    // std::cout << "++++++++++++++++++++++++++++++++++++++" << std::endl;
     this->FinalizeLocation();
     this->context = "location";
-    // this->currentLocation = Location();
   } else {
     std::string key, value;
     this->split_key_value(trimmed, key, value);
     if (SERVER_KEYS.find(key) == SERVER_KEYS.end()) {
-      std::cerr << "Invalid server key: " << key << std::endl;
-      exit(EXIT_FAILURE);
+      throw std::runtime_error("Invalid server key: " + key + "!");
     }
     this->ProcessServerKeyValue(key, value);
   }
 }
+
+
+
 
 void Config::ProcessLocationKeyValue(const std::string &key,
                                      const std::string &value) {
@@ -115,17 +279,14 @@ void Config::ProcessLocationKeyValue(const std::string &key,
   } else if (key == "methods_cgi") {
     this->context = "methods_cgi";
   } else if (key == "index") { // I Added index handling
-    this->currentLocation.index = value;
+    // std::cout  << "youssef sir" << value <<  std::endl;
+    this->currentLocation.parseValidIndexes(value);
+    // this->currentLocation.index = value;
   } else {
-    std::cerr << "Unexpected location argument: " << value << std::endl;
-    exit(EXIT_FAILURE);
+    throw std::runtime_error("Unexpected location argument: " + value + "!");
   }
 }
 
-void Config::ExitWithError(const std::string &message) {
-  std::cerr << "Error: " << message << std::endl;
-  exit(EXIT_FAILURE);
-}
 std::string Config::TrimQuotes(const std::string &str) {
   if (str.size() >= 2 && str[0] == '"' && str[str.size() - 1] == '"') {
     return str.substr(1, str.size() - 2);
@@ -136,8 +297,7 @@ std::string Config::TrimQuotes(const std::string &str) {
 void Config::ValidateErrorCodeFormat(const std::string &key_str) {
   if (key_str.empty() ||
       key_str.find_first_not_of("0123456789") != std::string::npos) {
-    this->ExitWithError("Invalid error code format '" + key_str +
-                        "'. Must contain only digits.");
+    throw std::runtime_error("Invalid error code format '" + key_str + "'. Must contain only digits.");
   }
 }
 
@@ -148,7 +308,7 @@ int Config::ConvertToErrorCode(const std::string &key_str) {
     char c = *it;
     code = code * 10 + (c - '0');
     if (code >= 600)
-      this->ExitWithError("Invalid HTTP error code " + Config::to_String(code) +
+      throw std::runtime_error("Invalid HTTP error code " + Config::to_String(code) +
                           ". Must be 400-599.");
   }
   return code;
@@ -156,10 +316,10 @@ int Config::ConvertToErrorCode(const std::string &key_str) {
 
 void Config::ValidateErrorPath(const std::string &path, int code) {
   if (path.empty())
-    this->ExitWithError("Empty error page path for code " +
+    throw std::runtime_error("Empty error page path for code " +
                         Config::to_String(code));
   if (path.find_first_of(" \t\r\n") != std::string::npos) {
-    this->ExitWithError("Error page path contains whitespace for code " +
+    throw std::runtime_error("Error page path contains whitespace for code " +
                         Config::to_String(code));
   }
 }
@@ -173,7 +333,7 @@ void Config::HandleErrorContext(const std::string &trimmed) {
 
   const int code = this->ConvertToErrorCode(key_str);
   if (code < 400 || code >= 600) {
-    this->ExitWithError("Invalid HTTP error code " + Config::to_String(code) +
+    throw std::runtime_error("Invalid HTTP error code " + Config::to_String(code) +
                         ". Must be 400-599.");
   }
   this->ValidateErrorPath(value, code);
@@ -192,7 +352,7 @@ void Config::HandleIndentThree(const std::string &trimmed) {
     // std::cout << "helllo world->" << std::endl;
     this->HandleLocationContext(trimmed);
   } else {
-    this->ExitWithError("Unexpected context '" + context +
+    throw std::runtime_error("Unexpected context '" + context +
                         "' at indent level 3");
   }
 }
@@ -203,7 +363,7 @@ void Config::HandleLocationContext(const std::string &trimmed) {
   this->split_key_value(trimmed, key, value);
 
   if (LOCATION_KEYS.find(key) == LOCATION_KEYS.end()) {
-    this->ExitWithError("Unknown location directive '" + key + "'");
+    throw std::runtime_error("Unknown location directive '" + key + "'");
   }
   this->ProcessLocationKeyValue(key, value);
 }
@@ -272,10 +432,8 @@ void Config::FinalizeServer() {
   // std::cout << "uri :: " << this->currentLocation.uri << std::endl;
   this->FinalizeLocation();
 
-  if (!validate_server(currentServer)) {
-    std::cerr << "Invalid server configuration" << std::endl;
-    exit(EXIT_FAILURE);
-  }
+  if (!validate_server(currentServer))
+    throw std::runtime_error("Invalid server configuration");
   this->AddServer(currentServer);
   inServer = false;
   context.clear();
@@ -309,8 +467,7 @@ void Config::ProcessLines(std::ifstream &infile) {
         this->HandleIndentFive(trimmed);
         break;
       default:
-        std::cerr << "Unexpected indent level: " << indent << std::endl;
-        exit(EXIT_FAILURE);
+        throw std::runtime_error("Unexpected indent level: " + Config::to_String(indent) + "\n");
       }
     }
   }
@@ -318,10 +475,8 @@ void Config::ProcessLines(std::ifstream &infile) {
 
 void Config::ParseConfigFile(const char *FileName) {
   std::ifstream infile(FileName);
-  if (!infile.is_open()) {
-    std::cerr << "Failed to open config file: " << FileName << std::endl;
-    exit(EXIT_FAILURE);
-  }
+  if (!infile.is_open())
+    throw std::runtime_error("Failed to open config file: " + std::string(FileName) + "\n");
 
   this->ResetParsingState();
   this->ProcessLines(infile);

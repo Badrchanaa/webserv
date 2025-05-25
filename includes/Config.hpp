@@ -1,5 +1,7 @@
 #ifndef _Config__
 #define _Config__
+#include <climits>
+#include <cctype>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -10,27 +12,10 @@
 #include <vector>
 #include "http.hpp"
 
-#include "ConfigStructs.hpp"
+#include "Location.hpp"
+#include "ConfigServer.hpp"
+#include "Constants.hpp"
 
-#define DEFAULT_PATH "./Config/default.yml"
-
-const std::string server_keys_arr[] = {"host",      "port",   "server_name",
-                                       "body_size", "errors", "location"};
-const std::set<std::string>
-    SERVER_KEYS(server_keys_arr, server_keys_arr + sizeof(server_keys_arr) /
-                                                       sizeof(std::string));
-
-const std::string location_keys_array[] = {
-    "uri", "root", "methods", "methods_cgi", "autoindex", "upload", "cgi", "cgi_uri"};
-const std::set<std::string> LOCATION_KEYS(location_keys_array,
-                                          location_keys_array +
-                                              sizeof(location_keys_array) /
-                                                  sizeof(std::string));
-const std::string location_required_params[] = {"uri", "root", "methods", "autoindex", "upload"};
-
-
-const MethodPair valid_methods[] = {
-    {"GET", GET}, {"POST", POST}, {"DELETE", DELETE}};
 
 class Config {
 
@@ -64,7 +49,6 @@ private:
   bool validate_port(int port);
   bool validate_server(const ConfigServer &config);
 
-  void ExitWithError(const std::string &message);
   void ValidateErrorCodeFormat(const std::string &key_str);
   int ConvertToErrorCode(const std::string &key_str);
   void ValidateErrorPath(const std::string &path, int code);
@@ -81,23 +65,20 @@ public:
     return oss.str();
   }
 
-  Config() {}
-  ~Config() {}
-  Config(const Config &other) { *this = other; }
-  Config &operator=(const Config &other) {
-    (void)other;
-    return *this;
-  }
+  Config();
+  ~Config() ;
+  Config(const Config &other) ;
+  Config &operator=(const Config &other) ;
   /// Geters
-  int ServersNumber() { return this->servers.size(); }
-  ConfigServer &getServer(int index) { return this->servers[index]; }
+  int ServersNumber();
+  ConfigServer &getServer(int index);
 
   // returns serverconfig based on name parameter
   static const ConfigServer &getServerByName(std::vector<ConfigServer> &servers,
                                              std::string name);
 
   /// Seters
-  void AddServer(ConfigServer &ref) { this->servers.push_back(ref); }
+  void AddServer(ConfigServer &ref);
   /// Main
   void ParseConfigFile(const char *FileName);
 
@@ -109,6 +90,12 @@ public:
   bool is_list_item(const std::string &line);
   std::string get_list_item(const std::string &line);
   std::string method_bit_to_string(unsigned int mask);
+
+  bool validate_timeout(const std::string &timeout);
+  int safe_atoi(const char* str);
+  // void ProcessIndexValue(const std::string &value);
+  void creatDefaultServer();
+  void printServersWithLocations() const;
 };
 
 #endif // !DEBUG

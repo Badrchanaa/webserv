@@ -53,6 +53,8 @@ class Connection;
 
 class WebServer {
 
+private:
+  WebServer();
   Config config;
   CGIHandler cgi;
   EpollManager epoll;
@@ -64,7 +66,7 @@ class WebServer {
       listener_map; /* Maps listener FDs to their config*/
 
 public:
-  WebServer();
+  WebServer(const char *FileCofig);
   ~WebServer();
   void run();
 

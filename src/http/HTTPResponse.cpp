@@ -43,7 +43,9 @@ void HTTPResponse::setupCgiEnv() {
   this->cgi_env.push_back("SERVER_PROTOCOL=HTTP/1.1");
 
   for (HTTPRequest::HeaderMap::iterator it = headers.begin(); it != headers.end(); ++it) {
-      std::string cgi_key = "HTTP_" + it->first;
+      std::string str = it->first;
+      std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+      std::string cgi_key = "HTTP_" + str;
       // std::cout << " regex : " << cgi_key << std::endl;
       std::replace(cgi_key.begin(), cgi_key.end(), '-', '_');
       this->cgi_env.push_back(cgi_key + "=" + it->second);
@@ -78,25 +80,9 @@ void HTTPResponse::_initCgi(const std::string path,
 
   this->setupCgiEnv();
 
-  std::cout << "Headers 111111111111111111111111111111111111111111" << std::endl;
-  // for (size_t i = 0; i < this->env_ptrs.size(); ++i) {
-  //     std::cout << i << " -> " << this->env_ptrs[i] << std::endl;
-  // }
-  for (std::vector<char *>::iterator it = this->env_ptrs.begin(); it != this->env_ptrs.end(); ++it) {
-      std::cout << "  char * : " << *it << std::endl;
-  }
-  std::cout << "end Headers 111111111111111111111111111111111111111111" << std::endl;
-
-  char *const args[3] = {const_cast<char *const>(pathName.c_str()),
-                         const_cast<char *const>(scriptName.c_str()), NULL};
-  std::cout << "args[0]" << args[0] << std::endl;
-  std::cout << "args[1]" << args[1] << std::endl;
-
-    m_Cgi = cgihandler.spawn(args);
-    if (m_Cgi) {
-      std::cout << "111111111111111111111111111111111111111111" << std::endl;
+    m_Cgi = cgihandler.spawn(pathName, scriptName);
+    if (m_Cgi)
       setCgiFd(m_Cgi->cgi_sock);
-    }
     std::cout << "end init cgi" << std::endl;
     m_PollState = CGI_READ;
 }

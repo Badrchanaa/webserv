@@ -3,7 +3,7 @@
 
 #include "CGIHandler.hpp"
 #include "Config.hpp"
-#include "ConfigStructs.hpp"
+#include "Location.hpp"
 #include "FileDescriptor.hpp"
 #include "HTTPRequest.hpp"
 #include "HTTPResponse.hpp"
