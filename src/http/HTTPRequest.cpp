@@ -3,32 +3,15 @@
 #include <string>
 #include <sstream>
 
-HTTPParseState &HTTPRequest::getParseState()
-{
-	return m_ParseState;
-}
-
 HTTPRequest::HTTPRequest(std::vector<ConfigServer> &servers): HTTPMessage(),
-	m_Error(ERR_NONE), m_TransferEncoding(DEFAULT),
+	m_Error(ERR_NONE), 
 	m_MultipartForm(NULL), m_ConfigServers(servers), m_ConfigServer(NULL)
 {
-	m_ParseState.setPrevChar('\n');
 }
 
 const ConfigServer*	HTTPRequest::getServer() const
 {
 	return m_ConfigServer;
-}
-
-bool	HTTPRequest::isTransferChunked() const
-{
-	return m_TransferEncoding == CHUNKED;
-}
-
-bool	HTTPRequest::isComplete() const
-{
-	HTTPParseState::requestState state = m_ParseState.getState();
-	return state == HTTPParseState::REQ_DONE || state == HTTPParseState::REQ_ERROR;
 }
 
 bool	HTTPRequest::isError() const
@@ -37,7 +20,12 @@ bool	HTTPRequest::isError() const
 	return state == HTTPParseState::REQ_ERROR;
 }
 
-void	HTTPRequest::processHeaders()
+void	HTTPRequest::onBodyDone()
+{
+	m_ParseState.setState(HTTPParseState::REQ_DONE);
+}
+
+void	HTTPRequest::onHeadersParsed()
 {
 	HeaderMap::const_iterator	it;
 

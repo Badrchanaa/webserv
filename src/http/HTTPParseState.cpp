@@ -2,6 +2,24 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include "http.hpp"
+
+HTTPParseState::HTTPParseState(void): m_PrevChar(LF), m_RequestState(REQ_LINE_START), m_ReadBytes(0), m_ChunkSizeStr(), m_chunkPos(0), m_ChunkState(CHUNK_SIZE)
+{
+}
+
+HTTPParseState::HTTPParseState(const HTTPParseState &other)
+{
+	m_ReadBytes = other.m_ReadBytes;
+	m_RequestState = other.m_RequestState;
+}
+
+HTTPParseState& HTTPParseState::operator=(const HTTPParseState &other)
+{
+	m_ReadBytes = other.m_ReadBytes;
+	m_RequestState = other.m_RequestState;
+	return *this;
+}
 
 bool	HTTPParseState::isComplete() const
 {
@@ -150,23 +168,6 @@ HTTPParseState::requestState	HTTPParseState::advance(bool resetReadBytes)
 	if (m_RequestState != REQ_DONE && m_RequestState != REQ_ERROR)
 		m_RequestState = static_cast<requestState>(m_RequestState + 1);
 	return m_RequestState;
-}
-
-HTTPParseState::HTTPParseState(void): m_RequestState(REQ_LINE_START), m_ReadBytes(0), m_ChunkSizeStr(), m_chunkPos(0), m_ChunkState(CHUNK_SIZE)
-{
-}
-
-HTTPParseState::HTTPParseState(const HTTPParseState &other)
-{
-	m_ReadBytes = other.m_ReadBytes;
-	m_RequestState = other.m_RequestState;
-}
-
-HTTPParseState& HTTPParseState::operator=(const HTTPParseState &other)
-{
-	m_ReadBytes = other.m_ReadBytes;
-	m_RequestState = other.m_RequestState;
-	return *this;
 }
 
 HTTPParseState::~HTTPParseState(void)

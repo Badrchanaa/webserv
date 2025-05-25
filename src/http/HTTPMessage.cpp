@@ -3,9 +3,24 @@
 #include <string>
 #include <sstream>
 
-HTTPMessage::HTTPMessage(void)
+HTTPMessage::HTTPMessage(void): m_TransferEncoding(DEFAULT)
 {
-	
+}
+
+HTTPParseState &HTTPMessage::getParseState()
+{
+	return m_ParseState;
+}
+
+bool	HTTPMessage::isTransferChunked() const
+{
+	return m_TransferEncoding == CHUNKED;
+}
+
+bool	HTTPMessage::isParseComplete() const
+{
+	HTTPParseState::requestState state = m_ParseState.getState();
+	return state == HTTPParseState::REQ_DONE || state == HTTPParseState::REQ_ERROR;
 }
 
 const HTTPBody&	HTTPMessage::getBody() const
@@ -16,6 +31,12 @@ const HTTPBody&	HTTPMessage::getBody() const
 bool	HTTPMessage::hasHeader(const char *key) const
 {
 	return m_Headers.count(key) != 0;
+}
+
+bool	HTTPMessage::removeHeader(const char *key)
+{
+	std::string skey(key);
+	return m_Headers.erase(skey) > 0;
 }
 
 size_t		HTTPMessage::getContentLength() const

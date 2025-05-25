@@ -1,16 +1,53 @@
 #include "HTTPResponse.hpp"
+#include "HTTPParser.hpp"
 #include <iostream>
 #include <string>
 #include <sys/stat.h>
+
+HTTPResponse::HTTPResponse(void)
+    : m_State(INIT), m_PollState(SOCKET_WRITE), m_CursorPos(0),
+      m_ConfigServer(NULL), m_Location(NULL), m_Cgi(NULL), m_CgiFd(0), m_CgiDone(false)
+{
+  m_StatusCode = HTTPResponse::OK;
+	m_ParseState.setReadBytes(0);
+	m_ParseState.setPrevChar(0);
+	m_ParseState.setState(HTTPParseState::REQ_HEADER_FIELD);
+}
 
 HTTPResponse::pollState HTTPResponse::getPollState() const {
   return m_PollState;
 }
 
-HTTPResponse::HTTPResponse(void)
-    : m_State(INIT), m_PollState(SOCKET_WRITE), m_CursorPos(0),
-      m_ConfigServer(NULL), m_Location(NULL), m_Cgi(NULL), m_CgiFd(0), m_CgiDone(false) {
-  m_StatusCode = HTTPResponse::OK;
+void  HTTPResponse::onHeadersParsed()
+{
+  long  status;
+  // char *end;
+
+  if (hasHeader("status"))
+  {
+    // const char *str;
+    // str = getHeader("status").c_str();
+    // status: 404 Not Found
+    status = std::strtol(getHeader("status").c_str(), NULL, 10);
+    // status = getHeader("status").c_str())
+    if (status < 100 || status > 599)
+    {
+      std::cout << "CGI STATUS CODE IS INVALID" << std::endl;
+      return ;
+    }
+    std::cout << "CGI STATUS: " << getHeader("status") << std::endl;
+    removeHeader("status");
+    // std::cout << "END: " << end << std::endl;
+    // m_StatusString.assign(end);
+    // std::cout << "ASSIGNED STATUS STRING : " << m_StatusString << std::endl;
+    m_StatusCode = static_cast<statusCode>(status);
+  }
+  return;
+}
+
+void  HTTPResponse::onBodyDone()
+{
+  return;
 }
 
 int HTTPResponse::getCgiFd() const {
@@ -247,8 +284,9 @@ void HTTPResponse::_processHeaders() {
 
   addHeader("content-length", m_Body.getSize());
   statusCode = static_cast<int>(m_StatusCode);
-  m_HeadersStream << "HTTP/1.1 " << statusCode << " " << _statusToString()
-                  << CRLF;
+  if (m_StatusString.empty())
+    m_StatusString = _statusToString();
+  m_HeadersStream << "HTTP/1.1 " << statusCode << " " << m_StatusString << CRLF;
   for (HTTPRequest::HeaderMap::iterator it = m_Headers.begin();
        it != m_Headers.end(); it++) {
     m_HeadersStream << it->first << ": ";
@@ -453,7 +491,7 @@ void HTTPResponse::_processCgiBody() {
   // std::cout << buff << std::endl;
   // std::cout << "read from cgi: " << rbytes  << " | " << buff << std::endl;
   if (rbytes > 0)
-    appendBody(buff, rbytes);
+    HTTPParser::parseCgi(*this, buff, rbytes);
 
   if (rbytes < 8192 && m_CgiDone)
   {

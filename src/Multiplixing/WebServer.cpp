@@ -555,8 +555,8 @@ bool WebServer::handle_client_request(Connection &connection) {
                         << " bytes from fd: " << connection.client_fd);
 
   HTTPRequest &request = connection.m_Request;
-  HTTPParser::parse(request, buffer, bytes_received);
-  if (request.isComplete()) {
+  HTTPParser::parseRequest(request, buffer, bytes_received);
+  if (request.isParseComplete()) {
     connection.init_response(epoll, cgi);
     isDeleted = this->handle_client_response(connection);
   }

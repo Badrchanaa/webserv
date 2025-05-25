@@ -73,10 +73,10 @@ class HTTPParseState
 		std::string			m_HeaderField;
 		std::string			m_HeaderValue;
 
+		char				m_PrevChar;
 		requestState		m_RequestState;
 		char				m_Method[10];
 		unsigned int		m_ReadBytes;
-		char				m_PrevChar;
 		std::string			m_ChunkSizeStr;
 		unsigned int		m_chunkPos;
 		size_t				m_ChunkSize;
