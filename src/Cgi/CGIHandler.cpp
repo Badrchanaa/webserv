@@ -1,22 +1,13 @@
 #include "../../includes/CGIHandler.hpp"
 #include "../../includes/WebServer.hpp"
-#include <cstdlib>
-// /path/tocgi/script, env, clientfd, requestBody
-extern char **environ;
-CGIProcess *CGIHandler::spawn(char *const *args) const {
+
+CGIProcess *CGIHandler::spawn(std::string &pathName, std::string &scriptName) const {
   CGIProcess *proc = NULL;
   int sockets[2];
   std::cout << "SOCKET PAIR CALLED" << std::endl;
   if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, sockets))
     throw std::runtime_error("socketpair");
 
-  // struct stat sb;
-  // if (stat(args[0], &sb) != 0 || !S_ISREG(sb.st_mode) ||
-  //     access(args[0], X_OK) != 0) {
-  //   close(sockets[0]);
-  //   close(sockets[1]);
-  //   throw std::runtime_error("Invalid CGI script: " + std::string(args[0]));
-  // }
   pid_t pid = fork();
   if (pid < 0) {
     close(sockets[0]);
@@ -25,12 +16,8 @@ CGIProcess *CGIHandler::spawn(char *const *args) const {
   }
 
   if (pid == 0) {
-
     close(sockets[0]);
-    // std::cout << "aargs[0] :: " << args[0] << std::endl;
-    // std::cout << "aargs[1] :: " << args[1] << std::endl;
-    setup_child(sockets[1], args, environ);
-    // exit(1);
+    setup_child(sockets[1], pathName, scriptName);
   }
   close(sockets[1]);
 
@@ -41,21 +28,33 @@ CGIProcess *CGIHandler::spawn(char *const *args) const {
 }
 
 
+void CGIHandler::setup_child(int sock, std::string &pathName, std::string &scriptName) const
+{
+  sighandler_t handler;
 
+  handler = SIG_IGN;
+  signal(SIGINT, handler);
+  if (dup2(sock, STDIN_FILENO) == -1 || dup2(sock, STDOUT_FILENO) == -1) {
+      std::cerr << "dup2 failed: " << strerror(errno) << std::endl;
+      exit(EXIT_FAILURE);
+  }
 
-void CGIHandler::setup_child(int sock, char *const *args, char **env) const {
-  (void)env;
-  // (void)sock;
-  // dup2(sock, STDERR_FILENO); // Add this line
-  if (dup2(sock, STDIN_FILENO) == -1)
-    std::cerr << "dup2 0 failed: " << strerror(errno) << std::endl;
-  if (dup2(sock, STDOUT_FILENO) == -1)
-    std::cerr << "dup2 1 failed: " << strerror(errno) << std::endl;
-  // close(sock);
+  std::string script_path(scriptName);
+  size_t last_slash = scriptName.find_last_of('/');
+  std::string script_dir = (last_slash != std::string::npos) ? scriptName.substr(0, last_slash) : ".";
+  scriptName = (last_slash != std::string::npos) ? scriptName.substr(last_slash + 1) : "";
 
-  std::cout << "test " << sock << std::endl;
-  std::cout << "args[0] :: " << args[0] << std::endl;
-  std::cout << "args[1] :: " << args[1] << std::endl;
+  
+  if (chdir(script_dir.c_str()) == -1) {
+      std::cerr << "chdir failed: " << strerror(errno) << std::endl;
+      exit(EXIT_FAILURE);
+  }
+  char *const args[3] = {const_cast<char *const>(pathName.c_str()),
+                        const_cast<char *const>(scriptName.c_str()), NULL};
+
+  // std::cout << "test " << sock << std::endl;
+  // std::cout << "args[0] :: " << args[0] << std::endl;
+  // std::cout << "args[1] :: " << args[1] << std::endl;
 
   execve(args[0], args, environ);
   std::cerr << "execve failed: " << strerror(errno) << std::endl;

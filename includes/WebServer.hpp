@@ -51,8 +51,11 @@
 
 class Connection;
 
-class WebServer {
+class WebServer
+{
 
+private:
+  WebServer();
   Config config;
   CGIHandler cgi;
   EpollManager epoll;
@@ -64,7 +67,7 @@ class WebServer {
       listener_map; /* Maps listener FDs to their config*/
 
 public:
-  WebServer();
+  WebServer(const char *FileCofig);
   ~WebServer();
   void run();
 
@@ -93,6 +96,7 @@ public:
   Connection &getClientConnection(int fd, uint32_t events);
   int getCgiFdBasedOnClientFd(int client_fd);
   bool try_attach_to_existing_listener(const ConfigServer& new_server, int port);
+  static int  sig_interrupt_handler();
 
 };
 

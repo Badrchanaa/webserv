@@ -1,38 +1,17 @@
 #include "Config.hpp"
 
-// void Config::ProcessMethodContext(const std::string &trimmed) {
-//   std::string method = get_list_item(trimmed);
-//   httpMethod bit = get_method_bit(method);
-//   if (bit == METHOD_NONE) {
-//     std::cerr << "Error: Invalid method '" << method << "'\n";
-//     exit(EXIT_FAILURE);
-//   }
-//
-//   unsigned int &current_mask = (context == "methods")
-//                                    ? currentServer.location.allowed_methods
-//                                    : currentServer.location.allowed_cgi_methods;
-//   if (current_mask & bit) {
-//     std::cerr << "Error: Duplicate method '" << method << "'\n";
-//     exit(EXIT_FAILURE);
-//   }
-//   current_mask |= bit;
-// }
 
 void Config::ProcessMethodContext(const std::string &trimmed) {
   std::string method = get_list_item(trimmed);
   httpMethod bit = get_method_bit(method);
-  if (bit == METHOD_NONE) {
-    std::cerr << "Error: Invalid method '" << method << "'\n";
-    exit(EXIT_FAILURE);
-  }
+  if (bit == METHOD_NONE)
+    throw std::runtime_error("Error: Invalid method '" + method + "'\n");
 
   unsigned int &current_mask = (context == "methods")
                                    ? currentLocation.allowed_methods
                                    : currentLocation.allowed_cgi_methods;
-  if (current_mask & bit) {
-    std::cerr << "Error: Duplicate method '" << method << "'\n";
-    exit(EXIT_FAILURE);
-  }
+  if (current_mask & bit)
+    throw std::runtime_error("Error: Duplicate method '" + method + "'\n");
   current_mask |= bit;
 }
 
@@ -62,11 +41,19 @@ bool Config::validate_server(const ConfigServer &config) {
     std::cout << "body_siz error" << std::endl;
     return false;
   }
-
   return true;
 }
 
 bool Config::validate_port(int port) { return port > 0 && port <= 65535; }
+
+bool Config::validate_timeout(const std::string &timeout) {
+  if (timeout.empty())
+    return false;
+  size_t unit_pos = timeout.find_first_not_of("0123456789");
+  if (unit_pos == std::string::npos)
+    return true;
+  return false;
+}
 
 bool Config::validate_body_size(const std::string &body_size) {
   if (body_size.empty())

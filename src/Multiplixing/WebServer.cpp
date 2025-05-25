@@ -206,8 +206,13 @@ WebServer::~WebServer() {
   // }
 }
 
-WebServer::WebServer() : running(true) {
-  config.ParseConfigFile(DEFAULT_PATH);
+WebServer::WebServer(const char *FileCofig) : running(true) {
+  config.creatDefaultServer();
+  config.ParseConfigFile(FileCofig);
+  std::cout << "===========================================================" << std::endl;
+  this->config.printServersWithLocations();
+  std::cout << "===========================================================" << std::endl;
+  std::cout << "ServersNumber : " << config.ServersNumber() << std::endl;
   DEBUG_LOG("Initializing web server...");
   create_listeners();
   this->cgi.epoll_fd = this->epoll.epfd;
@@ -248,7 +253,7 @@ Connection &WebServer::getClientConnection(int fd, uint32_t events) {
 void WebServer::run() {
   struct epoll_event events[MAX_EVENTS];
   DEBUG_LOG("Starting main event loop");
-
+  // signal(SIGINT, WebServer::sig_interrupt_handler);
   while (running) {
     std::cout << "WAITING FOR EVENTS" << std::endl;
     // int n = epoll_wait(epoll.epfd, events, MAX_EVENTS, -1);
@@ -310,7 +315,6 @@ void WebServer::run() {
           it++;
 
       }
-      // it++;
     }
     std::cout << "RUN END ------------ " << std::endl;
   }
@@ -320,33 +324,17 @@ void WebServer::handle_connection_timeout(std::list<Connection *>::iterator &it)
 {
   std::cout << "CONNECTION TIMEOUT" << std::endl;
     Connection *conn = *it;
-      //client
     if (conn->cgi_Added) // Timeout in CGI
     {
-      // kill(conn->m_Response.getCGIProcessPid(), SIGKILL);
-      // close(conn->m_Response.getCgiFd());
       epoll.remove_fd(conn->cgi_Added, conn->m_Response.getCgiFd());
       epoll.add_fd(conn->client_Added, conn->client_fd, EPOLL_READ | EPOLL_WRITE);
       conn->m_Response.cleanupCgi(true);
       conn->m_Response.setError(HTTPResponse::GATEWAY_TIMEOUT);
       std::cout << "AFTER SET ERROR" << std::endl;
-      // conn->m_State = Connection::RESPONSE_PROCESSING;
-      // bool shouldDelete = handle_client_response(*conn);
     }
     else if (conn->client_Added){
-      // if (conn->m_State == Connection::RESPONSE_PROCESSING)// client cannot receive
-      // {
-      // std::cout << "Client TimeOUt" << std::endl;
         close_fds(*conn);
         return cleanup_connection(it);
-      // }
-      // else // client didnt send full request
-      // {
-      //   std::cout << "TIMEOUT IN REQUEST" << std::endl;
-      //   conn->m_Request.getParseState().setError(); // ???? 
-      //   conn->init_response(epoll, cgi);
-      //   conn->m_Response.setError(HTTPResponse::GATEWAY_TIMEOUT);
-      // }
     }
     std::cout << "TIMEOUT FUNCTION END" << std::endl;
     conn->last_activity = std::time(NULL);
@@ -671,10 +659,16 @@ void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
     it = connections.erase(it);
 }
 
-int main() {
+int main(int argc, char **argv) {
   try {
-    WebServer server;
-    server.run();
+    if (argc != 2){
+      WebServer server(DEFAULT_PATH);
+      server.run();
+    }
+    else{
+      WebServer server(argv[1]);
+      server.run();
+    }
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << std::endl;
     return EXIT_FAILURE;
