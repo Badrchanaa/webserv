@@ -38,6 +38,7 @@ class HTTPRequest: public HTTPMessage
 		bool				validPath();
 		// std::string			getBodyStr() const;
 		const std::string&	getPath() const;
+		const std::string&	getUri() const;
 		bool				isMultipartForm() const;
 		bool				isError() const;
 		const ConfigServer*	getServer() const;
@@ -59,6 +60,7 @@ class HTTPRequest: public HTTPMessage
 		std::string			m_Host;
 		std::string			m_Path;
 		std::string			m_Query;
+		std::string			m_Uri;
 		HTTPMultipartForm	*m_MultipartForm;
 		/*
 			TODO: remove ConfigServers from constructor, get them from config after header parsing

@@ -142,7 +142,7 @@ class HTTPResponse: public HTTPMessage
 		void	_initBadRequest();
 	
 		// added by Regex-33
-		void setupCgiEnv();
+		void setupCgiEnv(std::string &ScriptFileName);
 		std::vector<char *> env_ptrs;
 		std::vector<std::string> cgi_env;
 

@@ -1,5 +1,8 @@
 #include "HTTPResponse.hpp"
 #include "HTTPParser.hpp"
+#include <cstdlib>   // for realpath
+#include <iostream>  // for std::cerr
+#include <string>
 #include <iostream>
 #include <string>
 #include <sys/stat.h>
@@ -63,7 +66,19 @@ bool HTTPResponse::_isCgiPath(const std::string path,
   return false;
 }
 
-void HTTPResponse::setupCgiEnv() {
+
+std::string getAbsolutePath(const std::string& relativePath) {
+    char resolvedPath[PATH_MAX];
+    if (realpath(relativePath.c_str(), resolvedPath)) {
+        return std::string(resolvedPath);
+    } else {
+        perror("realpath");
+        return "";
+    }
+}
+
+
+void HTTPResponse::setupCgiEnv(std::string &ScriptFileName) {
   HTTPRequest::HeaderMap headers = m_Request->getHeaders();
   this->cgi_env.clear();
   this->env_ptrs.clear();
@@ -86,31 +101,40 @@ void HTTPResponse::setupCgiEnv() {
       std::replace(cgi_key.begin(), cgi_key.end(), '-', '_');
       this->cgi_env.push_back(cgi_key + "=" + it->second);
   }
-  // this->cgi_env.push_back("REQUEST_METHOD=" + std::string(m_Request->getMethodStr()));
+  std::string scriptAbsolute = getAbsolutePath(ScriptFileName);
 
-  setenv("SCRIPT_NAME", "cgi-bin/script.php", 1);
-  setenv("SCRIPT_FILENAME", "./hello.php", 1);
-  setenv("SCRIPT_PATH", "/home/bchanaa/Desktop/webserv/www/app/cgi-bin/", 1);
+  if (!scriptAbsolute.empty()){
+    this->cgi_env.push_back("SCRIPT_FILENAME=" + scriptAbsolute);
+    this->cgi_env.push_back("PATH_TRANSLATED=" + scriptAbsolute);
+  }
+  else {
+    this->cgi_env.push_back("SCRIPT_FILENAME=" + ScriptFileName);
+    this->cgi_env.push_back("PATH_TRANSLATED=" + ScriptFileName);
+  }
 
-  setenv("REQUEST_METHOD", "POST", 1);
-  setenv("DOCUMENT_ROOT", "/home/bchanaa/Desktop/webserv/www/", 1);
-  setenv("QUERY_STRING", "name=value&foo=bar", 1);  // From URL after ?
-  setenv("REQUEST_URI", "/orog?name=value&foo=bar", 1);  // From URL after ?
-  setenv("REQUEST_PATH", "/orog", 1);  // From URL after ?
-  setenv("SERVER_PROTOCOL", "HTTP/1.1", 1);
-  setenv("GATEWAY_INTERFACE", "CGI/1.1", 1);
-  setenv("REDIRECT_STATUS", "1", 1);  // Critical for PHP CGI
-
-  this->cgi_env.push_back("SCRIPT_NAME=hello.php");
-  // this->cgi_env.push_back("REQUEST_METHOD=");
+  this->cgi_env.push_back("REQUEST_METHOD=" + std::string(m_Request->getMethodStr()));
+  this->cgi_env.push_back("SCRIPT_NAME=" + std::string(m_Request->getPath()));
   this->cgi_env.push_back("QUERY_STRING=" + m_Request->getQuery());
-  this->cgi_env.push_back("PATH_INFO=/");
+  this->cgi_env.push_back("PATH_INFO=" + m_Request->getPath());
+  // Temporary ??
   if (m_Request->hasHeader("content-length"))
     this->cgi_env.push_back("CONTENT_LENGTH=" + m_Request->getHeader("content-length"));
   if (m_Request->hasHeader("content-type"))
     this->cgi_env.push_back("CONTENT_TYPE=" + m_Request->getHeader("content-type"));
   this->cgi_env.push_back("SERVER_PROTOCOL=HTTP/1.1");
   this->cgi_env.push_back("GATEWAY_INTERFACE=CGI/1.1");
+  this->cgi_env.push_back("REDIRECT_STATUS=200");
+
+  this->cgi_env.push_back("REQUEST_PATH=" + m_Request->getPath());
+  this->cgi_env.push_back("REQUEST_URI=" + m_Request->getUri());
+  // this->cgi_env.push_back("REMOTE_ADDR=127.0.0.1");
+  // this->cgi_env.push_back("REMOTE_PORT=4000");
+  // setenv("REQUEST_URI", "/orog?name=value&foo=bar", 1);  // From URL after ?
+  // setenv("DOCUMENT_ROOT", "/home/bchanaa/Desktop/webserv/www/", 1);
+
+
+  // this->cgi_env.push_back("SCRIPT_NAME=hello.php");
+  // this->cgi_env.push_back("REQUEST_METHOD=");
 
   for (std::vector<std::string>::iterator it = this->cgi_env.begin(); it != this->cgi_env.end(); ++it) {
       std::cout << " regex char * : " << const_cast<char*>((*it).c_str()) << std::endl;
@@ -132,6 +156,8 @@ void HTTPResponse::_initCgi(const std::string path,
   std::string pathName = m_Location->getScriptPath(m_Request->getPath());
   scriptName =
       m_Location->root + m_Location->uri + m_Location->cgi_uri + scriptName;
+  
+  std::cout << "scriptName : " << scriptName << " | " << pathName << std::endl;
 
   struct stat fileStat;
   if (stat(scriptName.c_str(), &fileStat) != 0 || !S_ISREG(fileStat.st_mode) ||
@@ -141,7 +167,7 @@ void HTTPResponse::_initCgi(const std::string path,
     return;
   }
 
-  this->setupCgiEnv();
+  this->setupCgiEnv(scriptName);
 
     m_Cgi = cgihandler.spawn(pathName, scriptName, static_cast<char **>(&this->env_ptrs[0]));
     if (m_Cgi)
@@ -526,7 +552,8 @@ void HTTPResponse::_processCgiBody() {
   // std::cout << buff << std::endl;
   // std::cout << "read from cgi: " << rbytes  << " | " << buff << std::endl;
   if (rbytes > 0)
-    HTTPParser::parseCgi(*this, buff, rbytes);
+    // HTTPParser::parseCgi(*this, buff, rbytes);
+    appendBody(buff, rbytes);
 
   if (rbytes < 8192 && m_CgiDone)
   {

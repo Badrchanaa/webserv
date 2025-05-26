@@ -30,6 +30,7 @@ void	HTTPRequest::onHeadersParsed()
 	HeaderMap::const_iterator	it;
 
 	// TODO: do not ignore request parameters!!
+	m_Uri = m_Path;
 	size_t pos = m_Path.find('?');
 	if (pos != std::string::npos)
 	{
@@ -209,6 +210,11 @@ void	HTTPRequest::appendToPath(const char *buff, size_t start, size_t len)
 const std::string		&HTTPRequest::getPath() const
 {
 	return m_Path;
+}
+
+const std::string		&HTTPRequest::getUri() const
+{
+	return m_Uri;
 }
 
 httpMethod	HTTPRequest::getMethod() const

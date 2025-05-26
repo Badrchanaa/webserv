@@ -19,6 +19,7 @@ CGIProcess *CGIHandler::spawn(std::string &pathName, std::string &scriptName, ch
     close(sockets[0]);
     // setup_child(sockets[1], pathName, scriptName, environ);
     setup_child(sockets[1], pathName, scriptName, env);
+    exit(EXIT_FAILURE);
   }
   close(sockets[1]);
 
@@ -43,7 +44,7 @@ void CGIHandler::setup_child(int sock, std::string &pathName, std::string &scrip
   std::string script_path(scriptName);
   size_t last_slash = scriptName.find_last_of('/');
   std::string script_dir = (last_slash != std::string::npos) ? scriptName.substr(0, last_slash) : ".";
-  scriptName = (last_slash != std::string::npos) ? scriptName.substr(last_slash + 1) : "";
+  scriptName = (last_slash != std::string::npos) ? scriptName.substr(last_slash + 1) : scriptName; 
 
   
   if (chdir(script_dir.c_str()) == -1) {
@@ -61,9 +62,9 @@ void CGIHandler::setup_child(int sock, std::string &pathName, std::string &scrip
   // setenv("PHP_SELF", "app/cgi-bin/script.php", 1);
   // setenv("SERVER_SOFTWARE", "WEBSERV/1.0", 1);
 
-    (void)env;
-  // execve(args[0], args, env);
-  execve(args[0], args, environ);
+    // (void)env;
+  execve(args[0], args, env);
+  // execve(args[0], args, environ);
   std::cerr << "execve failed: " << strerror(errno) << std::endl;
   exit(EXIT_FAILURE);
 }
@@ -74,7 +75,8 @@ ssize_t  CGIProcess::write(HTTPBody &body)
   const char *buff = body.getBuffer();
   size_t len = body.getSize();
   // std::cout << "buff : " << buff << std::endl;
-  ssize_t sent = send(this->cgi_sock, buff, len, MSG_NOSIGNAL);
+  // ssize_t sent = send(this->cgi_sock, buff, len, MSG_NOSIGNAL);
+  ssize_t sent = send(this->cgi_sock, buff, len, 0);
   if (sent < 0) {
     this->cleanup(true);
     return sent;
@@ -83,15 +85,17 @@ ssize_t  CGIProcess::write(HTTPBody &body)
   return sent;
 }
 
+
 ssize_t CGIProcess::read(char *buff, size_t size) {
   ssize_t received = recv(this->cgi_sock, buff, size, 0);
   
-  std::cout << "received: " << received << " from: " << cgi_sock << std::endl;
+  // std::cout << "received: " << received << " from: " << cgi_sock << "Buffer : " << buff << std::endl;
 
   if (received < 0) { // -1
     std::cout << "++++++++++++++++++++++++++++" << std::endl;
     std::cout << "received == < 0" << std::endl;
     this->cleanup(true);
+    return received;
     std::cout << "++++++++++++++++++++++++++++" << std::endl;
   } else if (received == 0) {
     std::cout << "----------------------------" << std::endl;
