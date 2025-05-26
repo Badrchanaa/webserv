@@ -4,10 +4,18 @@
 
 int main()
 {
-	std::fstream fs;
+	int a = (0x1) | (0x1 << 1) | (0x1 << 2);
 
-	fs.open("Makefile");
+	int b = (0x1) | (0x1 << 3);
 
-	std::cout << "available bytes: " << fs.rdbuf()->in_avail() << std::endl;
+	std::cout << "a : " << a << std::endl;
+	std::cout << "b : " << b << std::endl;
+	if ((a & b) == b)
+	{
+		std::cout << "valid" << std::endl;
+	}
+	else
+		std::cout << "NOT valid" << std::endl;
+	std::cout << static_cast<int>(a & b) << std::endl;
 	return 0;
 }

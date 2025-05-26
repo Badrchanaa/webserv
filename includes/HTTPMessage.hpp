@@ -18,7 +18,7 @@ typedef enum transferEncoding
 class HTTPMessage
 {
 	public:
-		typedef std::map<std::string, std::string> HeaderMap;
+		typedef std::map<std::string, std::string> header_map_t;
 
 		virtual void		onHeadersParsed() = 0;
 		virtual void		onBodyDone() = 0;
@@ -27,7 +27,7 @@ class HTTPMessage
 		void				addHeader(std::string key, std::string value);
 		void				addHeader(std::string key, size_t value);
 		bool				removeHeader(const char *key);
-		const HeaderMap&	getHeaders() const;
+		const header_map_t&	getHeaders() const;
 		std::string			getHeader(std::string &key) const;
 		std::string			getHeader(const char *key) const;
 		HTTPBody&			getBody();
@@ -42,7 +42,7 @@ class HTTPMessage
 		~HTTPMessage();
 	protected:
 		HTTPBody			m_Body;
-		HeaderMap			m_Headers;
+		header_map_t			m_Headers;
 		size_t				m_ContentLength;
 		HTTPParseState		m_ParseState;
 		transferEncoding	m_TransferEncoding;

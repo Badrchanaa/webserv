@@ -15,11 +15,8 @@ $data = file_get_contents('php://input');
  {
 	 echo "addr". $_SERVER['REMOTE_ADDR'];
 	 echo "port:". $_SERVER['REMOTE_PORT'];
- 	echo "name: ";
- 	echo $_POST["name"];
- 	echo "foo: ";
- 	echo $_POST["foo"];
- 	echo "\n";
+	 echo "<br />";
+ 	echo '<pre>'.print_r($_POST, TRUE).'</pre>';
  }
 echo "----------------------<br />";
 ?>

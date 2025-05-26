@@ -19,8 +19,7 @@ bool	HTTPMessage::isTransferChunked() const
 
 bool	HTTPMessage::isParseComplete() const
 {
-	HTTPParseState::requestState state = m_ParseState.getState();
-	return state == HTTPParseState::REQ_DONE || state == HTTPParseState::REQ_ERROR;
+	return m_ParseState.isComplete();
 }
 
 HTTPBody&	HTTPMessage::getBody()
@@ -44,7 +43,7 @@ size_t		HTTPMessage::getContentLength() const
 	return m_ContentLength;
 }
 
-const HTTPMessage::HeaderMap&	HTTPMessage::getHeaders() const
+const HTTPMessage::header_map_t&	HTTPMessage::getHeaders() const
 {
 	return this->m_Headers;
 }
@@ -97,7 +96,7 @@ bool	HTTPMessage::appendBody(const std::vector<char>& vec)
 
 std::string	HTTPMessage::getHeader(std::string &key) const
 {
-	HeaderMap::const_iterator it = m_Headers.find(key);
+	header_map_t::const_iterator it = m_Headers.find(key);
 	if (it == m_Headers.end())
 		return std::string();
 	return it->second;	

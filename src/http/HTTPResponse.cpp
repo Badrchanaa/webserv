@@ -3,9 +3,45 @@
 #include <cstdlib>   // for realpath
 #include <iostream>  // for std::cerr
 #include <string>
-#include <iostream>
-#include <string>
-#include <sys/stat.h>
+#include "Resource.hpp"
+
+HTTPResponse::status_map_t  createDefaultPages()
+{
+  	HTTPResponse::status_map_t defaultPages;
+
+    defaultPages[HTTPResponse::BAD_REQUEST] = "./html/error_400.html";
+    defaultPages[HTTPResponse::NOT_FOUND] = "./html/error_404.html";
+    defaultPages[HTTPResponse::METHOD_NOT_ALLOWED] = "./html/error_405.html";
+    defaultPages[HTTPResponse::FORBIDDEN] = "./html/error_403.html";
+    defaultPages[HTTPResponse::SERVER_ERROR] = "./html/error_500.html";
+    defaultPages[HTTPResponse::NOT_IMPLEMENTED] = "./html/error_501.html";
+    defaultPages[HTTPResponse::GATEWAY_TIMEOUT] = "./html/error_504.html";
+
+    return defaultPages;
+}
+
+
+HTTPResponse::status_map_t  createStatusMap()
+{
+  HTTPResponse::status_map_t statusString;
+
+  statusString[HTTPResponse::OK] = "OK";
+  statusString[HTTPResponse::CREATED]= "CREATED";
+  statusString[HTTPResponse::NO_CONTENT]= "No Content";
+  statusString[HTTPResponse::BAD_REQUEST]= "Bad Request";
+  statusString[HTTPResponse::NOT_FOUND]= "Not Found";
+  statusString[HTTPResponse::METHOD_NOT_ALLOWED]= "Method Not Allowed";
+  statusString[HTTPResponse::FORBIDDEN]= "Forbidden";
+  statusString[HTTPResponse::SERVER_ERROR]= "Internal Server Error";
+  statusString[HTTPResponse::NOT_IMPLEMENTED]= "Not Implemented";
+  statusString[HTTPResponse::GATEWAY_TIMEOUT]= "Gateway Timeout";
+  statusString[HTTPResponse::MOVED_PERMANENTLY]= "Moved Permanently";
+
+  return statusString;
+}
+
+const HTTPResponse::status_map_t HTTPResponse::_defaultPages = createDefaultPages();
+const HTTPResponse::status_map_t HTTPResponse::_statusMap = createStatusMap();
 
 HTTPResponse::HTTPResponse(void)
     : m_State(INIT), m_PollState(SOCKET_WRITE), m_CursorPos(0),
@@ -14,7 +50,7 @@ HTTPResponse::HTTPResponse(void)
   m_StatusCode = HTTPResponse::OK;
 	m_ParseState.setReadBytes(0);
 	m_ParseState.setPrevChar(0);
-	m_ParseState.setState(HTTPParseState::REQ_HEADER_FIELD);
+	m_ParseState.setState(HTTPParseState::PARSE_HEADER_FIELD);
 }
 
 HTTPResponse::pollState HTTPResponse::getPollState() const {
@@ -23,24 +59,26 @@ HTTPResponse::pollState HTTPResponse::getPollState() const {
 
 void  HTTPResponse::onHeadersParsed()
 {
-  long  status;
-  // char *end;
 
   if (hasHeader("status"))
   {
-    // const char *str;
-    // str = getHeader("status").c_str();
-    // status: 404 Not Found
-    status = std::strtol(getHeader("status").c_str(), NULL, 10);
-    // status = getHeader("status").c_str())
+    std::string statusHeader = getHeader("status");
+    long        status;
+    char        *end;
+
+    status = std::strtol(statusHeader.c_str(), &end, 10);
     if (status < 100 || status > 599)
     {
       std::cout << "CGI STATUS CODE IS INVALID" << std::endl;
       return ;
     }
-    std::cout << "CGI STATUS: " << getHeader("status") << std::endl;
+    while (*end == SP)
+      end++;
+    if (end)
+      m_StatusString.assign(end);
+    std::cout << "CGI STATUS: " << statusHeader << std::endl;
     removeHeader("status");
-    // std::cout << "END: " << end << std::endl;
+    std::cout << "END: " << end << std::endl;
     // m_StatusString.assign(end);
     // std::cout << "ASSIGNED STATUS STRING : " << m_StatusString << std::endl;
     m_StatusCode = static_cast<statusCode>(status);
@@ -50,6 +88,8 @@ void  HTTPResponse::onHeadersParsed()
 
 void  HTTPResponse::onBodyDone()
 {
+  m_CgiDone = true;
+  m_ParseState.setState(HTTPParseState::PARSE_DONE);
   return;
 }
 
@@ -79,7 +119,7 @@ std::string getAbsolutePath(const std::string& relativePath) {
 
 
 void HTTPResponse::setupCgiEnv(std::string &ScriptFileName) {
-  HTTPRequest::HeaderMap headers = m_Request->getHeaders();
+  HTTPRequest::header_map_t headers = m_Request->getHeaders();
   this->cgi_env.clear();
   this->env_ptrs.clear();
 
@@ -93,7 +133,7 @@ void HTTPResponse::setupCgiEnv(std::string &ScriptFileName) {
       this->cgi_env.push_back(std::string(environ[i]));
   }
 
-  for (HTTPRequest::HeaderMap::iterator it = headers.begin(); it != headers.end(); ++it) {
+  for (HTTPRequest::header_map_t::iterator it = headers.begin(); it != headers.end(); ++it) {
       std::string str = it->first;
       std::transform(str.begin(), str.end(), str.begin(), ::toupper);
       std::string cgi_key = "HTTP_" + str;
@@ -183,18 +223,10 @@ void HTTPResponse::_initCgi(const std::string path,
     _debugBody();
 }
 
-void HTTPResponse::_initBadRequest() {
-  m_StatusCode = BAD_REQUEST;
-  appendBody(std::string("<html><body><h1>400 Bad Request</h1></body></html>"));
-  // TODO:: set headers
-  addHeader("content-type", "text/html");
-  addHeader("content-length", m_Body.getSize());
-}
-
 bool _safePath(const std::string path) {
   int count;
-  size_t start;
-  size_t i;
+  size_t  start;
+  size_t  i;
   std::string subpath;
 
   start = 0;
@@ -224,31 +256,47 @@ bool _safePath(const std::string path) {
   return count >= 0;
 }
 
+void  HTTPResponse::_normalizeResourcePath()
+{
+  const std::string &requestPath = m_Request->getPath();
+
+  if (m_Location->uri != "/")
+    m_ResourcePath = m_Location->root + m_Location->uri + requestPath;
+  else
+    m_ResourcePath = m_Location->root + requestPath;
+  if (m_ResourcePath[0] == '/')
+    m_ResourcePath = "." + m_ResourcePath;
+  else
+    m_ResourcePath = "./" + m_ResourcePath;
+  // m_ResourcePath.insert(0, "./")
+}
+
 void HTTPResponse::init(HTTPRequest &request,
                         CGIHandler const &cgihandler,
                         ConfigServer const *configServer, int fd) {
   std::string resourcePath;
-  // struct stat fileStat;
 
   m_ClientFd = fd;
   this->m_Request = &request;
   this->m_ConfigServer = configServer;
 
   m_State = PROCESS_BODY;
-  // if (request.isError())
-  // 	return _initBadRequest();
 
   // check for path traversal
-
   if (!_safePath(request.getPath())) {
     std::cout << "NOT A SAFE PATH" << std::endl;
     return setError(NOT_FOUND);
   }
   m_Location = &configServer->getLocation(request.getPath());
   
-  if (request.isError()) {
-    m_StatusCode = HTTPResponse::BAD_REQUEST;
+  if (request.isError())
     return setError(BAD_REQUEST);
+
+  if ( not m_Location->isMethodAllowed(request.getMethod()))
+  {
+
+    std::cout << "METHOD NOT ALLOWED" << std::endl;
+    return setError(METHOD_NOT_ALLOWED);
   }
 
   if (m_Location->isCgiPath(request.getPath()))
@@ -257,14 +305,6 @@ void HTTPResponse::init(HTTPRequest &request,
   std::cout << "location root: " << m_Location->root << std::endl;
   std::cout << "location uri: " << m_Location->uri << std::endl;
 
-  if (m_Location->uri != "/")
-    resourcePath = m_Location->root + m_Location->uri + request.getPath();
-  else
-    resourcePath = m_Location->root + request.getPath();
-  if (resourcePath[0] == '/')
-    resourcePath = "." + resourcePath;
-  else
-    resourcePath = "./" + resourcePath;
   std::cout << "RESOURCE PATH: " << resourcePath << std::endl;
   if (_isCgiPath(request.getPath(), configServer))
     return _initCgi(request.getPath(), cgihandler, configServer);
@@ -272,6 +312,11 @@ void HTTPResponse::init(HTTPRequest &request,
   // ADD DEBUG INFO TO RESPONSE BODY
   // _debugBody();
   m_ResourcePath = resourcePath;
+  _normalizeResourcePath();
+
+  httpMethod requestMethod = request.getMethod();
+  if (requestMethod == DELETE)
+    _handleDeleteMethod();
 }
 
 void HTTPResponse::reset() { return; }
@@ -285,31 +330,6 @@ bool HTTPResponse::hasCgi() const { return m_HasCgi; }
 HTTPResponse::statusCode HTTPResponse::getStatus() { return OK; }
 
 HTTPResponse::responseState HTTPResponse::getState() const { return m_State; }
-
-const std::string HTTPResponse::_statusToString() const {
-  switch (m_StatusCode) {
-  case 200:
-    return std::string("OK");
-  case 201:
-    return std::string("Created");
-  case 301:
-    return std::string("Moved Permanently");
-  case 400:
-    return std::string("Bad Request");
-  case 403:
-    return std::string("Forbidden");
-  case 404:
-    return std::string("Not Found");
-  case 500:
-    return std::string("Internal Server Error");
-  case 501:
-    return std::string("Not Implemented");
-  case 504:
-    return std::string("Gateway Timeout");
-  default:
-    return std::string("UNKNOWN STATUS");
-  }
-}
 
 void HTTPResponse::_sendHeaders() {
   int writtenBytes;
@@ -344,9 +364,15 @@ void HTTPResponse::_processHeaders() {
   addHeader("content-length", m_Body.getSize());
   statusCode = static_cast<int>(m_StatusCode);
   if (m_StatusString.empty())
-    m_StatusString = _statusToString();
+  {
+    status_map_t::const_iterator it = _statusMap.find(m_StatusCode);
+    if (it != _statusMap.end())
+      m_StatusString = it->second;
+    else
+      m_StatusString = "UNKNOWN STATUS";
+  }
   m_HeadersStream << "HTTP/1.1 " << statusCode << " " << m_StatusString << CRLF;
-  for (HTTPRequest::HeaderMap::iterator it = m_Headers.begin();
+  for (HTTPRequest::header_map_t::iterator it = m_Headers.begin();
        it != m_Headers.end(); it++) {
     m_HeadersStream << it->first << ": ";
     m_HeadersStream << it->second << CRLF;
@@ -372,8 +398,8 @@ void HTTPResponse::_debugBody() {
                  << std::endl;
   responseStream << "<table>";
   responseStream << "<h1>REQUEST HEADERS</h1>";
-  HTTPRequest::HeaderMap headers = m_Request->getHeaders();
-  for (HTTPRequest::HeaderMap::iterator it = headers.begin();
+  HTTPRequest::header_map_t headers = m_Request->getHeaders();
+  for (HTTPRequest::header_map_t::iterator it = headers.begin();
        it != headers.end(); it++) {
     responseStream << "<tr>";
     responseStream << "<td>" << it->first << "</td>";
@@ -392,46 +418,38 @@ void HTTPResponse::_debugBody() {
 }
 
 const std::string HTTPResponse::_getDefaultErrorFile() const {
-  std::map<HTTPResponse::statusCode, const char *> defaultPages;
 
-  defaultPages[BAD_REQUEST] = "./html/error_400.html";
-  defaultPages[NOT_FOUND] = "./html/error_404.html";
-  defaultPages[FORBIDDEN] = "./html/error_403.html";
-  defaultPages[SERVER_ERROR] = "./html/error_500.html";
-  defaultPages[NOT_IMPLEMENTED] = "./html/error_501.html";
-  defaultPages[GATEWAY_TIMEOUT] = "./html/error_504.html";
-
-  const char * filename = defaultPages[m_StatusCode];
-  if (!filename)
-  {
-    std::cout << "CANNOT FIND DEFAULT ERROR PAGE" << std::endl;
-    return std::string(defaultPages[SERVER_ERROR]);
-  }
-  return std::string(filename);
+  status_map_t::const_iterator it = _defaultPages.find(m_StatusCode);
+  if (it != _defaultPages.end())
+    return std::string(it->second);
+  
+  std::cout << "CANNOT FIND DEFAULT ERROR PAGE" << std::endl;
+  return std::string(_defaultPages.find(SERVER_ERROR)->second);
 }
 
-bool HTTPResponse::_validFile(const std::string filename) const {
-  struct stat fileStat;
+// bool HTTPResponse::_validFile(const std::string filename) const {
+//   struct stat fileStat;
 
-  if (access(filename.c_str(), R_OK) != 0 ||
-      stat(filename.c_str(), &fileStat) == -1)
-    return false;
-  return S_ISREG(fileStat.st_mode);
-}
+//   if (access(filename.c_str(), R_OK) != 0 ||
+//       stat(filename.c_str(), &fileStat) == -1)
+//     return false;
+//   return S_ISREG(fileStat.st_mode);
+// }
 
-bool HTTPResponse::_validDirectory(const std::string filename) const {
-  struct stat fileStat;
+// bool HTTPResponse::_validDirectory(const std::string filename) const {
+//   struct stat fileStat;
 
-  if (access(filename.c_str(), R_OK | X_OK) != 0 ||
-      stat(filename.c_str(), &fileStat) == -1)
-    return false;
-  return S_ISDIR(fileStat.st_mode);
-}
+//   if (access(filename.c_str(), R_OK | X_OK) != 0 ||
+//       stat(filename.c_str(), &fileStat) == -1)
+//     return false;
+//   return S_ISDIR(fileStat.st_mode);
+// }
 
 void HTTPResponse::_readFileToBody(const std::string filename) {
   std::ifstream fileStream;
   char buff[4096];
 
+  std::cout << "READING FILE: " << filename << std::endl;
   fileStream.open(filename.c_str());
   std::streamsize rbytes = 4096;
   while (rbytes >= 4096) {
@@ -459,14 +477,11 @@ void HTTPResponse::_processErrorBody()
   else
   {
     std::cout << "[RESPONSE] Found config error page" << std::endl;
-    if (!m_Location)
-    {
-      std::cout << "NO LOCATION" << std::endl;
-    }
     filename = "./" + m_Location->root + "/" + it->second;
   }
   std::cout << "FILENAME: " << filename << std::endl;
-  if (!_validFile(filename))
+  Resource file(filename.c_str());
+  if (!file.exists() || !file.canRead())
   {
     std::string body;
     body = "<html><body><h1>Unexpected error";
@@ -475,6 +490,20 @@ void HTTPResponse::_processErrorBody()
     return;
   } else
     _readFileToBody(filename);
+}
+
+void  HTTPResponse::_handleDeleteMethod()
+{
+  Resource resource(m_ResourcePath.c_str());
+  bool  removed = resource.remove();
+
+  if (removed)
+    m_StatusCode = NO_CONTENT;
+  else
+  {
+    setError(NOT_FOUND);
+    std::cout << "COULD NOT REMOVE RESOURCE" << std::endl;
+  }
 }
 
 // PATH TRAVERSAL
@@ -523,16 +552,20 @@ void HTTPResponse::setError(statusCode status) {
 void HTTPResponse::_processResource() {
   if (m_Request->getMethod() != GET)
     return setError(NOT_IMPLEMENTED);
-  if (_validFile(m_ResourcePath))
+
+  Resource resource(m_ResourcePath.c_str());
+  
+  if (resource.isFile() && resource.canRead())
     return;
-  if (_validDirectory(m_ResourcePath)) {
+  if (resource.validDirectory()) {
     if (m_ResourcePath[m_ResourcePath.length() - 1] != '/') {
       m_StatusCode = MOVED_PERMANENTLY;
       addHeader("location", m_Request->getPath() + "/");
       return;
     }
     std::string indexPath = m_ResourcePath + "index.html";
-    if (_validFile(indexPath)) {
+    resource = indexPath.c_str();
+    if (resource.isFile() && resource.canRead()) {
       m_ResourcePath = indexPath;
       return;
     } else if (m_Location->autoindex)
@@ -552,8 +585,8 @@ void HTTPResponse::_processCgiBody() {
   // std::cout << buff << std::endl;
   // std::cout << "read from cgi: " << rbytes  << " | " << buff << std::endl;
   if (rbytes > 0)
-    // HTTPParser::parseCgi(*this, buff, rbytes);
-    appendBody(buff, rbytes);
+    HTTPParser::parseCgi(*this, buff, rbytes);
+    // appendBody(buff, rbytes);
 
   if (rbytes < 8192 && m_CgiDone)
   {
@@ -572,7 +605,6 @@ void HTTPResponse::_processBody() {
     _readFileToBody(m_ResourcePath);
   m_State = PROCESS_HEADERS;
 }
-
 
 void HTTPResponse::_writeToCgi()
 {

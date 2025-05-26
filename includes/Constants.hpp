@@ -15,7 +15,7 @@
 // #include "Location.hpp"
 // #include "ConfigServer.hpp"
 
-#define DEFAULT_PATH "./Config/default.yml"
+#define DEFAULT_PATH "./config/default.yml"
 
 struct MethodPair {
   const char *name;

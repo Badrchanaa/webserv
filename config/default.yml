@@ -1,3 +1,4 @@
+
 server:
  host: 127.0.0.1
  port: 4000
@@ -47,4 +48,15 @@ server:
    cgi:
      - .py: /usr/bin/python3
      - .php: /usr/bin/php-cgi
+
+ location:
+   uri: /
+   upload: uploads
+   methods:
+     - POST
+     - GET
+     - DELETE
+   root: www
+   autoindex: on
+   index: index.html
 

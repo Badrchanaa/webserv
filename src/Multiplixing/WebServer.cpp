@@ -375,24 +375,8 @@ bool WebServer::handle_client_response(Connection &conn) {
     bool shouldDelete = false;
     int cgi_fd = response.getCgiFd();
     HTTPResponse::pollState state = response.getPollState();
-
-    // if (conn.cgiEvent && state == HTTPResponse::SOCKET_WRITE)
-    // {
-    //   std::cout << "CGI Event but CONN in SOCKET_WRITE. Ignore" << std::endl;
-    //   return shouldDelete;
-    // }
     if (conn.cgiEvent && conn.events & EPOLLHUP)
-    {
-        // if (conn.cgi_Added)
-        // {
-        //   epoll.remove_fd(conn.cgi_Added, cgi_fd);
-        // }
-        // if (!conn.client_Added){
-        //   // std::cout << "hello 5" << std::endl;
-        //   epoll.add_fd(conn.client_Added, conn.client_fd, EPOLLIN | EPOLLOUT );
-        // }
         response.setCgiDone();
-    }
     else if (conn.cgiEvent) // if cgiEvent and Response in READ or WRITE
     {
       // std::cout << "CGI Events: " << epoll.format_events(conn.events)  << std::endl;

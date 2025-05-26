@@ -11,6 +11,7 @@
 #include "CGIHandler.hpp"
 #include "dirent.h"
 #include <string>
+
 // m_CgiFd
 class HTTPResponse: public HTTPMessage
 {
@@ -36,14 +37,17 @@ class HTTPResponse: public HTTPMessage
 		{
 			OK = 200,
 			CREATED = 201,
+			NO_CONTENT = 204,
 			MOVED_PERMANENTLY = 301,
 			BAD_REQUEST = 400,
 			FORBIDDEN = 403,
 			NOT_FOUND = 404,
+  			METHOD_NOT_ALLOWED = 405,
 			SERVER_ERROR = 500,
 			NOT_IMPLEMENTED = 501,
 			GATEWAY_TIMEOUT = 504,
 		}	statusCode;
+		typedef std::map<statusCode, const char *> status_map_t;
 	
 	public:
 		HTTPResponse( void );
@@ -121,11 +125,12 @@ class HTTPResponse: public HTTPMessage
 		return this->m_Cgi->pid;
 	}
 
-
 	private:
 		void	_readFileToBody(const std::string filename);
 		void	_processResource();
 		void	_processDirectoryListing();
+		void	_deleteResource();
+    	void	_handleDeleteMethod();
 		bool	_validDirectory(const std::string filename) const;
 		bool	_validFile(const std::string filename) const;
 		void	_sendHeaders();
@@ -134,12 +139,11 @@ class HTTPResponse: public HTTPMessage
 		void	_processHeaders();
 		const std::string  _getDefaultErrorFile() const;
 		void	_sendBody();
-		const std::string	_statusToString() const;
 		bool	_isCgiPath(const std::string path, const ConfigServer *configServer);
 		void	_initCgi(const std::string path, const CGIHandler &cgihandler, const ConfigServer *configServer);
 		void	_processErrorBody();
 		void	_processCgiBody();
-		void	_initBadRequest();
+		void	_normalizeResourcePath();
 	
 		// added by Regex-33
 		void setupCgiEnv(std::string &ScriptFileName);
@@ -164,6 +168,8 @@ class HTTPResponse: public HTTPMessage
 		bool				m_CgiDone;
 		bool				m_HasCgi;
 
+  		static const status_map_t _defaultPages;
+  		static const status_map_t _statusMap;
 		// int client_fd;
 
 };

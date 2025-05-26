@@ -1,27 +1,17 @@
 #include <iostream>
 
-class A
+std::string &getStatus()
 {
-	public:
-	A(){}
-	virtual void test() = 0;
-};
-
-class B: public A
-{
-	public:
-	void test()
-	{
-		std::cout << "this is a test" << std::endl;
-	}
-};
+	std::string	statusStr("404 Not Found");
+	return statusStr;
+}
 
 int main()
 {
-	B b;
+	std::string statusStr = getStatus();
+	const char *strc = statusStr.c_str();
+	long n = std::strtol(strc, NULL, 10);
 
-	A &a = b;
-
-	a.test();
+	std::cout << "n=" << n << std::endl;
 	return 0;
 }

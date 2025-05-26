@@ -3,28 +3,29 @@
 
 #include <string>
 
-/// @brief HTTP Request parsing state class.
+/// @brief HTTP Request/CGI parsing state class.
 class HTTPParseState
 {
 	public:
-		typedef	enum requestState
+		typedef	enum
 		{
 			//  request-line   = method SP request-target SP HTTP-version
-			REQ_LINE_START = 1,
-			REQ_LINE_METHOD = 2,
-			REQ_LINE_TARGET = 3,
-			REQ_LINE_HTTP = 4,
-			REQ_LINE_VERSION_MINOR = 5,
-			REQ_LINE_VERSION_DOT = 6,
-			REQ_LINE_VERSION_MAJOR = 7,
-			REQ_HEADER_CRLF = 8,
-			REQ_HEADER_FIELD = 9,
-			REQ_HEADER_VALUE = 10,
-			REQ_BODY_CRLF = 11,
-			REQ_BODY = 12,
-			REQ_DONE = 13,
-			REQ_ERROR = 14,
-		}		requestState;
+			PARSE_LINE_START = 1,
+			PARSE_LINE_METHOD = 2,
+			PARSE_LINE_TARGET = 3,
+			PARSE_LINE_HTTP = 4,
+			PARSE_LINE_VERSION_MINOR = 5,
+			PARSE_LINE_VERSION_DOT = 6,
+			PARSE_LINE_VERSION_MAJOR = 7,
+
+			PARSE_HEADER_CRLF = 8,
+			PARSE_HEADER_FIELD = 9,
+			PARSE_HEADER_VALUE = 10,
+			PARSE_BODY_CRLF = 11,
+			PARSE_BODY = 12,
+			PARSE_DONE = 13,
+			PARSE_ERROR = 14,
+		}		state_t;
 		typedef enum chunkState
 		{
 			CHUNK_SIZE = 0,
@@ -38,9 +39,9 @@ class HTTPParseState
 		HTTPParseState(void);
 		HTTPParseState(const HTTPParseState &other);
 		HTTPParseState& operator=(const HTTPParseState &other);
-		requestState	getState() const;
+		state_t			getState() const;
 		chunkState		getChunkState() const;
-		void			setState(HTTPParseState::requestState state);
+		void			setState(HTTPParseState::state_t state);
 		void			setChunkState(HTTPParseState::chunkState newState);
 		unsigned int	getReadBytes() const;
 		void			setReadBytes(unsigned int val);
@@ -50,7 +51,7 @@ class HTTPParseState
 		/// @brief advances parsing state to next state and resets read bytes counter to zero.
 		/// @param resetReadBytes
 		/// @return new state
-		requestState	advance(bool resetReadBytes=true);
+		state_t			advance(bool resetReadBytes=true);
 		bool			isComplete() const;
 		bool			isError() const;
 		void			appendHeaderField(const char *buff, size_t start, size_t end);
@@ -74,7 +75,7 @@ class HTTPParseState
 		std::string			m_HeaderValue;
 
 		char				m_PrevChar;
-		requestState		m_RequestState;
+		state_t				m_State;
 		char				m_Method[10];
 		unsigned int		m_ReadBytes;
 		std::string			m_ChunkSizeStr;

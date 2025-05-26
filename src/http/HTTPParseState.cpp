@@ -4,36 +4,36 @@
 #include <sstream>
 #include "http.hpp"
 
-HTTPParseState::HTTPParseState(void): m_PrevChar(LF), m_RequestState(REQ_LINE_START), m_ReadBytes(0), m_ChunkSizeStr(), m_chunkPos(0), m_ChunkState(CHUNK_SIZE)
+HTTPParseState::HTTPParseState(void): m_PrevChar(LF), m_State(PARSE_LINE_START), m_ReadBytes(0), m_ChunkSizeStr(), m_chunkPos(0), m_ChunkState(CHUNK_SIZE)
 {
 }
 
 HTTPParseState::HTTPParseState(const HTTPParseState &other)
 {
 	m_ReadBytes = other.m_ReadBytes;
-	m_RequestState = other.m_RequestState;
+	m_State = other.m_State;
 }
 
 HTTPParseState& HTTPParseState::operator=(const HTTPParseState &other)
 {
 	m_ReadBytes = other.m_ReadBytes;
-	m_RequestState = other.m_RequestState;
+	m_State = other.m_State;
 	return *this;
 }
 
 bool	HTTPParseState::isComplete() const
 {
-	return m_RequestState == REQ_DONE || m_RequestState == REQ_ERROR;
+	return m_State == PARSE_DONE || m_State == PARSE_ERROR;
 }
 
 bool	HTTPParseState::isError() const
 {
-	return m_RequestState == REQ_ERROR;
+	return m_State == PARSE_ERROR;
 }
 
-HTTPParseState::requestState	HTTPParseState::getState() const
+HTTPParseState::state_t	HTTPParseState::getState() const
 {
-	return m_RequestState;
+	return m_State;
 }
 
 std::string HTTPParseState::getHeaderField() const
@@ -74,9 +74,9 @@ void	HTTPParseState::clearHeader()
 	m_HeaderValue.clear();
 }
 
-void	HTTPParseState::setState(HTTPParseState::requestState state)
+void	HTTPParseState::setState(HTTPParseState::state_t state)
 {
-	m_RequestState = state;
+	m_State = state;
 }
 
 void	HTTPParseState::setReadBytes(unsigned int val)
@@ -142,7 +142,7 @@ void	HTTPParseState::appendChunkSize(char c)
 
 void	HTTPParseState::setError()
 {
-	m_RequestState = REQ_ERROR;
+	m_State = PARSE_ERROR;
 }
 
 bool	HTTPParseState::validateChunkSize()
@@ -161,13 +161,13 @@ unsigned int	HTTPParseState::getReadBytes() const
 	return m_ReadBytes;
 }
 
-HTTPParseState::requestState	HTTPParseState::advance(bool resetReadBytes)
+HTTPParseState::state_t	HTTPParseState::advance(bool resetReadBytes)
 {
 	if (resetReadBytes)
 		m_ReadBytes = 0;
-	if (m_RequestState != REQ_DONE && m_RequestState != REQ_ERROR)
-		m_RequestState = static_cast<requestState>(m_RequestState + 1);
-	return m_RequestState;
+	if (m_State != PARSE_DONE && m_State != PARSE_ERROR)
+		m_State = static_cast<state_t>(m_State + 1);
+	return m_State;
 }
 
 HTTPParseState::~HTTPParseState(void)

@@ -1,6 +1,19 @@
-#!/usr/bin/python3
+import cgi
 
-# import time;time.sleep(20);
-file = open("Makefile")
-for line in file.readlines():
-    print(line, flush=True)
+# Create instance of FieldStorage
+form = cgi.FieldStorage()
+
+# Get data from fields
+first_name = form.getvalue('first_name')
+last_name = form.getvalue('last_name')
+
+print ("Content-type:text/html\r")
+print("\r")
+print ("<html>")
+print ('<head>')
+print ("<title>Hello - Second CGI Program</title>")
+print ('</head>')
+print ('<body>')
+print ("<h2>Hello %s %s</h2>" % (first_name, last_name))
+print ('</body>')
+print ('</html>')

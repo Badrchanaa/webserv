@@ -16,18 +16,18 @@ const ConfigServer*	HTTPRequest::getServer() const
 
 bool	HTTPRequest::isError() const
 {
-	HTTPParseState::requestState state = m_ParseState.getState();
-	return state == HTTPParseState::REQ_ERROR;
+	HTTPParseState::state_t state = m_ParseState.getState();
+	return state == HTTPParseState::PARSE_ERROR;
 }
 
 void	HTTPRequest::onBodyDone()
 {
-	m_ParseState.setState(HTTPParseState::REQ_DONE);
+	m_ParseState.setState(HTTPParseState::PARSE_DONE);
 }
 
 void	HTTPRequest::onHeadersParsed()
 {
-	HeaderMap::const_iterator	it;
+	header_map_t::const_iterator	it;
 
 	// TODO: do not ignore request parameters!!
 	m_Uri = m_Path;
@@ -47,7 +47,7 @@ void	HTTPRequest::onHeadersParsed()
 		std::cout << "INVALID HOST" << std::endl;
 	m_ConfigServer = &(Config::getServerByName(m_ConfigServers, m_Headers["host"]));
 	if (m_Method == GET)
-		m_ParseState.setState(HTTPParseState::REQ_DONE);
+		m_ParseState.setState(HTTPParseState::PARSE_DONE);
 }
 
 bool	HTTPRequest::isMultipartForm() const
@@ -62,7 +62,7 @@ bool	HTTPRequest::isMultipartForm() const
 
 bool	HTTPRequest::_checkTransferChunked()
 {
-	HeaderMap::const_iterator	it;
+	header_map_t::const_iterator	it;
 	size_t						start;
 	size_t						end;
 	const std::string			chunkedStr = "chunked";
@@ -103,7 +103,7 @@ bool	HTTPRequest::_checkTransferChunked()
 bool	HTTPRequest::_validateHeaders()
 {
 	bool						isChunked;
-	HeaderMap::const_iterator	it;
+	header_map_t::const_iterator	it;
 	std::istringstream			iss;
 
 	it = m_Headers.find("host");
@@ -144,7 +144,7 @@ void	HTTPRequest::setMethod(const char *method_cstr)
 	std::string method(method_cstr);
 	/*
 		TODO: check if method in allowed methods
-	 		  otherwise set parseState to REQ_ERROR ? and status code to 501 not implemented
+	 		  otherwise set parseState to PARSE_ERROR ? and status code to 501 not implemented
 	*/
 	if (method == "GET")	
 		m_Method = GET;
