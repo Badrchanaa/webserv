@@ -571,34 +571,48 @@ bool WebServer::handle_client(Connection &conn) {
   isDeleted = false;
 
   std::cout << "ENTER HANDLE CLIENT fd: " << conn.client_fd << std::endl;
-  if (conn.events & EPOLL_ERRORS) {
+  if (conn.events & EPOLL_ERRORS)
+  {
   // std::cout << "IN HANDLE CLIENT ERROR fd: " << conn.client_fd << " events:" << this->epoll.format_events(conn.events) << std::endl;
     // int fd = this->getCgiFdBasedOnClientFd(conn.client_fd);
     cgi_fd = conn.m_Response.getCgiFd();
-    if (cgi_fd != -1 && conn.cgiEvent && (conn.events & EPOLLERR)) {
-      try{
+    // if (cgi_fd != -1 && conn.cgiEvent && (conn.events & EPOLLERR)) {
+    //   // try{
 
-      // this->epoll.remove_fd(cgi_fd);
-      conn.m_Response.cleanupCgi(true);
-      // close(cgi_fd);
-      conn.cgiEvent = false; 
-      }
-      catch(...)
-      {
-        DEBUG_LOG("error in handle_client remove_fd\n");
-      }
-      // mybe should set 0 on cgi_sock of response object
-    } 
-    if (conn.socketEvent) {
+    //   // this->epoll.remove_fd(cgi_fd);
+    //   conn.m_Response.setError(HTTPResponse::SERVER_ERROR);
+    //     if (conn.cgi_Added)
+    //     {
+    //       epoll.remove_fd(conn.cgi_Added, cgi_fd);
+    //     }
+    //     if (!conn.client_Added){
+    //       std::cout << "hello 5" << std::endl;
+    //       epoll.add_fd(conn.client_Added, conn.client_fd, EPOLLIN | EPOLLOUT );
+    //     }
+    //     else
+    //       epoll.mod_fd(conn.client_fd, EPOLLIN | EPOLLOUT );
+    //     conn.m_Response.cleanupCgi(true);
+    //     // close(cgi_fd);
+    //     conn.cgiEvent = false; 
+    //   // }
+    //   // catch(...)
+    //   // {
+    //   //   DEBUG_LOG("error in handle_client remove_fd\n");
+    //   // }
+    //   // mybe should set 0 on cgi_sock of response object
+    // } 
+    if (conn.socketEvent)
+    {
       // client_fd = conn.client_fd;
       // epoll.remove_fd(client_fd);
       conn.socketEvent = false; 
       // cleanup_connection(&conn);
       close_fds(conn);
-      return true;
+      isDeleted = true; // hadle errors don't forget
+      // return true;
+    return isDeleted; // hadle errors don't forget
     }
     // DEBUG_LOG("Connection closed by client (fd: " << cgi_fd << " | " << client_fd << ")" << this->epoll.format_events(conn.events));
-    // return isDeleted; // hadle errors don't forget
   }
 
   if (conn.m_State == Connection::REQUEST_PARSING &&

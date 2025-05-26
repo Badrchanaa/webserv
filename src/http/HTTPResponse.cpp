@@ -6,7 +6,7 @@
 
 HTTPResponse::HTTPResponse(void)
     : m_State(INIT), m_PollState(SOCKET_WRITE), m_CursorPos(0),
-      m_ConfigServer(NULL), m_Location(NULL), m_Cgi(NULL), m_CgiFd(0), m_CgiDone(false)
+      m_ConfigServer(NULL), m_Location(NULL), m_Cgi(NULL), m_CgiFd(0), m_CgiDone(false), m_HasCgi(false)
 {
   m_StatusCode = HTTPResponse::OK;
 	m_ParseState.setReadBytes(0);
@@ -92,7 +92,7 @@ void HTTPResponse::setupCgiEnv() {
   setenv("SCRIPT_FILENAME", "./hello.php", 1);
   setenv("SCRIPT_PATH", "/home/bchanaa/Desktop/webserv/www/app/cgi-bin/", 1);
 
-  setenv("REQUEST_METHOD", "GET", 1);
+  setenv("REQUEST_METHOD", "POST", 1);
   setenv("DOCUMENT_ROOT", "/home/bchanaa/Desktop/webserv/www/", 1);
   setenv("QUERY_STRING", "name=value&foo=bar", 1);  // From URL after ?
   setenv("REQUEST_URI", "/orog?name=value&foo=bar", 1);  // From URL after ?
@@ -145,7 +145,10 @@ void HTTPResponse::_initCgi(const std::string path,
 
     m_Cgi = cgihandler.spawn(pathName, scriptName, static_cast<char **>(&this->env_ptrs[0]));
     if (m_Cgi)
+    {
+      m_HasCgi = true;
       setCgiFd(m_Cgi->cgi_sock);
+    }
     std::cout << "end init cgi" << std::endl;
     if (m_Request->getBody().getSize() > 0)
       m_PollState = CGI_WRITE;
@@ -251,7 +254,7 @@ bool HTTPResponse::isDone() const { return m_State == DONE; }
 
 bool HTTPResponse::isKeepAlive() const { return false; }
 
-bool HTTPResponse::hasCgi() const { return m_Cgi != NULL; }
+bool HTTPResponse::hasCgi() const { return m_HasCgi; }
 
 HTTPResponse::statusCode HTTPResponse::getStatus() { return OK; }
 
@@ -546,6 +549,12 @@ void HTTPResponse::_processBody() {
 
 void HTTPResponse::_writeToCgi()
 {
+  if (m_CgiDone)
+  {
+    m_State = PROCESS_HEADERS;
+    m_PollState = SOCKET_WRITE;
+    return ;
+  }
   HTTPBody &body = m_Request->getBody();
   ssize_t sent = m_Cgi->write(body);
   std::cout << "WROTE " << sent << " bytes to CGI" << std::endl;

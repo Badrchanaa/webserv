@@ -111,6 +111,7 @@ class HTTPResponse: public HTTPMessage
       if (m_Cgi) {
           m_Cgi->cleanup(error);
           m_Cgi = NULL;
+		  m_CgiDone = true;
       }
       m_CgiFd = -1;  
     }
@@ -159,8 +160,9 @@ class HTTPResponse: public HTTPMessage
 		const ConfigServer*	m_ConfigServer;
 		const Location*		m_Location;
 		CGIProcess*			m_Cgi;
-		int		m_CgiFd;
+		int					m_CgiFd;
 		bool				m_CgiDone;
+		bool				m_HasCgi;
 
 		// int client_fd;
 
