@@ -67,6 +67,8 @@ private:
   std::map<int, std::vector<ConfigServer> >
       listener_map; /* Maps listener FDs to their config*/
 
+  static WebServer* instance;
+
 public:
   WebServer(const char *FileCofig);
   ~WebServer();
@@ -97,8 +99,11 @@ public:
   Connection &getClientConnection(int fd, uint32_t events);
   int getCgiFdBasedOnClientFd(int client_fd);
   bool try_attach_to_existing_listener(const ConfigServer& new_server, int port);
-  static int  sig_interrupt_handler();
+  // static int  sig_interrupt_handler();
 
+  static void sig_interrupt_handler(int signum);
+  void setupSignalHandler();
+  void handle_sigint(int signum);
 };
 
 #endif // !_test__

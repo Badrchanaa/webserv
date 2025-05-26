@@ -659,5 +659,8 @@ bool HTTPResponse::resume(bool isCgiReady, bool isClientReady) {
 // HTTPResponse::~HTTPResponse(void) {}
 HTTPResponse::~HTTPResponse() {
   if (m_Cgi)
+  {
     m_Cgi->cleanup(false);
+    delete m_Cgi;
+  }
 }
