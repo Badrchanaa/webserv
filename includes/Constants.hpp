@@ -15,6 +15,7 @@
 // #include "Location.hpp"
 // #include "ConfigServer.hpp"
 
+#define WEBSERVER_NAME "WebServ 1.0"
 #define DEFAULT_PATH "./config/default.yml"
 
 struct MethodPair {

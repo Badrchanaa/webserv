@@ -14,7 +14,7 @@
 #include <list>
 #include <map>
 #include <netdb.h>
-#include <signal.h>
+#include <csignal>
 #include <string>
 #include <sys/epoll.h>
 #include <sys/socket.h>

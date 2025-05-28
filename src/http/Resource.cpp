@@ -2,8 +2,8 @@
 #include <iostream>
 #include <string>
 #include <cstdio>
-#include <errno.h>
-#include <string.h>
+#include <cerrno>
+#include <cstring>
 #include <sys/stat.h>
 
 Resource::Resource(void) {}

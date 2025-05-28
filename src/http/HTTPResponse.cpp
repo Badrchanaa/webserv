@@ -47,6 +47,7 @@ HTTPResponse::HTTPResponse(void)
     : m_State(INIT), m_PollState(SOCKET_WRITE), m_CursorPos(0),
       m_ConfigServer(NULL), m_Location(NULL), m_Cgi(NULL), m_CgiFd(0), m_CgiDone(false), m_HasCgi(false)
 {
+  addHeader("server", WEBSERVER_NAME);
   m_StatusCode = HTTPResponse::OK;
 	m_ParseState.setReadBytes(0);
 	m_ParseState.setPrevChar(0);
@@ -260,10 +261,7 @@ void  HTTPResponse::_normalizeResourcePath()
 {
   const std::string &requestPath = m_Request->getPath();
 
-  if (m_Location->uri != "/")
-    m_ResourcePath = m_Location->root + m_Location->uri + requestPath;
-  else
-    m_ResourcePath = m_Location->root + requestPath;
+  m_ResourcePath = m_Location->root + requestPath;
   if (m_ResourcePath[0] == '/')
     m_ResourcePath = "." + m_ResourcePath;
   else
@@ -317,6 +315,11 @@ void HTTPResponse::init(HTTPRequest &request,
   httpMethod requestMethod = request.getMethod();
   if (requestMethod == DELETE)
     _handleDeleteMethod();
+
+  if (requestMethod == POST)
+  {
+
+  }
 }
 
 void HTTPResponse::reset() { return; }
@@ -361,7 +364,8 @@ void HTTPResponse::_sendHeaders() {
 void HTTPResponse::_processHeaders() {
   int statusCode;
 
-  addHeader("content-length", m_Body.getSize());
+  if (m_Body.getSize() > 0)
+    addHeader("content-length", m_Body.getSize());
   statusCode = static_cast<int>(m_StatusCode);
   if (m_StatusString.empty())
   {
@@ -484,8 +488,8 @@ void HTTPResponse::_processErrorBody()
   if (!file.exists() || !file.canRead())
   {
     std::string body;
-    body = "<html><body><h1>Unexpected error";
-    body += "</h1><p>(Default WebServ Error Page)</body></html>";
+    body = "<html><body><h1>Unexpected error</h1>";
+    body += "<p>Unexpected error occured -- (Default WebServ Error Page)</p></body></html>";
     appendBody(body);
     return;
   } else
@@ -498,7 +502,11 @@ void  HTTPResponse::_handleDeleteMethod()
   bool  removed = resource.remove();
 
   if (removed)
+  {
+    m_State = PROCESS_HEADERS;
+    m_PollState = SOCKET_WRITE;
     m_StatusCode = NO_CONTENT;
+  }
   else
   {
     setError(NOT_FOUND);
@@ -513,8 +521,9 @@ void HTTPResponse::_processDirectoryListing() {
   std::string path;
 
   if (!m_Location->autoindex) {
-    m_StatusCode = FORBIDDEN;
-    return _processErrorBody();
+    // m_StatusCode = FORBIDDEN;
+    // return _processErrorBody();
+    setError(FORBIDDEN);
   }
   std::cout << "opening dir:" << m_ResourcePath << std::endl;
   dir = opendir(m_ResourcePath.c_str());

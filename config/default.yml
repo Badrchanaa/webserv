@@ -53,6 +53,7 @@ server:
 
  location:
    uri: /
+
    upload: uploads
    methods:
      - POST
@@ -61,4 +62,3 @@ server:
    root: www
      #autoindex: on
    index: index.html
-
