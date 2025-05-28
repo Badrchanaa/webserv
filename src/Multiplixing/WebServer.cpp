@@ -36,15 +36,113 @@ the queue, accept() fails with the error EAGAIN or EWOULDBLOCK.
 
 */
 
+WebServer* WebServer::instance = NULL;
+
+
+void cleanupListenerMap(std::map<int, std::vector<ConfigServer> > &listener_map) {
+    for (std::map<int, std::vector<ConfigServer> >::iterator it = listener_map.begin();
+         it != listener_map.end(); ++it) {
+        std::vector<ConfigServer> &servers = it->second;
+
+        for (std::vector<ConfigServer>::iterator vec_it = servers.begin();
+             vec_it != servers.end(); ++vec_it) {
+            vec_it->ports.clear();
+            vec_it->server_names.clear();
+            vec_it->errors.clear();
+
+            for (std::vector<Location>::iterator loc_it = vec_it->locations.begin();
+                 loc_it != vec_it->locations.end(); ++loc_it) {
+                loc_it->indexes.clear();
+                loc_it->cgi.clear();
+            }
+            vec_it->locations.clear();
+        }
+        servers.clear();
+    }
+    listener_map.clear();
+}
+
+
+void WebServer::sig_interrupt_handler(int signum) {
+    if (instance != NULL) {
+        instance->handle_sigint(signum);
+    }
+    delete instance;
+    std::cerr <<"No Connection, Cleanup completed. Exiting..." << std::endl;
+    exit(EXIT_FAILURE);
+    // throw std::runtime_error("No Connection, Cleanup completed. Exiting...\n");
+}
+
+
+
+void WebServer::handle_sigint(int signum) {
+    (void)signum;
+    std::cout << "Signal received, cleaning up..." << std::endl;
+    
+    // Set running to false to exit main loop
+    running = false;
+    
+    for (std::list<Connection *>::iterator it = connections.begin(); it != connections.end();) {
+        cleanup_connection(it);
+    }
+    connections.clear();
+
+    for (std::vector<FileDescriptor*>::iterator it = listener_descriptors.begin(); it != listener_descriptors.end(); ++it) {
+        if (*it) {
+            if ((*it)->fd > 0) {
+                bool flag = true;
+                epoll.remove_fd(flag, (*it)->fd);
+                close((*it)->fd);
+            }
+            delete *it;
+        }
+    }
+    listener_descriptors.clear();
+    cleanupListenerMap(listener_map);
+
+
+    for (std::vector<ConfigServer>::iterator it = config.getServers().begin(); 
+        it != config.getServers().end(); ++it) 
+    {
+        ConfigServer server = *it;
+        server.ports.clear();
+        server.server_names.clear();
+        server.errors.clear();
+
+        for (std::vector<Location>::iterator loc_it = server.locations.begin(); 
+            loc_it != server.locations.end(); ++loc_it) 
+        {
+            loc_it->indexes.clear();
+            loc_it->cgi.clear();
+        }
+
+        server.locations.clear();
+    }
+    this->config.getServers().clear();
+    
+    if (epoll.epfd > 0) {
+        close(epoll.epfd);
+        epoll.epfd = -1;
+    }
+    
+    // exit(0);
+    // throw std::runtime_error("Cleanup completed. Exiting...\n");
+}
+
+void WebServer::setupSignalHandler() {
+    signal(SIGINT, WebServer::sig_interrupt_handler);
+    signal(SIGTERM, WebServer::sig_interrupt_handler);
+    signal(SIGPIPE, SIG_IGN); // Ignore broken pipe signals
+}
+
+
+
 bool WebServer::try_attach_to_existing_listener(const ConfigServer &new_server,
                                                 int port) {
   typedef std::map<int, std::vector<ConfigServer> > ListenerMap;
 
   for (ListenerMap::iterator it = listener_map.begin();
        it != listener_map.end(); ++it) {
-    // int s = 0;
-    // std::cout << "MapSize : " << listener_map.size() <<  "[First] -> " <<
-    // it->first  << std::endl;
     const int existing_fd = it->first;
     struct sockaddr_storage addr;
     socklen_t addr_len = sizeof(addr);
@@ -192,31 +290,60 @@ void WebServer::create_listeners() {
   if (listener_map.empty()) {
     throw std::runtime_error("All bind attempts failed");
   }
+
 }
 WebServer::~WebServer() {
-  for (std::vector<FileDescriptor *>::iterator it =
-           listener_descriptors.begin();
-       it != listener_descriptors.end(); ++it) {
+  // for (std::vector<FileDescriptor *>::iterator it =
+  //          listener_descriptors.begin();
+  //      it != listener_descriptors.end(); ++it) {
+  //   delete *it;
+  // }
+  for (std::vector<FileDescriptor *>::iterator it = listener_descriptors.begin();
+        it != listener_descriptors.end(); ++it) {
+      if ((*it)->fd > 0) {
+          bool flag = true;
+          epoll.remove_fd(flag, (*it)->fd); // Remove from epoll first
+          close((*it)->fd);
+          (*it)->fd = -1;
+      }
     delete *it;
   }
-  // for (std::list<Connection *>::iterator it = connections.begin();
-  //      it != connections.end(); ++it) {
-  //   delete *it;
-  //   this->connections.erase(it);
-  // }
+  for (std::list<Connection *>::iterator it = connections.begin();
+       it != connections.end();) {
+    this->connections.erase(it);
+  }
+  if (epoll.epfd > 0) {
+      close(epoll.epfd);
+      epoll.epfd = -1;
+  }
 }
 
+// WebServer::WebServer(const char *FileCofig) : running(true) {
+//   config.creatDefaultServer();
+//   config.ParseConfigFile(FileCofig);
+//   std::cout << "===========================================================" << std::endl;
+//   this->config.printServersWithLocations();
+//   std::cout << "===========================================================" << std::endl;
+//   std::cout << "ServersNumber : " << config.ServersNumber() << std::endl;
+//   DEBUG_LOG("Initializing web server...");
+//   create_listeners();
+//   this->cgi.epoll_fd = this->epoll.epfd;
+//   DEBUG_LOG("Server initialized. Entering main event loop.");
+// }
 WebServer::WebServer(const char *FileCofig) : running(true) {
-  config.creatDefaultServer();
-  config.ParseConfigFile(FileCofig);
-  std::cout << "===========================================================" << std::endl;
-  this->config.printServersWithLocations();
-  std::cout << "===========================================================" << std::endl;
-  std::cout << "ServersNumber : " << config.ServersNumber() << std::endl;
-  DEBUG_LOG("Initializing web server...");
-  create_listeners();
-  this->cgi.epoll_fd = this->epoll.epfd;
-  DEBUG_LOG("Server initialized. Entering main event loop.");
+    if (instance)
+        throw std::runtime_error("Instance Already Exists !");
+    instance = this;
+    config.creatDefaultServer();
+    config.ParseConfigFile(FileCofig);
+    std::cout << "===========================================================" << std::endl;
+    this->config.printServersWithLocations();
+    std::cout << "===========================================================" << std::endl;
+    std::cout << "ServersNumber : " << config.ServersNumber() << std::endl;
+    DEBUG_LOG("Initializing web server...");
+    create_listeners();
+    this->cgi.epoll_fd = this->epoll.epfd;
+    DEBUG_LOG("Server initialized. Entering main event loop.");
 }
 
 
@@ -629,13 +756,6 @@ void WebServer::log_connection(const struct sockaddr_storage &addr) {
 }
 
 
-// void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
-//   Connection *connection = *it;
-//
-//
-//   delete connection;
-//   it = connections.erase(it);
-// }
 
 void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
     Connection *conn = *it;
@@ -652,30 +772,39 @@ void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
         close(conn->m_Response.getCgiFd());
         if  (conn->m_Response.getCGIProcessPid() > 0)
           kill(conn->m_Response.getCGIProcessPid(), SIGKILL);
+        if (conn->m_Response.getCGIProcess())
+          delete conn->m_Response.getCGIProcess();
     }
     delete conn;
     it = connections.erase(it);
 }
 
 int main(int argc, char **argv) {
-  try {
-    if (argc != 2){
-      WebServer server(DEFAULT_PATH);
-      server.run();
+    WebServer *server = NULL;
+    try {
+        if (argc != 2) {
+            server = new WebServer(DEFAULT_PATH);
+        } else {
+            server = new WebServer(argv[1]);
+        }
+        
+        server->setupSignalHandler();
+        server->run();
+
+        delete server;
+        
+    } catch (const std::exception &e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        delete server;
+        return EXIT_FAILURE;
+    } catch (const std::runtime_error &e) {
+        std::cerr << "Runtime Error: " << e.what() << std::endl;
+        delete server;
+        return EXIT_FAILURE;
+    } catch (...) {
+        std::cerr << "SOMETHING WENT WRONG" << std::endl;
+        delete server;
+        return EXIT_FAILURE;
     }
-    else{
-      WebServer server(argv[1]);
-      server.run();
-    }
-  } catch (const std::exception &e) {
-    std::cerr << "Error: " << e.what() << std::endl;
-    return EXIT_FAILURE;
-  } catch (const std::runtime_error &e) {
-    std::cerr << "RUntime Error: " << e.what() << std::endl;
-    return EXIT_FAILURE;
-  } catch (...) {
-    std::cerr << "SOMETHING WENT WRONG" << std::endl;
-    return EXIT_FAILURE;
-  }
-  return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }

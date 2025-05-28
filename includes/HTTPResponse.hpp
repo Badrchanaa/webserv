@@ -77,6 +77,7 @@ class HTTPResponse: public HTTPMessage
 		// get response status
 		statusCode	getStatus();
 
+
 		// use it to manage epoll events for this response, socket or cgi.
 		pollState		getPollState() const;
 		void			setCgiDone()
@@ -114,7 +115,7 @@ class HTTPResponse: public HTTPMessage
     void cleanupCgi(bool error) {
       if (m_Cgi) {
           m_Cgi->cleanup(error);
-          m_Cgi = NULL;
+        //   m_Cgi = NULL;
 		  m_CgiDone = true;
       }
       m_CgiFd = -1;  
@@ -123,6 +124,9 @@ class HTTPResponse: public HTTPMessage
 		// added by Regex-33
 	pid_t getCGIProcessPid() const {
 		return this->m_Cgi->pid;
+	}
+	CGIProcess *getCGIProcess(){
+		return this->m_Cgi;
 	}
 
 	private:

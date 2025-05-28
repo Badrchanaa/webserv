@@ -32,10 +32,9 @@ CGIProcess *CGIHandler::spawn(std::string &pathName, std::string &scriptName, ch
 
 void CGIHandler::setup_child(int sock, std::string &pathName, std::string &scriptName, char **env) const
 {
-  sighandler_t handler;
 
-  handler = SIG_IGN;
-  signal(SIGINT, handler);
+  if (signal(SIGINT, SIG_IGN) == SIG_ERR)
+    return (perror("signal"), exit(EXIT_FAILURE));
   if (dup2(sock, STDIN_FILENO) == -1 || dup2(sock, STDOUT_FILENO) == -1) {
       std::cerr << "dup2 failed: " << strerror(errno) << std::endl;
       exit(EXIT_FAILURE);

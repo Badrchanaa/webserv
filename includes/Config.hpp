@@ -25,7 +25,6 @@ private:
   Location currentLocation;
   std::string context;
   bool inServer;
-
   // # ===============================
   void ResetParsingState();
   void ProcessLines(std::ifstream &infile);
@@ -96,6 +95,10 @@ public:
   // void ProcessIndexValue(const std::string &value);
   void creatDefaultServer();
   void printServersWithLocations() const;
+  std::vector<ConfigServer> &getServers() {
+    return servers;
+  }
+
 };
 
 #endif // !DEBUG
