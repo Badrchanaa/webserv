@@ -26,7 +26,7 @@ struct MethodPair {
 const std::string server_keys_arr[] = {"host", "timeout",  "port",   "server_name", "body_size", "errors", "location"};
 const std::set<std::string> SERVER_KEYS(server_keys_arr, server_keys_arr + sizeof(server_keys_arr) / sizeof(std::string));
 
-const std::string location_keys_array[] = { "index", "uri", "root", "methods", "methods_cgi", "autoindex", "upload", "cgi", "cgi_uri"};
+const std::string location_keys_array[] = { "redirection", "index", "uri", "root", "methods", "methods_cgi", "autoindex", "upload", "cgi", "cgi_uri"};
 
 const std::set<std::string> LOCATION_KEYS(location_keys_array, location_keys_array + sizeof(location_keys_array) / sizeof(std::string));
 

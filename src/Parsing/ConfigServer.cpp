@@ -5,12 +5,17 @@
 ConfigServer::~ConfigServer() {}
 
 
-const Location& ConfigServer::getLocation(const std::string& path) const {
+const Location* ConfigServer::getLocation(const std::string& path) const {
     const Location* bestMatch = NULL;
+    const Location* defaultLocation = NULL;
     size_t maxLength = 0;
 
     for (std::vector<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
         const Location& loc = *it;
+
+        if (loc.uri == "/") {
+            defaultLocation = &loc;
+        }
 
         if (path.find(loc.uri) == 0 && loc.uri.length() > maxLength) {
             maxLength = loc.uri.length();
@@ -19,33 +24,14 @@ const Location& ConfigServer::getLocation(const std::string& path) const {
     }
 
     if (!bestMatch) {
-        std::cout << "[getLocation] No exact match. Falling back to last location: "
-                  << locations[locations.size() - 1].uri << std::endl;
-        return locations[locations.size() - 1];
+        if (defaultLocation) {
+            std::cout << "[getLocation] No match found. Falling back to default location: /" << std::endl;
+            return defaultLocation;
+        } else {
+            std::cout << "[getLocation] No matching location and no default location found." << std::endl;
+            return NULL;
+        }
     }
 
-    return *bestMatch;
+    return bestMatch;
 }
-
-
-
-// const Location &ConfigServer::getLocation(const std::string &path) const {
-// const Location *bestMatch = NULL;
-// size_t maxLength = 0;
-
-// return locations[locations.size() - 1];
-// for (std::vector<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
-// const Location &loc = *it;
-// // return loc;
-// // i have some mistiks with this uri  don't forget about it
-// if (path.find(loc.uri) == 0 && loc.uri.length() > maxLength) {
-//     maxLength = loc.uri.length();
-//     bestMatch = &loc;
-// } }
-// if (!bestMatch) {
-// std::cout << "location uri form getLocation function :: "
-//             << locations[locations.size() - 1].uri << std::endl;
-// return locations[locations.size() - 1];
-// }
-// return *bestMatch;
-// }

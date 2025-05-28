@@ -26,6 +26,7 @@ struct Location {
   bool autoindex;
   std::string upload;
   std::string cgi_uri;
+  std::string redirection;
   std::vector<std::string> indexes;
   std::map<std::string, std::string> cgi;
   unsigned int allowed_methods;
@@ -39,6 +40,10 @@ struct Location {
   bool fileExists(const std::string& path) const;
   std::string getIndexPath(const std::string &path) const;
   bool isValidFormat(const std::string& filename);
+
+  bool hasRedirection() const;
+  std::string getRedirection() const;
+  void parseRedirectionValue(const std::string &value);
 };
 
 

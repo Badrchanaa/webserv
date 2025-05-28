@@ -33,6 +33,7 @@ server:
  #   uri: /
  location:
    uri: /app
+   redirection: /home
    upload: uploads
    methods:
      - POST

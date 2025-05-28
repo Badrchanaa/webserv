@@ -24,7 +24,8 @@ struct ConfigServer {
   std::map<int, std::string> errors;
   std::vector<Location> locations;
 
-  const Location &getLocation(const std::string &path) const;
+  const Location *getLocation(const std::string &path) const;
+  // const Location &getLocation(const std::string &path) const;
   ~ConfigServer();
 };
 #endif // !DEBUG

@@ -73,6 +73,33 @@ void Location::parseValidIndexes(const std::string& indexLine) {
 
 }
 
+void Location::parseRedirectionValue(const std::string &value){
+    if (value.empty())
+        throw std::runtime_error("Redirection Value is Empty\n");
+
+    for (size_t i = 0; i < value.length(); ++i) {
+        if (value[i] == ' ' || value[i] == '\t')
+            throw std::runtime_error("Invalid Redirection Value: " + value + "\n");
+    }
+
+    if (value[0] == '/')
+        this->redirection = value;
+    else if (value.compare(0, 7, "http://") == 0 || value.compare(0, 8, "https://") == 0)
+        this->redirection = value;
+    else 
+        throw std::runtime_error("Redirection Value " + value + " Should Start: / https://url http://url\n");
+}
+
+bool Location::hasRedirection() const {
+    return (!this->redirection.empty());
+}
+
+std::string Location::getRedirection() const{
+    return this->redirection;
+}
+
+
+
 // std::string getIndexPath(const std::string &path) const {
 //   if (this->index.empty())
 //     return path;

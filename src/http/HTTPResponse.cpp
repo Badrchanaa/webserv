@@ -285,7 +285,7 @@ void HTTPResponse::init(HTTPRequest &request,
     std::cout << "NOT A SAFE PATH" << std::endl;
     return setError(NOT_FOUND);
   }
-  m_Location = &configServer->getLocation(request.getPath());
+  m_Location = configServer->getLocation(request.getPath());
   
   if (request.isError())
     return setError(BAD_REQUEST);
