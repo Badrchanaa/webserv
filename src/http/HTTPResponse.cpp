@@ -560,7 +560,7 @@ void HTTPResponse::_processResource() {
   if (resource.validDirectory()) {
     if (m_ResourcePath[m_ResourcePath.length() - 1] != '/') {
       m_StatusCode = MOVED_PERMANENTLY;
-      addHeader("location", m_ResourcePath + "/");
+      addHeader("location", m_Request->getPath() + "/");
       return;
     }
     std::string indexPath = m_ResourcePath + "index.html";
