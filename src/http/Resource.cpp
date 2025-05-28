@@ -1,7 +1,6 @@
 #include "Resource.hpp"
 #include <iostream>
 #include <string>
-#include <unistd.h>
 #include <cstdio>
 #include <errno.h>
 #include <string.h>
@@ -9,10 +8,10 @@
 
 Resource::Resource(void) {}
 
-Resource::Resource(const char *path): m_Path(path)
+Resource::Resource(const char *path, int perms): m_Path(path), m_Exist(false), m_Perm(0), m_CheckedPerms(0), m_Type(Resource::UNKNOWN)
 {
 	std::cout << "NEW RESOURCE: " << m_Path << std::endl;
-	_checkPermissions();
+	_checkPermissions(perms);
 }
 
 std::string	Resource::getPath() const
@@ -43,44 +42,65 @@ bool			Resource::validDirectory() const
 
 bool			Resource::exists() const
 {
-	return m_Perm & F_OK;
+	return m_Exist;
 }
 
-bool			Resource::canRead() const
+bool			Resource::canRead()
 {
-	return exists() && m_Perm & R_OK;
+	if (!exists())
+		return false;
+	if (m_CheckedPerms & READ_PERM)
+		return m_Perm & READ_PERM;
+	m_CheckedPerms |= READ_PERM;
+	if (access(m_Path.c_str(), R_OK) == 0)
+		m_Perm |= READ_PERM;
+	return m_Perm & READ_PERM;
 }
 
 bool			Resource::canWrite()
 {
 	if (!exists())
 		return false;
-	if (m_IsWriteChecked)
+	if (m_CheckedPerms & WRITE_PERM)
 		return m_Perm & WRITE_PERM;
-	m_IsWriteChecked = true;
+	m_CheckedPerms |= WRITE_PERM;
 	if (access(m_Path.c_str(), W_OK) == 0)
 		m_Perm |= WRITE_PERM;
 	return m_Perm & WRITE_PERM;
 }
 
-bool			Resource::canExecute() const
+bool			Resource::canExecute()
 {
-	return exists() && m_Perm & X_OK;
+	if (!exists())
+		return false;
+	if (m_CheckedPerms & EXEC_PERM)
+		return m_Perm & EXEC_PERM;
+	m_CheckedPerms |= EXEC_PERM;
+	if (access(m_Path.c_str(), X_OK) == 0)
+		m_Perm |= EXEC_PERM;
+	return m_Perm & EXEC_PERM;
 }
 
-void		Resource::_checkPermissions()
+void		Resource::_checkPermissions(int perms)
 {
 	std::cout << "ENTER CHECK PERMISSIONS" << std::endl;
 	struct stat fileStat;
 	const char	*path = m_Path.c_str();
 
 	// int deniedPerms = access(path, F_OK);
-	if (access(path, F_OK) == 0)
-		m_Perm |= F_OK;
-	if (access(path, R_OK) == 0)
-		m_Perm |= R_OK;
-	if (access(path, X_OK) == 0)
-		m_Perm |= X_OK;
+	if (access(path, F_OK) != 0)
+	{
+		m_CheckedPerms = ALL_PERMS;
+		return;
+	}
+	m_Exist = true;
+	if (perms & WRITE_PERM && access(path, WRITE_PERM) == 0)
+		m_Perm |= WRITE_PERM;
+	if (perms & READ_PERM && access(path, READ_PERM) == 0)
+		m_Perm |= READ_PERM;
+	if (perms & EXEC_PERM && access(path, EXEC_PERM) == 0)
+		m_Perm |= EXEC_PERM;
+	m_CheckedPerms |= perms;
 	if (stat(path, &fileStat) == -1)
 	{
 		std::cout << "ERRNO: " << strerror(errno) << std::endl;

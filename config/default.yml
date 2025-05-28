@@ -57,6 +57,6 @@ server:
      - GET
      - DELETE
    root: www
-   autoindex: on
+     #autoindex: on
    index: index.html
 

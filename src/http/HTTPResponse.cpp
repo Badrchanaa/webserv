@@ -560,7 +560,7 @@ void HTTPResponse::_processResource() {
   if (resource.validDirectory()) {
     if (m_ResourcePath[m_ResourcePath.length() - 1] != '/') {
       m_StatusCode = MOVED_PERMANENTLY;
-      addHeader("location", m_Request->getPath() + "/");
+      addHeader("location", m_ResourcePath + "/");
       return;
     }
     std::string indexPath = m_ResourcePath + "index.html";
@@ -571,7 +571,7 @@ void HTTPResponse::_processResource() {
     } else if (m_Location->autoindex)
       _processDirectoryListing();
     else
-      setError(NOT_FOUND);
+      setError(FORBIDDEN);
   } else
     setError(NOT_FOUND);
 }
