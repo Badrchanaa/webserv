@@ -44,28 +44,19 @@ void	HTTPRequest::_checkMultipart()
 		return ;
 	std::string contentType = getHeader("content-type");
 	std::string::size_type pos = contentType.find(';');
-	std::string type = contentType.substr(0, pos);
-	type = type.substr();
-	if (type != "multipart/form-data")
+	if (contentType.substr(0, pos) != "multipart/form-data")
 		return ;
-	std::map<std::string, std::string>	mediaTypes; 
-	std::string name, value;
+	std::map<std::string, std::string> mediaTypes; 
 	std::string::size_type sepPos;
 	while (pos != std::string::npos)
 	{
 		contentType = contentType.substr(pos + 1, std::string::npos);
 		sepPos = contentType.find('=', 0);
 		if (sepPos == std::string::npos)
-			return m_ParseState.setError();
-		name = contentType.substr(0, sepPos);
-		value = contentType.substr(sepPos + 1, pos);
-		pos = contentType.find(';', pos);
+			break ;
+		pos = contentType.find(';', 0);
+		mediaTypes[contentType.substr(0, sepPos)] = contentType.substr(sepPos + 1, pos - sepPos - 1);
 	}
-	sepPos = contentType.find('=', 0);
-	if (sepPos == std::string::npos)
-		return;
-	name = contentType.substr(0, sepPos);
-	value = contentType.substr(sepPos + 1, pos);
 }
 
 void	HTTPRequest::onHeadersParsed()
