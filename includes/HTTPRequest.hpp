@@ -44,6 +44,7 @@ class HTTPRequest: public HTTPMessage
 		const ConfigServer*	getServer() const;
 		void				reset();
 		virtual void		onHeadersParsed();
+		void				_checkMultipart();
 		virtual void		onBodyDone();
 
 		// added by regex 

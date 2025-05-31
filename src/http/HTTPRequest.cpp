@@ -25,6 +25,16 @@ void	HTTPRequest::onBodyDone()
 	m_ParseState.setState(HTTPParseState::PARSE_DONE);
 }
 
+void	HTTPRequest::_checkMultipart()
+{
+	if (!hasHeader("content-type"))
+		return ;
+	std::string contentType = getHeader("content-type");
+	std::string::size_type pos = contentType.find(';');
+	if (pos == std::string::npos)
+		return ;
+}
+
 void	HTTPRequest::onHeadersParsed()
 {
 	header_map_t::const_iterator	it;
@@ -39,6 +49,8 @@ void	HTTPRequest::onHeadersParsed()
 		std::cout << "REQUEST PATH: " << m_Path << std::endl;
 		std::cout << "REQUEST QUERY: " << m_Query << std::endl;
 	}
+	if (m_Method == GET)
+		return m_ParseState.setState(HTTPParseState::PARSE_DONE);
 	if (!this->_validateHeaders())
 		m_ParseState.setError();
 	if (m_Error == ERR_INVALID_CONTENT_LENGTH)
@@ -46,8 +58,7 @@ void	HTTPRequest::onHeadersParsed()
 	if (m_Error == ERR_INVALID_HOST)
 		std::cout << "INVALID HOST" << std::endl;
 	m_ConfigServer = &(Config::getServerByName(m_ConfigServers, m_Headers["host"]));
-	if (m_Method == GET)
-		m_ParseState.setState(HTTPParseState::PARSE_DONE);
+	_checkMultipart();
 }
 
 bool	HTTPRequest::isMultipartForm() const

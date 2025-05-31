@@ -39,6 +39,10 @@ void CGIHandler::setup_child(int sock, std::string &pathName, std::string &scrip
       std::cerr << "dup2 failed: " << strerror(errno) << std::endl;
       exit(EXIT_FAILURE);
   }
+  if (dup2(sock, STDERR_FILENO) == -1) {
+      std::cerr << "dup3 failed: " << strerror(errno) << std::endl;
+      exit(EXIT_FAILURE);
+  }
 
   std::string script_path(scriptName);
   size_t last_slash = scriptName.find_last_of('/');
