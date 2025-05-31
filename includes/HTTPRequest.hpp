@@ -33,9 +33,9 @@ class HTTPRequest: public HTTPMessage
 		void				setMethod(const char *method_cstr);
 		httpMethod			getMethod() const;
 		const char*			getMethodStr() const;
-		void				appendToPath(const char *buff, size_t start, size_t len);
+		void				appendUri(const char *buff, size_t start, size_t len);
 		// bool				appendBody(const char *buff, size_t len);
-		bool				validPath();
+		bool				validUri();
 		// std::string			getBodyStr() const;
 		const std::string&	getPath() const;
 		const std::string&	getUri() const;
@@ -44,7 +44,6 @@ class HTTPRequest: public HTTPMessage
 		const ConfigServer*	getServer() const;
 		void				reset();
 		virtual void		onHeadersParsed();
-		void				_checkMultipart();
 		virtual void		onBodyDone();
 
 		// added by regex 
@@ -52,6 +51,8 @@ class HTTPRequest: public HTTPMessage
 			return this->m_Query;
 		}
 	private:
+		void				test();
+		void				_checkMultipart();
 		bool				_checkTransferChunked();
 		bool				_validateHeaders();
 		bool				_preBody();

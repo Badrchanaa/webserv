@@ -25,27 +25,58 @@ void	HTTPRequest::onBodyDone()
 	m_ParseState.setState(HTTPParseState::PARSE_DONE);
 }
 
+void	HTTPRequest::test()
+{
+	std::string contentType = getHeader("content-type");
+	std::string::size_type pos = contentType.find(';');
+	std::string type = contentType.substr(0, pos);
+	type = type.substr();
+	if (type != "multipart/form-data")
+		return ;
+	std::map<std::string, std::string>	mediaTypes; 
+	std::string name, value;
+	std::string::size_type sepPos;
+}
+
 void	HTTPRequest::_checkMultipart()
 {
 	if (!hasHeader("content-type"))
 		return ;
 	std::string contentType = getHeader("content-type");
 	std::string::size_type pos = contentType.find(';');
-	if (pos == std::string::npos)
+	std::string type = contentType.substr(0, pos);
+	type = type.substr();
+	if (type != "multipart/form-data")
 		return ;
+	std::map<std::string, std::string>	mediaTypes; 
+	std::string name, value;
+	std::string::size_type sepPos;
+	while (pos != std::string::npos)
+	{
+		contentType = contentType.substr(pos + 1, std::string::npos);
+		sepPos = contentType.find('=', 0);
+		if (sepPos == std::string::npos)
+			return m_ParseState.setError();
+		name = contentType.substr(0, sepPos);
+		value = contentType.substr(sepPos + 1, pos);
+		pos = contentType.find(';', pos);
+	}
+	sepPos = contentType.find('=', 0);
+	if (sepPos == std::string::npos)
+		return;
+	name = contentType.substr(0, sepPos);
+	value = contentType.substr(sepPos + 1, pos);
 }
 
 void	HTTPRequest::onHeadersParsed()
 {
 	header_map_t::const_iterator	it;
 
-	// TODO: do not ignore request parameters!!
-	m_Uri = m_Path;
-	size_t pos = m_Path.find('?');
+	size_t pos = m_Uri.find('?');
 	if (pos != std::string::npos)
 	{
-		m_Path = m_Path.substr(0, pos);
-		m_Query.assign(&m_Path[pos + 1]);
+		m_Path = m_Uri.substr(0, pos);
+		m_Query.assign(&m_Uri[pos + 1]);
 		std::cout << "REQUEST PATH: " << m_Path << std::endl;
 		std::cout << "REQUEST QUERY: " << m_Query << std::endl;
 	}
@@ -189,12 +220,12 @@ const char*	HTTPRequest::getMethodStr() const
 	}
 }
 
-bool	HTTPRequest::validPath()
+bool	HTTPRequest::validUri()
 {
-	// TODO: validate path correctly
-	if (m_Path[0] != '/')
-		return false;
-	return true;
+	// if (m_uri[0] != '/')
+	// 	return false;
+	// return true;
+	return m_Uri[0] == '/';
 }
 
 void	HTTPRequest::reset()
@@ -203,12 +234,12 @@ void	HTTPRequest::reset()
 	m_Headers.clear();
 }
 
-void	HTTPRequest::appendToPath(const char *buff, size_t start, size_t len)
+void	HTTPRequest::appendUri(const char *buff, size_t start, size_t len)
 {
-	std::cout << "APPENDING TO PATH: start: " << start << " len: " << len << std::endl;
+	// std::cout << "APPENDING TO PATH: start: " << start << " len: " << len << std::endl;
 	for (size_t i = start; i < len; i++)
 	{
-		m_Path += buff[i];
+		m_Uri += buff[i];
 	}
 	// m_Path.append(buff + start, 0, len - start);
 }

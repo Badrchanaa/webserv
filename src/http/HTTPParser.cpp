@@ -86,7 +86,6 @@ size_t	HTTPParser::_parseMethod(HTTPRequest &request, char *buff, size_t start, 
 	parseState.setReadBytes(methodSize);
 	if (i == len)
 		return i;
-	// TODO: add constant for max method size
 	if (buff[i] != SP || methodSize > HTTPParser::MAX_METHOD_SIZE)
 	{
 		// std::cout << "method error (not SP || size > MAX_METHOD), i: " << i << std::endl;
@@ -107,7 +106,6 @@ size_t	HTTPParser::_parseTarget(HTTPRequest &request, char *buff, size_t start, 
 	unsigned int	targetSize = parseState.getReadBytes();
 	size_t	i = start;
 
-	// TODO: add constant for max target size
 	while (i < len && std::isprint(buff[i]) && targetSize < HTTPParser::MAX_REQUEST_LINE_SIZE)
 	{
 		if (buff[i] == SP)
@@ -117,7 +115,7 @@ size_t	HTTPParser::_parseTarget(HTTPRequest &request, char *buff, size_t start, 
 	}
 	if (i == len)
 	{
-		request.appendToPath(buff, start, i);
+		request.appendUri(buff, start, i);
 		parseState.setReadBytes(targetSize);
 		return i;
 	}
@@ -127,9 +125,9 @@ size_t	HTTPParser::_parseTarget(HTTPRequest &request, char *buff, size_t start, 
 		parseState.setState(HTTPParseState::PARSE_ERROR);
 		return i;
 	}
-	request.appendToPath(buff, start, i);
+	request.appendUri(buff, start, i);
 	parseState.setReadBytes(0);
-	if (!request.validPath())
+	if (!request.validUri())
 		parseState.setState(HTTPParseState::PARSE_ERROR);
 	else
 		parseState.setState(HTTPParseState::PARSE_LINE_HTTP);

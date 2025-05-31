@@ -20,7 +20,6 @@
 struct Location {
   Location();
 
-
   std::string uri;
   std::string root;
   bool autoindex;
