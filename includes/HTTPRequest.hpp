@@ -57,6 +57,7 @@ class HTTPRequest: public HTTPMessage
 		bool				_validateHeaders();
 		bool				_preBody();
 
+		bool				m_isMultipartForm;
 		httpMethod			m_Method;
 		requestError		m_Error;
 		std::string			m_Host;

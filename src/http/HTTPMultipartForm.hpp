@@ -1,25 +1,31 @@
-#ifndef __HTTPMULTIPARTFORM_HPP__
-# define __HTTPMULTIPARTFORM_HPP__
-
+#include "HTTPMultipartForm.hpp"
+#include <iostream>
 #include <string>
 
-typedef enum
+HTTPMultipartForm::HTTPMultipartForm(HTTPMessage::header_map_t &mediaTypes): m_Boundary(mediaTypes["boundary"])
 {
-	FORM_HEADER_FIELD,
-	FORM_HEADER_VALUE,
-	FORM_BODY,
-} multipartFormState;
+}
 
-class HTTPMultipartForm
+HTTPMultipartForm::HTTPMultipartForm(const HTTPMultipartForm &other)
 {
-	public:
-		HTTPMultipartForm(void);
-		HTTPMultipartForm(const HTTPMultipartForm &other);
-		HTTPMultipartForm& operator=(const HTTPMultipartForm &other);
-		~HTTPMultipartForm();
-	private:
-		multipartFormState	formState;
-		
-};
+	*this = other;	
+}
 
-#endif
+void	HTTPMultipartForm::addPart(HTTPMultipartForm::FormPart& part)
+{
+	m_Parts.push_back(part);
+}
+
+HTTPMultipartForm& HTTPMultipartForm::operator=(const HTTPMultipartForm &other)
+{
+	if (this == &other)
+		return *this;
+	// this->m_Boundary = other.m_Boundary;
+	// this->m_Parts = other.m_Parts;
+	return *this;
+}
+
+HTTPMultipartForm::~HTTPMultipartForm(void)
+{
+	
+}

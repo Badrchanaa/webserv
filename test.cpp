@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <algorithm>
 
 #include <fstream>
 #include <map>
@@ -38,8 +39,23 @@ void test(const char *str)
 
 int main(int ac, char **av)
 {
+	std::string key("oOEWOFWEO oewofweo fewofowe--__--");
 	if (ac < 2)
 		return 0;
-	test(av[1]);
+	std::string::iterator it = key.begin();
+	it++;
+	it++;
+	it++;
+	it++;
+	std::string::iterator it2 = std::transform(key.begin(), key.end(), it, ::tolower);
+	if (it2 == key.end())
+	{
+		std::cout << "is end" << std::endl;
+	}
+	else
+	{
+		std::cout << "it2: " << *it2 << std::endl;
+	}
+	std::cout << "key: " << key << std::endl;
 	return 0;
 }

@@ -41,6 +41,10 @@ class HTTPParseState
 		HTTPParseState& operator=(const HTTPParseState &other);
 		state_t			getState() const;
 		chunkState		getChunkState() const;
+		state_t			getMultipartState() const
+		{
+			return m_MultipartState;
+		}
 		void			setState(HTTPParseState::state_t state);
 		void			setChunkState(HTTPParseState::chunkState newState);
 		unsigned int	getReadBytes() const;
@@ -82,6 +86,7 @@ class HTTPParseState
 		unsigned int		m_chunkPos;
 		size_t				m_ChunkSize;
 		chunkState			m_ChunkState;
+		state_t				m_MultipartState;
 
 };
 

@@ -42,7 +42,7 @@ class HTTPMessage
 		~HTTPMessage();
 	protected:
 		HTTPBody			m_Body;
-		header_map_t			m_Headers;
+		header_map_t		m_Headers;
 		size_t				m_ContentLength;
 		HTTPParseState		m_ParseState;
 		transferEncoding	m_TransferEncoding;

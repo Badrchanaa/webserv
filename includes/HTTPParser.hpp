@@ -30,14 +30,18 @@ class HTTPParser
 		static size_t	_parseVersion(HTTPRequest &request, char *buff, size_t start, size_t len);
 		static size_t	_parseVersionNumber(HTTPRequest &request, char *buff, size_t start, size_t len);
 
+		static size_t	_skipHeaderField(const char *buff, size_t start, size_t len, bool &isError);
+		static size_t	_skipHeaderValue(const char *buff, size_t start, size_t len, bool &isError);
 		static size_t	_parseHeaderCrlf(HTTPMessage &httpMessage, char *buff, size_t start, size_t len);
 		static size_t	_parseHeaderField(HTTPMessage &httpMessage, char *buff, size_t start, size_t len);
 		static size_t	_parseHeaderValue(HTTPMessage &httpMessage, char *buff, size_t start, size_t len);
-		static size_t	_parseBody(HTTPMessage &httpMessage, char *buff, size_t start, size_t len);
-		static size_t	_parseChunk(HTTPMessage &httpMessage, char *buff, size_t start, size_t len);
-		static size_t	_parseChunkData(HTTPMessage &httpMessage, char *buff, size_t start, size_t len);
-		static size_t	_parseMultipartForm(HTTPMessage &httpMessage, char *buff, size_t start, size_t len);
-		static size_t	_parseRawBody(HTTPMessage &httpMessage, char *buff, size_t start, size_t len);
+
+		static size_t	_parseBody(HTTPRequest &request, char *buff, size_t start, size_t len);
+		static size_t	_parseChunk(HTTPRequest &request, char *buff, size_t start, size_t len);
+		static size_t	_parseChunkData(HTTPRequest &request, char *buff, size_t start, size_t len);
+		static size_t	_parseMultipartForm(HTTPRequest &request, char *buff, size_t start, size_t len);
+		static size_t	_parseRawBody(HTTPRequest &request, char *buff, size_t start, size_t len);
+
 		static size_t	_parseCgiBody(HTTPMessage &httpMessage, char *buff, size_t start, size_t len);
 		static size_t	_skipCrlf(HTTPParseState &parseState, char *buff, size_t start, size_t len);
 		static inline bool	_isCrlf(char current, char previous);

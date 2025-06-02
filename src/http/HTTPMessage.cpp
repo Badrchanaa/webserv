@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <algorithm>
 
 HTTPMessage::HTTPMessage(void): m_TransferEncoding(DEFAULT)
 {
@@ -60,6 +61,8 @@ void	HTTPMessage::addHeader(std::string key, std::string value)
 {
 	size_t	start = value.find_first_not_of(" \t");
 	size_t	end = value.find_last_not_of(" \t");
+
+	std::transform(key.begin(), key.end(), key.begin(), ::tolower);
 	if (start == std::string::npos || start == end)
 	{
 		m_Headers[key];

@@ -25,19 +25,6 @@ void	HTTPRequest::onBodyDone()
 	m_ParseState.setState(HTTPParseState::PARSE_DONE);
 }
 
-void	HTTPRequest::test()
-{
-	std::string contentType = getHeader("content-type");
-	std::string::size_type pos = contentType.find(';');
-	std::string type = contentType.substr(0, pos);
-	type = type.substr();
-	if (type != "multipart/form-data")
-		return ;
-	std::map<std::string, std::string>	mediaTypes; 
-	std::string name, value;
-	std::string::size_type sepPos;
-}
-
 void	HTTPRequest::_checkMultipart()
 {
 	if (!hasHeader("content-type"))
@@ -46,7 +33,7 @@ void	HTTPRequest::_checkMultipart()
 	std::string::size_type pos = contentType.find(';');
 	if (contentType.substr(0, pos) != "multipart/form-data")
 		return ;
-	std::map<std::string, std::string> mediaTypes; 
+	HTTPRequest::header_map_t mediaTypes; 
 	std::string::size_type sepPos;
 	while (pos != std::string::npos)
 	{
@@ -57,6 +44,10 @@ void	HTTPRequest::_checkMultipart()
 		pos = contentType.find(';', 0);
 		mediaTypes[contentType.substr(0, sepPos)] = contentType.substr(sepPos + 1, pos - sepPos - 1);
 	}
+	HTTPRequest::header_map_t::const_iterator it = mediaTypes.find("boundary");
+	if (it == mediaTypes.end() && it->second.empty())
+		return m_ParseState.setError();
+	m_isMultipartForm = true;
 }
 
 void	HTTPRequest::onHeadersParsed()
@@ -85,7 +76,7 @@ void	HTTPRequest::onHeadersParsed()
 
 bool	HTTPRequest::isMultipartForm() const
 {
-	return false;
+	return m_isMultipartForm;
 }
 
 /*

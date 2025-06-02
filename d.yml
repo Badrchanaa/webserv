@@ -14,7 +14,6 @@ server:
  #    nginx versions up to 0.8.48 used the machine’s hostname as the server name in this case. 
  #    i foget root and index
  server_name: ""
- index: index.html index.php
  body_size: 4000M 
  errors:
    "500": errors/500.html
@@ -23,7 +22,7 @@ server:
    "405": errors/405.html
    "400": errors/400.htmt
  location:
-   uri: /app
+   uri: /
    upload: uploads
    methods:
      - POST
@@ -42,6 +41,7 @@ server:
  location:
    uri: /app
    upload: uploads
+   index: index.html
    methods:
      - POST
      - GET
