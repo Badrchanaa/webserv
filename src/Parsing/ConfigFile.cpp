@@ -278,6 +278,10 @@ void Config::ProcessLocationKeyValue(const std::string &key,
     this->context = "methods";
   } else if (key == "methods_cgi") {
     this->context = "methods_cgi";
+  } else if (key == "redirection") {
+    // std::cout  << "youssef sir" << value <<  std::endl;
+    this->currentLocation.parseRedirectionValue(value);
+    // this->currentLocation.index = value;
   } else if (key == "index") { // I Added index handling
     // std::cout  << "youssef sir" << value <<  std::endl;
     this->currentLocation.parseValidIndexes(value);
