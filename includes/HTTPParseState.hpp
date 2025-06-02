@@ -26,6 +26,7 @@ class HTTPParseState
 			PARSE_DONE = 13,
 			PARSE_ERROR = 14,
 		}		state_t;
+
 		typedef enum chunkState
 		{
 			CHUNK_SIZE = 0,

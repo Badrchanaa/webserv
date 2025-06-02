@@ -261,6 +261,8 @@ void  HTTPResponse::_normalizeResourcePath()
 {
   const std::string &requestPath = m_Request->getPath();
 
+  std::cout << "requestpath n: " << requestPath << std::endl;
+
   m_ResourcePath = m_Location->root + requestPath;
   if (m_ResourcePath[0] == '/')
     m_ResourcePath = "." + m_ResourcePath;
@@ -302,8 +304,8 @@ void HTTPResponse::init(HTTPRequest &request,
   
   std::cout << "location root: " << m_Location->root << std::endl;
   std::cout << "location uri: " << m_Location->uri << std::endl;
+  std::cout << "request uri: " << request.getUri() << std::endl;
 
-  std::cout << "RESOURCE PATH: " << resourcePath << std::endl;
   if (_isCgiPath(request.getPath(), configServer))
     return _initCgi(request.getPath(), cgihandler, configServer);
 
@@ -311,7 +313,7 @@ void HTTPResponse::init(HTTPRequest &request,
   // _debugBody();
   m_ResourcePath = resourcePath;
   _normalizeResourcePath();
-
+  std::cout << "RESOURCE PATH: " << m_ResourcePath << std::endl;
   httpMethod requestMethod = request.getMethod();
   if (requestMethod == DELETE)
     _handleDeleteMethod();
@@ -376,6 +378,7 @@ void HTTPResponse::_processHeaders() {
       m_StatusString = "UNKNOWN STATUS";
   }
   m_HeadersStream << "HTTP/1.1 " << statusCode << " " << m_StatusString << CRLF;
+  std::cout << "SENT RESPONSE: " << m_HeadersStream.str()<< std::endl;
   for (HTTPRequest::header_map_t::iterator it = m_Headers.begin();
        it != m_Headers.end(); it++) {
     m_HeadersStream << it->first << ": ";

@@ -1,0 +1,37 @@
+POST /app/cgi-bin/hello.php?test=eofoefe HTTP/1.1
+Origin: https://www.ville.quebec.qc.ca
+Referer: https://www.ville.quebec.qc.ca/citoyens/taxes_evaluation/evaluation_fonciere/role/index.aspx
+User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36
+Accept: */*
+Postman-Token: a53d7754-35b8-4aa9-a777-090c20e2d17c
+Host: localhost:5050
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive
+Content-Type: multipart/form-data; boundary=--------------------------537236631755862494424527
+Content-Length: 682
+
+----------------------------537236631755862494424527
+Content-Disposition: form-data; name="f"; filename="try.py"
+Content-Type: application/octet-stream
+
+#!/usr/bin/env python3
+
+import cv2
+import numpy as np
+
+# Load image
+im = cv2.imread('bow_test.png')
+
+# Define lower and upper limits of our blue
+BlueMin = np.array([0,  50, 0],np.uint8)
+BlueMax = np.array([255, 100, 255],np.uint8)
+
+# Go to HSV colourspace and get mask of blue pixels
+HSV  = cv2.cvtColor(im,cv2.COLOR_BGR2HSV)
+mask = cv2.inRange(HSV, BlueMin, BlueMax)
+
+# Make all pixels in mask white
+im[mask>0] = [255,255,255]
+cv2.imwrite('DEBUG-plainMask.png', im)
+
+----------------------------537236631755862494424527--

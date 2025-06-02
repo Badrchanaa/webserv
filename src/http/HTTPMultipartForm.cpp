@@ -2,8 +2,9 @@
 #include <iostream>
 #include <string>
 
-HTTPMultipartForm::HTTPMultipartForm(HTTPMessage::header_map_t &mediaTypes): m_Boundary(mediaTypes["boundary"])
+HTTPMultipartForm::HTTPMultipartForm(HTTPMessage::header_map_t &mediaTypes)
 {
+	m_Boundary = mediaTypes["boundary"];
 }
 
 HTTPMultipartForm::HTTPMultipartForm(const HTTPMultipartForm &other)
@@ -11,7 +12,7 @@ HTTPMultipartForm::HTTPMultipartForm(const HTTPMultipartForm &other)
 	*this = other;	
 }
 
-void	HTTPMultipartForm::addPart(HTTPMultipartForm::FormPart& part)
+void	HTTPMultipartForm::addPart(FormPart& part)
 {
 	m_Parts.push_back(part);
 }

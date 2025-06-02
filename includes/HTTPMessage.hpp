@@ -9,12 +9,6 @@
 
 #define CRLF "\r\n"
 
-typedef enum transferEncoding
-{
-	DEFAULT,
-	CHUNKED,
-} transferEncoding;
-
 class HTTPMessage
 {
 	public:
@@ -34,7 +28,6 @@ class HTTPMessage
 		bool	            appendBody(const char *buff, size_t len);
 		bool	            appendBody(const std::string str);
 		bool	            appendBody(const std::vector<char>& vec);
-		bool				isTransferChunked() const;
 		HTTPParseState		&getParseState();
 		bool				isParseComplete() const;
 	public:
@@ -45,7 +38,6 @@ class HTTPMessage
 		header_map_t		m_Headers;
 		size_t				m_ContentLength;
 		HTTPParseState		m_ParseState;
-		transferEncoding	m_TransferEncoding;
 };
 
 #endif

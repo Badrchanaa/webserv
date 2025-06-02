@@ -5,13 +5,18 @@
 
 HTTPRequest::HTTPRequest(std::vector<ConfigServer> &servers): HTTPMessage(),
 	m_Error(ERR_NONE), 
-	m_MultipartForm(NULL), m_ConfigServers(servers), m_ConfigServer(NULL)
+	m_MultipartForm(NULL), m_ConfigServers(servers), m_ConfigServer(NULL), m_TransferEncoding(DEFAULT)
 {
 }
 
 const ConfigServer*	HTTPRequest::getServer() const
 {
 	return m_ConfigServer;
+}
+
+bool	HTTPRequest::isTransferChunked() const
+{
+	return m_TransferEncoding == CHUNKED;
 }
 
 bool	HTTPRequest::isError() const
@@ -62,8 +67,11 @@ void	HTTPRequest::onHeadersParsed()
 		std::cout << "REQUEST PATH: " << m_Path << std::endl;
 		std::cout << "REQUEST QUERY: " << m_Query << std::endl;
 	}
+	else
+		m_Path = m_Uri;
 	if (m_Method == GET)
 		return m_ParseState.setState(HTTPParseState::PARSE_DONE);
+	m_ParseState.setState(HTTPParseState::PARSE_BODY);
 	if (!this->_validateHeaders())
 		m_ParseState.setError();
 	if (m_Error == ERR_INVALID_CONTENT_LENGTH)

@@ -211,8 +211,8 @@ size_t	HTTPParser::_parseHeaderCrlf(HTTPMessage &httpMessage, char *buff, size_t
 		return i;
 	if (parseState.getPrevChar() == CR)
 	{
-		parseState.setState(HTTPParseState::PARSE_ERROR);
-		std::cout << "header crlf error, readbytes: " << readBytes << " prev: " << parseState.getPrevChar() << std::endl;
+		// parseState.setState(HTTPParseState::PARSE_ERROR);
+		parseState.setError();
 		return i;
 	}
 	switch(readBytes)
@@ -224,12 +224,13 @@ size_t	HTTPParser::_parseHeaderCrlf(HTTPMessage &httpMessage, char *buff, size_t
 			httpMessage.onHeadersParsed();
 			if (httpMessage.isParseComplete())
 				return i;
-			parseState.setState(HTTPParseState::PARSE_BODY);
+			parseState.setError();
 			// parseState.setState(HTTPParseState::PARSE_ERROR);
 			break;
 		default:
 			std::cout << "err crlf header" << std::endl;
-			parseState.setState(HTTPParseState::PARSE_ERROR);
+			// parseState.setState(HTTPParseState::PARSE_ERROR);
+			parseState.setError();
 	}
 	parseState.setReadBytes(0);
 	// std::cout << getStateString(parseState.getState()) << std::endl;
@@ -450,18 +451,7 @@ size_t	HTTPParser::_parseChunkData(HTTPRequest &request, char *buff, size_t star
 
 size_t	HTTPParser::_parseMultipartForm(HTTPRequest &request, char *buff, size_t start, size_t len)
 {
-	HTTPParseState	&parseState = request.getParseState();
-	// HTTPParseState::state_t state = parseState.getMultipartState();
-	size_t	i;
-	bool isError = false;
 
-	// switch(state)
-	// {
-	// 	case HTTPParseState::PARSE_HEADER_FIELD:
-			i = _skipHeaderField(buff, start, len, isError);
-	// }
-	parseState.setState(HTTPParseState::PARSE_DONE);
-	return len;
 }
 
 size_t	HTTPParser::_parseRawBody(HTTPRequest &request, char *buff, size_t start, size_t len)

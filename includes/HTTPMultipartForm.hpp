@@ -4,27 +4,34 @@
 #include <HTTPMessage.hpp>
 #include <string>
 
-class HTTPMultipartForm
+class FormPart
 {
 	public:
-		class FormPart
+		FormPart(void) //m_Body(), m_ContentType(), m_ContentDisposition()
 		{
-			public:
-				FormPart(void) //m_Body(), m_ContentType(), m_ContentDisposition()
-				{
 
-				}
-				~FormPart();
-				void	setContentType(std::string &contentType);
-				void	setContentDisposition(std::string &contentDisposition);
-				std::string	getContentType();
-				std::string	getContentDisposition();
-				HTTPBody&	getBody();
-			private:
-				std::string m_ContentType;
-				std::string m_ContentDisposition;
-				HTTPBody	m_Body;
-		};
+		}
+		FormPart(const FormPart &part)
+		{
+			(void)part;
+			return;
+		}
+		~FormPart()
+		{
+
+		}
+		void	setContentType(std::string &contentType);
+		void	setContentDisposition(std::string &contentDisposition);
+		std::string	getContentType();
+		std::string	getContentDisposition();
+		HTTPBody&	getBody();
+	private:
+		std::string m_ContentType;
+		std::string m_ContentDisposition;
+		HTTPBody	m_Body;
+};
+class HTTPMultipartForm
+{
 	public:
 		HTTPMultipartForm(HTTPMessage::header_map_t &mediaTypes);
 		HTTPMultipartForm(const HTTPMultipartForm &other);

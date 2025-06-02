@@ -22,14 +22,22 @@ typedef enum requestError
 
 } requestError;
 
+typedef enum transferEncoding
+{
+	DEFAULT,
+	CHUNKED,
+} transferEncoding;
+
 class HTTPRequest: public HTTPMessage
 {
-
 	public:
 		HTTPRequest(std::vector<ConfigServer> &servers);
 		// HTTPRequest(const HTTPRequest &other);
 		HTTPRequest& operator=(const HTTPRequest &other);
 		~HTTPRequest();
+		virtual void		onHeadersParsed();
+		virtual void		onBodyDone();
+
 		void				setMethod(const char *method_cstr);
 		httpMethod			getMethod() const;
 		const char*			getMethodStr() const;
@@ -43,35 +51,34 @@ class HTTPRequest: public HTTPMessage
 		bool				isError() const;
 		const ConfigServer*	getServer() const;
 		void				reset();
-		virtual void		onHeadersParsed();
-		virtual void		onBodyDone();
+		bool				isTransferChunked() const;
 
 		// added by regex 
 		const std::string	getQuery() const{
 			return this->m_Query;
 		}
 	private:
-		void				test();
 		void				_checkMultipart();
 		bool				_checkTransferChunked();
 		bool				_validateHeaders();
 		bool				_preBody();
 
 		bool				m_isMultipartForm;
+		std::string			m_FormBoundary;
+
 		httpMethod			m_Method;
 		requestError		m_Error;
 		std::string			m_Host;
 		std::string			m_Path;
 		std::string			m_Query;
 		std::string			m_Uri;
-		HTTPMultipartForm	*m_MultipartForm;
+		// HTTPMultipartForm	*m_MultipartForm;
+		transferEncoding	m_TransferEncoding;
 		/*
 			TODO: remove ConfigServers from constructor, get them from config after header parsing
 		*/
 		std::vector<ConfigServer>		&m_ConfigServers;
 		const ConfigServer				*m_ConfigServer;
-
-
 };
 
 #endif

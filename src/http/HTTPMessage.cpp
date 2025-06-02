@@ -4,18 +4,13 @@
 #include <sstream>
 #include <algorithm>
 
-HTTPMessage::HTTPMessage(void): m_TransferEncoding(DEFAULT)
+HTTPMessage::HTTPMessage(void) 
 {
 }
 
 HTTPParseState &HTTPMessage::getParseState()
 {
 	return m_ParseState;
-}
-
-bool	HTTPMessage::isTransferChunked() const
-{
-	return m_TransferEncoding == CHUNKED;
 }
 
 bool	HTTPMessage::isParseComplete() const
