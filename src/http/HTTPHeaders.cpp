@@ -50,16 +50,15 @@ void	HTTPHeaders::addHeader(std::string key, std::string value)
 	m_Headers[key] = value.substr(start, end + 1);
 }
 
-std::string			HTTPHeaders::getHeader(const char *key) const
+const std::string&	HTTPHeaders::getHeader(const char *key) const
 {
-	std::string s(key);
-	return getHeader(s);
+	return getHeader(std::string(key));
 }
 
-std::string	HTTPHeaders::getHeader(std::string &key) const
+const std::string&	HTTPHeaders::getHeader(const std::string &key) const
 {
 	header_map_t::const_iterator it = m_Headers.find(key);
 	if (it == m_Headers.end())
-		return std::string();
+		throw std::exception();
 	return it->second;	
 }

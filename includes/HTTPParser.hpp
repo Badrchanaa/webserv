@@ -16,35 +16,37 @@ class HTTPParser
 		/// @param request HTTP Request class
 		/// @param buff content to parse
 		/// @param len content length
-		static void	parseRequest(HTTPRequest &request, char *buff, size_t len);
-		static void	parseCgi(HTTPResponse &response, char *buff, size_t len);
+		static void	parseRequest(HTTPRequest &request, const char *buff, size_t len);
+		static void	parseCgi(HTTPResponse &response, const char *buff, size_t len);
 
 		static const uint8_t TOKEN_ALLOWED_CHARS[128];
 		
 	private:
 		HTTPParser(void);
 		//unsigned int	_parseRequestLine(HTTPRequest &request, char *buff, size_t len) const;
-		static size_t	_parseStart(HTTPRequest &request, char *buff, size_t start, size_t len);
-		static size_t	_parseMethod(HTTPRequest &request, char *buff, size_t start, size_t len);
-		static size_t	_parseTarget(HTTPRequest &request, char *buff, size_t start, size_t len);
-		static size_t	_parseVersion(HTTPRequest &request, char *buff, size_t start, size_t len);
-		static size_t	_parseVersionNumber(HTTPRequest &request, char *buff, size_t start, size_t len);
+		static size_t	_parseStart(HTTPRequest &request, const char *buff, size_t start, size_t len);
+		static size_t	_parseMethod(HTTPRequest &request, const char *buff, size_t start, size_t len);
+		static size_t	_parseTarget(HTTPRequest &request, const char *buff, size_t start, size_t len);
+		static size_t	_parseVersion(HTTPRequest &request, const char *buff, size_t start, size_t len);
+		static size_t	_parseVersionNumber(HTTPRequest &request, const char *buff, size_t start, size_t len);
 
-		static size_t	_skipHeaderField(const char *buff, size_t start, size_t len, bool &isError);
-		static size_t	_skipHeaderValue(const char *buff, size_t start, size_t len, bool &isError);
-		static size_t	_parseHeaderCrlf(HTTPMessage &httpMessage, char *buff, size_t start, size_t len);
-		static size_t	_parseHeaderField(HTTPMessage &httpMessage, char *buff, size_t start, size_t len);
-		static size_t	_parseHeaderValue(HTTPMessage &httpMessage, char *buff, size_t start, size_t len);
+		// static size_t	_skipHeaderField(const char *buff, size_t start, size_t len, bool &isError);
+		// static size_t	_skipHeaderValue(const char *buff, size_t start, size_t len, bool &isError);
+		static size_t	_parseHeaderCrlf(HTTPHeaders &httpHeaders, const char *buff, size_t start, size_t len);
+		static size_t	_parseHeaderField(HTTPHeaders &httpHeaders, const char *buff, size_t start, size_t len);
+		static size_t	_parseHeaderValue(HTTPHeaders &httpHeaders, const char *buff, size_t start, size_t len);
 
-		static size_t	_parseBody(HTTPRequest &request, char *buff, size_t start, size_t len);
-		static size_t	_parseChunk(HTTPRequest &request, char *buff, size_t start, size_t len);
-		static size_t	_parseChunkData(HTTPRequest &request, char *buff, size_t start, size_t len);
-		static size_t	_parseMultipartForm(HTTPRequest &request, char *buff, size_t start, size_t len);
-		static size_t	_parseRawBody(HTTPRequest &request, char *buff, size_t start, size_t len);
+		static size_t	_parseBody(HTTPRequest &request, const char *buff, size_t start, size_t len);
+		static size_t	_parseChunk(HTTPRequest &request, const char *buff, size_t start, size_t len);
+		static size_t	_parseChunkData(HTTPRequest &request, const char *buff, size_t start, size_t len);
+		static size_t	_parseMultipartForm(HTTPRequest &request, const char *buff, size_t start, size_t len);
+		static size_t	_parseRawBody(HTTPRequest &request, const char *buff, size_t start, size_t len);
 
-		static size_t	_parseCgiBody(HTTPMessage &httpMessage, char *buff, size_t start, size_t len);
-		static size_t	_skipCrlf(HTTPParseState &parseState, char *buff, size_t start, size_t len);
+		static size_t	_parseCgiBody(HTTPMessage &httpMessage, const char *buff, size_t start, size_t len);
+		static size_t	_skipCrlf(HTTPParseState &parseState, const char *buff, size_t start, size_t len);
 		static inline bool	_isCrlf(char current, char previous);
+		static bool 		_notValidHeaderField(const int &c);
+		static bool 		_notValidHeaderValue(const int &c);
 
 		static const unsigned int	MAX_REQUEST_LINE_SIZE;
 		static const unsigned int	MAX_METHOD_SIZE;

@@ -20,8 +20,8 @@ class HTTPHeaders
 		bool						hasHeader(const char *key) const;
 		bool						removeHeader(const char *key);
 		const header_map_t&			getHeaders() const;
-		std::string					getHeader(std::string &key) const;
-		std::string					getHeader(const char *key) const;
+		const std::string&					getHeader(const std::string &key) const;
+		const std::string&					getHeader(const char *key) const;
 	protected:
 		header_map_t		m_Headers;
 };

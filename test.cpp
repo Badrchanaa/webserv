@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include <fstream>
+#include <cstring>
 #include <map>
 
 
@@ -37,25 +38,86 @@ void test(const char *str)
 	// 	std::cout << "[!]name: " << name << " | value: " << value << std::endl;
 }
 
-int main(int ac, char **av)
+bool _validHeaderField(const int &c)
 {
-	std::string key("oOEWOFWEO oewofweo fewofowe--__--");
-	if (ac < 2)
-		return 0;
-	std::string::iterator it = key.begin();
-	it++;
-	it++;
-	it++;
-	it++;
-	std::string::iterator it2 = std::transform(key.begin(), key.end(), it, ::tolower);
-	if (it2 == key.end())
-	{
-		std::cout << "is end" << std::endl;
-	}
+	if (c < 0 || c >= 128 || c == '\n')
+		return true;
+	if (c == ':')
+		return true;
+	return false;
+}
+
+// int main(int ac, char **av)
+// {
+// 	int		c;
+// 	size_t	i;
+// 	bool isError;
+// 	const char buff[] = "HTTP/1.1";
+// 	size_t start = 0;
+// 	size_t len = std::strlen(buff);
+// 	const char *http = "HTTP";
+// 	size_t count = 0;
+// 	const char *it = std::find_end(buff + start, buff + len, http + count, http + 4);
+// 	i = std::distance(buff, it);
+// 	if (i == len)
+// 		std::cout << "not complete" << std::endl;
+// 	else
+// 	{
+// 	if (*it != ':')
+// 		isError = true;
+// 	}
+// 	std::cout << "i: " << i << std::endl;
+// 	std::cout << "*it: " << *it << std::endl;
+// 	std::cout << "isError: " << isError << std::endl;
+// 	std::cout << "isPrintCr: " << std::isprint('\r') << std::endl;
+// 	return 0;
+// }
+#include <vector>
+int main() {
+    const char* request_version = "HTTP/1.1";
+    const char* pattern = "HTTP";
+    const char* pat_begin;
+	const char* pat_end;
+	const char* req_begin;
+	const char* req_end;
+	const char* found;
+	int chunkSize;
+	int start;
+
+	start = 0;
+	chunkSize = 2;
+    req_begin = request_version + start;
+    req_end = request_version + chunkSize;
+	pat_begin = pattern + start;
+	if (chunkSize < std::strlen(pattern) - start)
+    	pat_end = pattern + chunkSize;
 	else
-	{
-		std::cout << "it2: " << *it2 << std::endl;
-	}
-	std::cout << "key: " << key << std::endl;
-	return 0;
+    	pat_end = pattern + std::strlen(pattern) - start;
+
+    found = std::find_end(req_begin, req_end, pat_begin, pat_end);
+
+    if (found != req_end) {
+        std::cout << "\"HTTP\" found at position: " << (found - req_begin) << std::endl;
+    } else {
+        std::cout << "\"HTTP\" not found.\n";
+    }
+
+	start = chunkSize;
+	chunkSize = std::strlen(request_version);
+    req_begin = request_version + start;
+    req_end = request_version + chunkSize;
+	pat_begin = pattern + start;
+	if (chunkSize < std::strlen(pattern) - start)
+    	pat_end = pattern + chunkSize;
+	else
+    	pat_end = pattern + std::strlen(pattern) - start;
+
+    found = std::find_end(req_begin, req_end, pat_begin, pat_end);
+
+    if (found != req_end) {
+        std::cout << "\"HTTP\" found at position: " << (found - req_begin) << std::endl;
+    } else {
+        std::cout << "\"HTTP\" not found.\n";
+    }
+    return 0;
 }

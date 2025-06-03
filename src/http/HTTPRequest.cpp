@@ -5,7 +5,7 @@
 
 HTTPRequest::HTTPRequest(std::vector<ConfigServer> &servers): HTTPMessage(),
 	m_Error(ERR_NONE), 
-	m_MultipartForm(NULL), m_ConfigServers(servers), m_ConfigServer(NULL), m_TransferEncoding(DEFAULT)
+	m_MultipartForm(NULL), m_TransferEncoding(DEFAULT), m_ConfigServers(servers), m_ConfigServer(NULL)
 {
 }
 
@@ -53,6 +53,7 @@ void	HTTPRequest::_checkMultipart()
 	if (it == mediaTypes.end() && it->second.empty())
 		return m_ParseState.setError();
 	m_isMultipartForm = true;
+	m_MultipartForm = new HTTPMultipartForm(mediaTypes);
 }
 
 void	HTTPRequest::onHeadersParsed()
@@ -72,6 +73,10 @@ void	HTTPRequest::onHeadersParsed()
 	if (m_Method == GET)
 		return m_ParseState.setState(HTTPParseState::PARSE_DONE);
 	m_ParseState.setState(HTTPParseState::PARSE_BODY);
+	for(it = m_Headers.begin(); it != m_Headers.end(); it++)
+	{
+		std::cout << "headers[" << it->first << "] = " << it->second << std::endl;
+	}
 	if (!this->_validateHeaders())
 		m_ParseState.setError();
 	if (m_Error == ERR_INVALID_CONTENT_LENGTH)
@@ -91,7 +96,6 @@ bool	HTTPRequest::isMultipartForm() const
 	Process and validate request headers (Host, Content-length, etc..)
 	returns if headers are valid.
 */
-
 bool	HTTPRequest::_checkTransferChunked()
 {
 	header_map_t::const_iterator	it;
