@@ -72,8 +72,11 @@ class HTTPRequest: public HTTPMessage
 		std::string			m_Path;
 		std::string			m_Query;
 		std::string			m_Uri;
-		// HTTPMultipartForm	*m_MultipartForm;
+		HTTPMultipartForm	*m_MultipartForm;
 		transferEncoding	m_TransferEncoding;
+		size_t				m_BodySize;
+		size_t				m_BoundaryIndex;
+
 		/*
 			TODO: remove ConfigServers from constructor, get them from config after header parsing
 		*/

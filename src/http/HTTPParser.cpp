@@ -451,7 +451,24 @@ size_t	HTTPParser::_parseChunkData(HTTPRequest &request, char *buff, size_t star
 
 size_t	HTTPParser::_parseMultipartForm(HTTPRequest &request, char *buff, size_t start, size_t len)
 {
+	// HTTPParseState&	parseState = request.getParseState();
+	// HTTPParseState::state_t state = parseState.getState();
 
+	// switch(state)
+	// {
+
+	// case HTTPParseState::PARSE_HEADER_FIELD:
+	// 	_parseHeaderField(request, buff, start, len);
+	// 	break;
+	// case HTTPParseState::PARSE_HEADER_VALUE:
+	// 	_parseHeaderValue(request, buff, start, len);
+	// case HTTPParseState::PARSE_HEADER_CRLF:
+	// 	_parseHeaderCrlf(request, buff, start, len);
+
+	// }
+	
+	// if (m_BoundaryIndex)
+	return 0;
 }
 
 size_t	HTTPParser::_parseRawBody(HTTPRequest &request, char *buff, size_t start, size_t len)
