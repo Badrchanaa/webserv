@@ -21,9 +21,6 @@ session_start();
 //   echo "Cookie '" . $cookie_name . "' is set!<br>";
 //   echo "Value is: " . $_COOKIE[$cookie_name];
 // }
-ini_set('display_errors', '1');
-ini_set('display_startup_errors', '1');
-error_reporting(E_ALL);
 
 if (isset($_GET["set-session"]))
 {
@@ -42,14 +39,20 @@ else
 	{
 		echo "Favorite animal is " . $_SESSION["favanimal"] . ".";
 	}
+	echo "<br/>";
 }
 
 echo "----------------------<br />";
 $data = file_get_contents('php://input');
+echo "data: <br/>";
+echo $data;
+echo "=======<br/>";
  if ($_SERVER['REQUEST_METHOD'] == "POST")
  {
-	 echo "addr". $_SERVER['REMOTE_ADDR'];
-	 echo "port:". $_SERVER['REMOTE_PORT'];
+	if (isset($_SERVER['REMOTE_ADDR']))
+	 	echo "addr". $_SERVER['REMOTE_ADDR'];
+	if (isset($_SERVER['REMOTE_PORT']))
+		 echo "port:". $_SERVER['REMOTE_PORT'];
 	 echo "<br />";
  	echo '<pre>'.print_r($_POST, TRUE).'</pre>';
  }

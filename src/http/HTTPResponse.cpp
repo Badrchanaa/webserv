@@ -20,7 +20,6 @@ HTTPResponse::status_map_t  createDefaultPages()
     return defaultPages;
 }
 
-
 HTTPResponse::status_map_t  createStatusMap()
 {
   HTTPResponse::status_map_t statusString;
@@ -221,7 +220,7 @@ void HTTPResponse::_initCgi(const std::string path,
       m_PollState = CGI_WRITE;
     else
       m_PollState = CGI_READ;
-    _debugBody();
+    // _debugBody();
 }
 
 bool _safePath(const std::string path) {

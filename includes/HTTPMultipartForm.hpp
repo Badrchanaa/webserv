@@ -37,7 +37,7 @@ class FormPart
 		HTTPBody	m_Body;
 };
 
-class HTTPMultipartForm: HTTPHeaders
+class HTTPMultipartForm: public HTTPHeaders
 {
 	public:
 		virtual HTTPParseState&	getParseState();

@@ -229,7 +229,6 @@ size_t	HTTPParser::_parseHeaderCrlf(HTTPHeaders &httpHeaders, const char *buff, 
 			break;
 		default:
 			std::cout << "err crlf header" << std::endl;
-			// parseState.setState(HTTPParseState::PARSE_ERROR);
 			parseState.setError();
 	}
 	parseState.setReadBytes(0);
@@ -418,21 +417,21 @@ size_t	HTTPParser::_parseMultipartForm(HTTPRequest &request, const char *buff, s
 	(void)buff;
 	(void)start;
 	(void)len;
-	// HTTPParseState&	parseState = request.getParseState();
-	// HTTPParseState::state_t state = parseState.getState();
+	HTTPParseState&	parseState = request.getParseState();
+	HTTPParseState::state_t state = parseState.getState();
 
-	// switch(state)
-	// {
-
-	// case HTTPParseState::PARSE_HEADER_FIELD:
-	// 	_parseHeaderField(request, buff, start, len);
-	// 	break;
-	// case HTTPParseState::PARSE_HEADER_VALUE:
-	// 	_parseHeaderValue(request, buff, start, len);
-	// case HTTPParseState::PARSE_HEADER_CRLF:
-	// 	_parseHeaderCrlf(request, buff, start, len);
-
-	// }
+	switch(state)
+	{
+	case HTTPParseState::PARSE_HEADER_FIELD:
+		_parseHeaderField(request, buff, start, len);
+		break;
+	case HTTPParseState::PARSE_HEADER_VALUE:
+		_parseHeaderValue(request, buff, start, len);
+	case HTTPParseState::PARSE_HEADER_CRLF:
+		_parseHeaderCrlf(request, buff, start, len);
+	default:
+		return len;
+	}
 	
 	// if (m_BoundaryIndex)
 	return 0;
@@ -543,6 +542,11 @@ void	HTTPParser::parseRequest(HTTPRequest &request, const char *buff, size_t len
 	}
 }
 
+
+// void	HTTPParser::parseCgiError(HTTPResponse &response, const char *buff, size_t len)
+// {
+// }
+
 void	HTTPParser::parseCgi(HTTPResponse &response, const char *buff, size_t len)
 {
 	HTTPParseState	&parseState = response.getParseState();
@@ -550,6 +554,7 @@ void	HTTPParser::parseCgi(HTTPResponse &response, const char *buff, size_t len)
 	unsigned int	offset;
 
 	offset = 0;
+	
 	while (offset < len)
 	{
 		state = parseState.getState();
@@ -566,6 +571,7 @@ void	HTTPParser::parseCgi(HTTPResponse &response, const char *buff, size_t len)
 				offset = _parseHeaderValue(response, buff, offset, len);
 				break;
 			case HTTPParseState::PARSE_BODY:
+			case HTTPParseState::PARSE_ERROR:
 				offset = _parseCgiBody(response, buff, offset, len);
 				break;
 			default:

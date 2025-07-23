@@ -47,11 +47,24 @@ void	HTTPRequest::_checkMultipart()
 		if (sepPos == std::string::npos)
 			break ;
 		pos = contentType.find(';', 0);
-		mediaTypes[contentType.substr(0, sepPos)] = contentType.substr(sepPos + 1, pos - sepPos - 1);
+		std::string mediaType = contentType.substr(0, sepPos);
+		size_t	firstNonSpace = mediaType.find_first_not_of(" ");
+		if (firstNonSpace == std::string::npos)
+			firstNonSpace = 0;
+		mediaType = mediaType.substr(firstNonSpace, std::string::npos);
+		mediaTypes[mediaType] = contentType.substr(sepPos + 1, pos - sepPos - 1);
 	}
-	HTTPRequest::header_map_t::const_iterator it = mediaTypes.find("boundary");
-	if (it == mediaTypes.end() && it->second.empty())
+	HTTPRequest::header_map_t::const_iterator it;
+	// for (it = mediaTypes.begin(); it != mediaTypes.end(); it++)
+	// {
+	// 	std::cout << "mediaTypes[" << it->first << "] = " << it->second << std::endl;
+	// }
+	it = mediaTypes.find("boundary");
+	if (it == mediaTypes.end() || it->second.empty())
+	{
+		std::cout << "BOUNDARY NOT FOUND" << std::endl;
 		return m_ParseState.setError();
+	}
 	m_isMultipartForm = true;
 	m_MultipartForm = new HTTPMultipartForm(mediaTypes);
 }
@@ -167,8 +180,10 @@ bool	HTTPRequest::_validateHeaders()
 	if (it == m_Headers.end())
 		return true;
 	iss.str(it->second);
+	std::cout << "value length: " << it->second.length() << std::endl;
 	if (!(iss >> m_ContentLength) || !iss.eof())
 	{
+		std::cout << "INVALID CONTENT LENGTH ISS" << std::endl;
 		m_Error = ERR_INVALID_CONTENT_LENGTH;
 		return false;
 	}

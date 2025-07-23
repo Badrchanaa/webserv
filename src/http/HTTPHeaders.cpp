@@ -1,6 +1,7 @@
 
 #include "HTTPHeaders.hpp"
 #include <sstream>
+#include <iostream>
 #include <algorithm>
 
 HTTPHeaders::HTTPHeaders(void)
@@ -42,8 +43,10 @@ void	HTTPHeaders::addHeader(std::string key, std::string value)
 	size_t	end = value.find_last_not_of(" \t");
 
 	std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-	if (start == std::string::npos || start == end)
+	std::cout << "ADD HEADER: " << key << " = " << value << std::endl;
+	if (start == std::string::npos)
 	{
+		std::cout << "value empty" << std::endl;
 		m_Headers[key];
 		return;
 	}

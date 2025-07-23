@@ -20,9 +20,9 @@ struct ConfigServer {
   std::vector<std::string> server_names;
   std::string host;
   std::string body_size;
-  int timeout;
   std::map<int, std::string> errors;
   std::vector<Location> locations;
+  int timeout;
 
   const Location *getLocation(const std::string &path) const;
   // const Location &getLocation(const std::string &path) const;

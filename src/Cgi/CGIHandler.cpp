@@ -22,13 +22,11 @@ CGIProcess *CGIHandler::spawn(std::string &pathName, std::string &scriptName, ch
     exit(EXIT_FAILURE);
   }
   close(sockets[1]);
-
   std::cout << "socket pair : ----------------------------------------------> "
             << sockets[0] << std::endl;
   proc = new CGIProcess(sockets[0], pid);
   return proc;
 }
-
 
 void CGIHandler::setup_child(int sock, std::string &pathName, std::string &scriptName, char **env) const
 {
@@ -40,15 +38,13 @@ void CGIHandler::setup_child(int sock, std::string &pathName, std::string &scrip
       exit(EXIT_FAILURE);
   }
   if (dup2(sock, STDERR_FILENO) == -1) {
-      std::cerr << "dup3 failed: " << strerror(errno) << std::endl;
+      std::cerr << "dup2 error failed: " << strerror(errno) << std::endl;
       exit(EXIT_FAILURE);
   }
-
   std::string script_path(scriptName);
   size_t last_slash = scriptName.find_last_of('/');
   std::string script_dir = (last_slash != std::string::npos) ? scriptName.substr(0, last_slash) : ".";
   scriptName = (last_slash != std::string::npos) ? scriptName.substr(last_slash + 1) : scriptName; 
-
   
   if (chdir(script_dir.c_str()) == -1) {
       std::cerr << "chdir failed: " << strerror(errno) << std::endl;
@@ -56,7 +52,6 @@ void CGIHandler::setup_child(int sock, std::string &pathName, std::string &scrip
   }
   char *const args[3] = {const_cast<char *const>(pathName.c_str()),
                         const_cast<char *const>(scriptName.c_str()), NULL};
-
   // std::cout << "test " << sock << std::endl;
   // std::cout << "args[0] :: " << args[0] << std::endl;
   // std::cout << "args[1] :: " << args[1] << std::endl;
@@ -89,12 +84,12 @@ ssize_t  CGIProcess::write(HTTPBody &body)
 }
 
 
-ssize_t CGIProcess::read(char *buff, size_t size) {
+ssize_t CGIProcess::read(char *buff, size_t size)
+{
   ssize_t received = recv(this->cgi_sock, buff, size, 0);
-  
-  // std::cout << "received: " << received << " from: " << cgi_sock << "Buffer : " << buff << std::endl;
 
-  if (received < 0) { // -1
+  if (received < 0) 
+  { // -1
     std::cout << "++++++++++++++++++++++++++++" << std::endl;
     std::cout << "received == < 0" << std::endl;
     this->cleanup(true);
