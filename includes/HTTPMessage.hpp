@@ -22,7 +22,7 @@ class HTTPMessage: public HTTPHeaders
 		virtual HTTPParseState	&getParseState();
 	public:
 		HTTPMessage(void);
-		~HTTPMessage();
+		virtual ~HTTPMessage();
 	protected:
 		HTTPBody			m_Body;
 		size_t				m_ContentLength;

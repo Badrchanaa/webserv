@@ -411,30 +411,146 @@ size_t	HTTPParser::_parseChunkData(HTTPRequest &request, const char *buff, size_
 	return start + bytesToRead;
 }
 
+size_t	_parseMultipartBoundarySuffix(HTTPRequest &request, const char *buff, size_t start, size_t len)
+{
+	HTTPParseState&	parseState = request.multipartForm->getParseState();
+	size_t readBytes = parseState.getReadBytes();
+	const char *BOUNDARY_DELIMITER = "--";
+	const char *BOUNDARY_CRLF = "\r\n";
+	size_t	bytesToRead = 2 - readBytes;
+
+	if (len - start == 1)
+	{
+		if (buff[start] != CR && buff[start] != '-')
+			return parseState.setError(), len;
+		parseState.setReadBytes(1);
+		parseState.setPrevChar(buff[start]);
+		return (start + 1);
+	}
+	if (!strncmp(BOUNDARY_DELIMITER + readBytes, buff + start, bytesToRead))
+		parseState.setState(HTTPParseState::PARSE_DONE);
+	else if (!strncmp(BOUNDARY_CRLF + readBytes, buff + start, bytesToRead))
+	{
+		// new form part
+		request.multipartForm->onNewPart();
+		parseState.setState(HTTPParseState::PARSE_HEADER_FIELD);
+	}
+	else
+		parseState.setError();
+
+	return (start +  bytesToRead);
+}
+
+size_t	_parseMultipartBoundary(HTTPRequest &request, const char *buff, size_t start, size_t len)
+{
+	HTTPParseState&	parseState = request.multipartForm->getParseState();
+	size_t readBytes = parseState.getReadBytes();
+	std::string boundary;
+
+	if (request.multipartForm->getPartsCount() > 0)
+		boundary = "\r\n--" + request.multipartForm->getBoundary();
+	else
+		boundary = "--" + request.multipartForm->getBoundary();
+	size_t	remainingBoundaryBytes = boundary.length() - readBytes;
+	size_t	availableBytes = (len - start);
+	size_t	bytesToRead = std::min(availableBytes, remainingBoundaryBytes);
+
+	if (strncmp(boundary.c_str() + readBytes, buff + start, bytesToRead))
+	{
+		// add readBytes to form body
+		const char *it =  std::mismatch(buff + start, buff + start + bytesToRead, boundary.c_str()).second;
+		std::cout << "bytesToRead = " << bytesToRead << std::endl;
+		std::cout << "boundary = " << boundary << std::endl;
+		std::cout << "buff[start] = " << (int)buff[start] << std::endl;
+		std::cout << "mismatch at index " << std::distance(boundary.c_str(), it) << " -> " << (int) *it << std::endl;
+		std::cout << "readBytes = " << readBytes << std::endl;
+		std::cout << readBytes << std::endl;
+		request.multipartForm->getCurrentPart().getBody().append(boundary.c_str(), readBytes);
+		parseState.setState(HTTPParseState::PARSE_BODY);
+		return (start);
+	}
+	readBytes += bytesToRead;
+	if (availableBytes < remainingBoundaryBytes)
+	{
+		parseState.setReadBytes(readBytes);
+		return (len);
+	}
+	parseState.setReadBytes(0);
+	parseState.setState(HTTPParseState::PARSE_MULTIPART_BOUNDARY_SUFFIX);
+	return (start + bytesToRead);
+}
+
+    //    --AaB03x
+    //    content-disposition: form-data; name="field1"
+    //    content-type: text/plain;charset=UTF-8
+    //    content-transfer-encoding: quoted-printable
+
+    //    Joe owes =E2=82=AC100.
+    //    --AaB03x
+
+// size_t	HTTPParser::_parseMultipartBodyCrlf(HTTPRequest &request, const char *buff, size_t start, size_t len)
+// {
+// 	HTTPParseState&	parseState = request.multipartForm->getParseState();
+
+// }
+
+size_t	HTTPParser::_parseMultipartBody(HTTPRequest &request, const char *buff, size_t start, size_t len)
+{
+	HTTPParseState&	parseState = request.multipartForm->getParseState();
+	FormPart& formPart = request.multipartForm->getCurrentPart();
+
+	size_t	i = start;	
+	while (i < len && buff[i] != CR)
+		i++;
+	std::string t;
+	t.append(buff + start, i - start);
+	std::cout << "appending " << t << std::endl;
+	std::cout << "append size " << i - start << std::endl;
+	std::cout << "body addr " << &formPart.getBody() << std::endl;
+	formPart.getBody().append(buff + start, i - start);
+	std::cout << "total size " << formPart.getBody().getSize() << std::endl;
+	if (i < len) // buff[i] == CR
+	{
+		// end part body start boundary
+		parseState.setState(HTTPParseState::PARSE_MULTIPART_BOUNDARY);
+		return i;
+	}
+	return (i);
+}
+
 size_t	HTTPParser::_parseMultipartForm(HTTPRequest &request, const char *buff, size_t start, size_t len)
 {
-	(void)request;
-	(void)buff;
-	(void)start;
-	(void)len;
-	HTTPParseState&	parseState = request.getParseState();
-	HTTPParseState::state_t state = parseState.getState();
+	HTTPMultipartForm *form = request.multipartForm;
+	HTTPParseState&	parseState = form->getParseState();
 
-	switch(state)
+	size_t	i;
+	std::cout << "parse multipart start = " << start  << "->" << (int)buff[start] << std::endl;
+	std::cout << "parse multipart state = " << getStateString(parseState.getState()) << std::endl;
+	switch(parseState.getState())
 	{
-	case HTTPParseState::PARSE_HEADER_FIELD:
-		_parseHeaderField(request, buff, start, len);
-		break;
-	case HTTPParseState::PARSE_HEADER_VALUE:
-		_parseHeaderValue(request, buff, start, len);
-	case HTTPParseState::PARSE_HEADER_CRLF:
-		_parseHeaderCrlf(request, buff, start, len);
-	default:
-		return len;
+		case HTTPParseState::PARSE_MULTIPART_BOUNDARY:
+			i = _parseMultipartBoundary(request, buff, start, len);
+			break;
+		case HTTPParseState::PARSE_MULTIPART_BOUNDARY_SUFFIX:
+			i = _parseMultipartBoundarySuffix(request, buff, start, len);
+			break;
+		case HTTPParseState::PARSE_HEADER_FIELD:
+			i = _parseHeaderField(*form, buff, start, len);
+			break;
+		case HTTPParseState::PARSE_HEADER_VALUE:
+			i = _parseHeaderValue(*form, buff, start, len);
+			break;
+		case HTTPParseState::PARSE_HEADER_CRLF:
+			i = _parseHeaderCrlf(*form, buff, start, len);
+			break;
+		case HTTPParseState::PARSE_BODY:
+			i = _parseMultipartBody(request, buff, start, len);
+			break;
+		default:
+			request.getParseState().setState(parseState.getState());
+			return len;
 	}
-	
-	// if (m_BoundaryIndex)
-	return 0;
+	return i;
 }
 
 size_t	HTTPParser::_parseRawBody(HTTPRequest &request, const char *buff, size_t start, size_t len)
@@ -464,8 +580,9 @@ size_t	HTTPParser::_parseBody(HTTPRequest &request, const char *buff, size_t sta
 {
 	if (request.isTransferChunked())
 		return _parseChunk(request, buff, start, len);
-	// if (httpMessage.isMultipartForm())
-	// 	return _parseMultipartForm(httpMessage, buff, start, len);
+
+	if (request.isMultipartForm())
+		return _parseMultipartForm(request, buff, start, len);
 	
 	return _parseRawBody(request, buff, start, len);
 }
@@ -587,6 +704,10 @@ const char	*getStateString(HTTPParseState::state_t state)
 	{
 			case HTTPParseState::PARSE_LINE_START:
 				return "PARSE_LINE_START";
+			case HTTPParseState::PARSE_MULTIPART_BOUNDARY:
+				return "PARSE_MULTIPART_BOUNDARY";
+			case HTTPParseState::PARSE_MULTIPART_BOUNDARY_SUFFIX:
+				return "PARSE_MULTIPART_BOUNDARY_SUFFIX";
 			case HTTPParseState::PARSE_LINE_METHOD:
 				return "PARSE_LINE_METHOD";
 			case HTTPParseState::PARSE_LINE_TARGET:

@@ -6,7 +6,7 @@
 #    By: bchanaa <marvin@42.fr>                     +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/04/21 12:11:54 by bchanaa           #+#    #+#              #
-#    Updated: 2025/05/15 16:00:21 by bchanaa          ###   ########.fr        #
+#    Updated: 2025/07/26 18:17:13 by bchanaa          ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 # COLORS 
@@ -42,7 +42,7 @@ SRC_PATH = ./src
 
 # LIBS
 
-CFLAGS = -Wall -Wextra -Werror -std=c++98 -I includes
+CFLAGS = -Wall -Wextra -Werror -std=c++98 -g3 -I includes
 
 # ANIMATION
 SRCS_COUNT = 0
@@ -52,7 +52,7 @@ SRCS_PRCT = ${shell expr 100 \* ${SRCS_COUNT} / ${SRCS_TOT}}
 BAR =  ${shell expr 23 \* ${SRCS_COUNT} / ${SRCS_TOT}}
 
 ifdef DEBUG
-	CFLAGS += -fsanitize=address -g3
+	CFLAGS += -fsanitize=address
 endif
 
 # SOURCES

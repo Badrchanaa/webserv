@@ -67,6 +67,8 @@ void WebServer::sig_interrupt_handler(int signum) {
     if (instance != NULL) {
         instance->handle_sigint(signum);
     }
+    else
+      std::cerr << "no instance found" << std::endl;
     delete instance;
     std::cerr <<"No Connection, Cleanup completed. Exiting..." << std::endl;
     exit(EXIT_FAILURE);

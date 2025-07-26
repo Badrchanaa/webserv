@@ -9,10 +9,10 @@ class FormPart
 	public:
 		FormPart(void)
 		{
-
 		}
 		FormPart(const FormPart &part)
 		{
+			std::cout << "form part cp" << std::endl;
 			(void)part;
 			return;
 		}
@@ -28,9 +28,19 @@ class FormPart
 		{
 			m_ContentDisposition = contentDisposition;
 		}
-		std::string	getContentType();
-		std::string	getContentDisposition();
-		HTTPBody&	getBody();
+
+		std::string	getContentDisposition()
+		{
+			return m_ContentDisposition;
+		}
+		std::string	getContentType()
+		{
+			return m_ContentType;
+		}
+		HTTPBody&	getBody()
+		{
+			return m_Body;
+		}
 	private:
 		std::string m_ContentType;
 		std::string m_ContentDisposition;
@@ -43,18 +53,29 @@ class HTTPMultipartForm: public HTTPHeaders
 		virtual HTTPParseState&	getParseState();
 
 		virtual void			onHeadersParsed();
-		void					onPartParsed();
+		void					onNewPart();
 		FormPart&				getCurrentPart();
 		HTTPMultipartForm(HTTPMessage::header_map_t &mediaTypes);
 		HTTPMultipartForm(const HTTPMultipartForm &other);
 		HTTPMultipartForm& operator=(const HTTPMultipartForm &other);
+		std::string getBoundary()
+		{
+			return m_Boundary;
+		}
+		size_t	getPartsCount()
+		{
+			return m_Parts.size();
+		}
+		std::vector<FormPart>&	getParts()
+		{
+			return m_Parts;
+		}
 		// void	newPart();
-		~HTTPMultipartForm();
+		virtual ~HTTPMultipartForm();
 	private:
 		std::string				m_Boundary;
 		std::vector<FormPart> 	m_Parts;
 		HTTPParseState			m_ParseState;
-		
 };
 
 #endif

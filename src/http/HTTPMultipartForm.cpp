@@ -5,6 +5,8 @@
 HTTPMultipartForm::HTTPMultipartForm(HTTPMessage::header_map_t &mediaTypes)
 {
 	m_Boundary = mediaTypes["boundary"];
+	m_ParseState.setReadBytes(0);
+	m_ParseState.setState(HTTPParseState::PARSE_MULTIPART_BOUNDARY);
 }
 
 HTTPParseState&	HTTPMultipartForm::getParseState()
@@ -14,17 +16,24 @@ HTTPParseState&	HTTPMultipartForm::getParseState()
 
 void			HTTPMultipartForm::onHeadersParsed()
 {
-}
-
-void	HTTPMultipartForm::onPartParsed()
-{
+	m_ParseState.setState(HTTPParseState::PARSE_BODY);
 	FormPart&	currentPart = getCurrentPart();
 
 	if (hasHeader("content-type"))
 		currentPart.setContentType(getHeader("content-type"));
 	if (hasHeader("content-disposition"))
 		currentPart.setContentDisposition(getHeader("content-disposition"));
+	std::cout << "part headers parsed" << std::endl;
+	std::cout << "content disposition: " << currentPart.getContentDisposition() << std::endl;
+	std::cout << "part addr: " << &currentPart << std::endl;
+
 	m_Headers.clear();
+}
+
+void	HTTPMultipartForm::onNewPart()
+{
+	std::cout << " NEW PART " << std::endl;
+	m_Parts.push_back(FormPart());
 }
 
 FormPart&				HTTPMultipartForm::getCurrentPart()
@@ -48,5 +57,4 @@ HTTPMultipartForm& HTTPMultipartForm::operator=(const HTTPMultipartForm &other)
 
 HTTPMultipartForm::~HTTPMultipartForm(void)
 {
-	
 }

@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #define MB (1024U * 1024U)
 
@@ -17,7 +18,18 @@ class HTTPBody
     HTTPBody();
     HTTPBody(HTTPBody &body)
     {
-      (void)body;
+	    std::cout << "new body cp2" << std::endl;
+      // m_Filename = body.m_Filename;
+      // m_IsFile = body.m_IsFile;
+      // m_Size = body.m_Size;
+      // m_VectorBuffer = body.m_VectorBuffer;
+      // if (m_IsFile)
+      // {
+	    //   m_File.open(m_Filename, std::ios::in | std::ios::binary);
+	    //   if (!m_File.is_open())
+      //     std::cerr << "could not open file" << std::endl;
+      // }
+      // return;
       return;
     }
     HTTPBody(char *buffer, size_t len);

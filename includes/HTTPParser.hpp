@@ -40,6 +40,7 @@ class HTTPParser
 		static size_t	_parseChunk(HTTPRequest &request, const char *buff, size_t start, size_t len);
 		static size_t	_parseChunkData(HTTPRequest &request, const char *buff, size_t start, size_t len);
 		static size_t	_parseMultipartForm(HTTPRequest &request, const char *buff, size_t start, size_t len);
+		static size_t	_parseMultipartBody(HTTPRequest &request, const char *buff, size_t start, size_t len);
 		static size_t	_parseRawBody(HTTPRequest &request, const char *buff, size_t start, size_t len);
 
 		static size_t	_parseCgiBody(HTTPMessage &httpMessage, const char *buff, size_t start, size_t len);

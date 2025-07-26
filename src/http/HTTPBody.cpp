@@ -5,12 +5,14 @@
 
 HTTPBody::HTTPBody(void): m_Offset(0)
 {
+	std::cout << "new body" << std::endl;
 	m_IsFile = false;
 	m_Size = 0;
 }
 
 HTTPBody::HTTPBody(char *buffer, size_t len): m_Offset(0)
 {
+	std::cout << "new body cp" << std::endl;
 	this->append(buffer, len);
 }
 
@@ -62,6 +64,8 @@ bool	HTTPBody::_writeToBuffer(const char *buffer, size_t len)
 
 bool	HTTPBody::append(const char *buffer, size_t len)
 {
+	if (len == 0)
+		return true;
 	if (m_IsFile)
 		return _writeToFile(buffer, len);
 	if (m_Size + len > MAX_BODY_MEMORY)

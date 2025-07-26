@@ -4,8 +4,8 @@
 #include <sstream>
 
 HTTPRequest::HTTPRequest(std::vector<ConfigServer> &servers): HTTPMessage(),
-	m_Error(ERR_NONE), 
-	m_MultipartForm(NULL), m_TransferEncoding(DEFAULT), m_ConfigServers(servers), m_ConfigServer(NULL)
+	multipartForm(NULL), m_Error(ERR_NONE), 
+	 m_TransferEncoding(DEFAULT), m_ConfigServers(servers), m_ConfigServer(NULL)
 {
 }
 
@@ -32,6 +32,8 @@ void	HTTPRequest::onBodyDone()
 
 void	HTTPRequest::_checkMultipart()
 {
+	if (m_ConfigServer->getLocation(m_Path)->isCgiPath(m_Path))
+		return ;
 	if (!hasHeader("content-type"))
 		return ;
 	std::string contentType = getHeader("content-type");
@@ -66,7 +68,12 @@ void	HTTPRequest::_checkMultipart()
 		return m_ParseState.setError();
 	}
 	m_isMultipartForm = true;
-	m_MultipartForm = new HTTPMultipartForm(mediaTypes);
+	if (multipartForm)
+	{
+		std::cout << "multipart check called again" << std::endl;
+		delete multipartForm;
+	}
+	multipartForm = new HTTPMultipartForm(mediaTypes);
 }
 
 void	HTTPRequest::onHeadersParsed()
@@ -281,5 +288,6 @@ HTTPRequest& HTTPRequest::operator=(const HTTPRequest &other)
 
 HTTPRequest::~HTTPRequest(void)
 {
-	
+	std::cout << "request destructor called" << std::endl;
+		delete multipartForm;
 }

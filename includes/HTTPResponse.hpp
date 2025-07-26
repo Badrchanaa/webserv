@@ -135,6 +135,7 @@ class HTTPResponse: public HTTPMessage
 		void	_processDirectoryListing();
 		void	_deleteResource();
     	void	_handleDeleteMethod();
+		void  	_handleFileUpload();
 		bool	_validDirectory(const std::string filename) const;
 		bool	_validFile(const std::string filename) const;
 		void	_sendHeaders();
@@ -143,7 +144,7 @@ class HTTPResponse: public HTTPMessage
 		void	_processHeaders();
 		const std::string  _getDefaultErrorFile() const;
 		void	_sendBody();
-		bool	_isCgiPath(const std::string path, const ConfigServer *configServer);
+		// bool	_isCgiPath(const std::string path, const ConfigServer *configServer);
 		void	_initCgi(const std::string path, const CGIHandler &cgihandler, const ConfigServer *configServer);
 		void	_processErrorBody();
 		void	_processCgiBody();

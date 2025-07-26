@@ -11,7 +11,7 @@ class HTTPHeaders
 		typedef std::map<std::string, std::string> header_map_t;
 	public:
 		HTTPHeaders(void);
-		~HTTPHeaders();
+		virtual ~HTTPHeaders();
 
 		virtual HTTPParseState		&getParseState() = 0;
 		virtual void				onHeadersParsed() = 0;

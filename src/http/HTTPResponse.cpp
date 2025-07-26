@@ -99,12 +99,12 @@ int HTTPResponse::getCgiFd() const {
   return m_CgiFd;
 }
 
-bool HTTPResponse::_isCgiPath(const std::string path,
-                              const ConfigServer *configServer) {
-  (void)path;
-  (void)configServer;
-  return false;
-}
+// bool HTTPResponse::_isCgiPath(const std::string path,
+//                               const ConfigServer *configServer) {
+//   (void)path;
+//   (void)configServer;
+//   return false;
+// }
 
 
 std::string getAbsolutePath(const std::string& relativePath) {
@@ -305,9 +305,6 @@ void HTTPResponse::init(HTTPRequest &request,
   std::cout << "location uri: " << m_Location->uri << std::endl;
   std::cout << "request uri: " << request.getUri() << std::endl;
 
-  if (_isCgiPath(request.getPath(), configServer))
-    return _initCgi(request.getPath(), cgihandler, configServer);
-
   // ADD DEBUG INFO TO RESPONSE BODY
   // _debugBody();
   m_ResourcePath = resourcePath;
@@ -318,9 +315,7 @@ void HTTPResponse::init(HTTPRequest &request,
     _handleDeleteMethod();
 
   if (requestMethod == POST)
-  {
-
-  }
+    _handleFileUpload();
 }
 
 void HTTPResponse::reset() { return; }
@@ -496,6 +491,30 @@ void HTTPResponse::_processErrorBody()
     return;
   } else
     _readFileToBody(filename);
+}
+
+void  HTTPResponse::_handleFileUpload()
+{
+  std::vector<FormPart>&  formParts = m_Request->multipartForm->getParts(); 
+  if (formParts.size() < 1)
+    return setError(FORBIDDEN);
+  std::cout << "part count " << formParts.size() << std::endl;
+  FormPart &firstPart = formParts.front();
+  firstPart.getBody().setOffset(0);
+  std::stringstream body;
+
+  std::cout << "part disposition " << firstPart.getContentDisposition() << std::endl;
+  std::cout << "part body size " << firstPart.getBody().getSize() << std::endl;
+	std::cout << "part addr: " << &firstPart << std::endl;
+	std::cout << "part body addr: " << &firstPart.getBody() << std::endl;
+  
+  const char *buff = firstPart.getBody().getBuffer();
+  appendBody(buff, firstPart.getBody().getSize());
+
+  m_State = PROCESS_HEADERS;
+  m_PollState = SOCKET_WRITE;
+  m_StatusCode = OK;
+  return;
 }
 
 void  HTTPResponse::_handleDeleteMethod()

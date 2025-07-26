@@ -34,7 +34,7 @@ class HTTPRequest: public HTTPMessage
 		HTTPRequest(std::vector<ConfigServer> &servers);
 		// HTTPRequest(const HTTPRequest &other);
 		HTTPRequest& operator=(const HTTPRequest &other);
-		~HTTPRequest();
+		virtual ~HTTPRequest();
 		virtual void		onHeadersParsed();
 		virtual void		onBodyDone();
 
@@ -47,6 +47,7 @@ class HTTPRequest: public HTTPMessage
 		// std::string			getBodyStr() const;
 		const std::string&	getPath() const;
 		const std::string&	getUri() const;
+		HTTPMultipartForm	*getMultipartForm();
 		bool				isMultipartForm() const;
 		bool				isError() const;
 		const ConfigServer*	getServer() const;
@@ -57,6 +58,8 @@ class HTTPRequest: public HTTPMessage
 		const std::string	getQuery() const{
 			return this->m_Query;
 		}
+		
+		HTTPMultipartForm	*multipartForm;
 	private:
 		void				_checkMultipart();
 		bool				_checkTransferChunked();
@@ -72,7 +75,6 @@ class HTTPRequest: public HTTPMessage
 		std::string			m_Path;
 		std::string			m_Query;
 		std::string			m_Uri;
-		HTTPMultipartForm	*m_MultipartForm;
 		transferEncoding	m_TransferEncoding;
 		size_t				m_BodySize;
 		size_t				m_BoundaryIndex;
