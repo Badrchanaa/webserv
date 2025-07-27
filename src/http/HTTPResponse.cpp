@@ -495,12 +495,11 @@ void HTTPResponse::_processErrorBody()
 
 void  HTTPResponse::_handleFileUpload()
 {
-  std::vector<FormPart>&  formParts = m_Request->multipartForm->getParts(); 
+  std::vector<FormPart *>&  formParts = m_Request->multipartForm->getParts(); 
   if (formParts.size() < 1)
     return setError(FORBIDDEN);
   std::cout << "part count " << formParts.size() << std::endl;
-  FormPart &firstPart = formParts.front();
-  firstPart.getBody().setOffset(0);
+  FormPart &firstPart = *formParts.front();
   std::stringstream body;
 
   std::cout << "part disposition " << firstPart.getContentDisposition() << std::endl;
@@ -661,7 +660,7 @@ void HTTPResponse::_sendBody() {
   ssize_t wBytes = send(m_ClientFd, bodyBuffer, size, 0);
   if (wBytes < 0)
   {
-    std::cout << "[RESPONSE ERROR]: could not send response to client." << std::endl;
+    std::cerr << "[RESPONSE ERROR]: could not send response to client." << std::endl;
     m_State = DONE;
     return;
   }

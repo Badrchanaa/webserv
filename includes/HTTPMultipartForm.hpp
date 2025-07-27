@@ -66,7 +66,7 @@ class HTTPMultipartForm: public HTTPHeaders
 		{
 			return m_Parts.size();
 		}
-		std::vector<FormPart>&	getParts()
+		std::vector<FormPart *>&	getParts()
 		{
 			return m_Parts;
 		}
@@ -74,7 +74,7 @@ class HTTPMultipartForm: public HTTPHeaders
 		virtual ~HTTPMultipartForm();
 	private:
 		std::string				m_Boundary;
-		std::vector<FormPart> 	m_Parts;
+		std::vector<FormPart *> 	m_Parts;
 		HTTPParseState			m_ParseState;
 };
 

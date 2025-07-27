@@ -7,57 +7,43 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include "RingBuffer.hpp"
 
-#define MB (1024U * 1024U)
+#define KB (1024U)
+#define MB (KB * KB)
 
-#define MAX_BODY_MEMORY (2 * MB)
+#define MAX_BODY_MEMORY (5 * KB)
 
 class HTTPBody
 {
   public:
     HTTPBody();
-    HTTPBody(HTTPBody &body)
-    {
-	    std::cout << "new body cp2" << std::endl;
-      // m_Filename = body.m_Filename;
-      // m_IsFile = body.m_IsFile;
-      // m_Size = body.m_Size;
-      // m_VectorBuffer = body.m_VectorBuffer;
-      // if (m_IsFile)
-      // {
-	    //   m_File.open(m_Filename, std::ios::in | std::ios::binary);
-	    //   if (!m_File.is_open())
-      //     std::cerr << "could not open file" << std::endl;
-      // }
-      // return;
-      return;
-    }
     HTTPBody(char *buffer, size_t len);
     ~HTTPBody();
 
     bool append(const char *buffer, size_t len);
     // unsigned int				write(int fd);
-    const char *getBuffer() const;
+    // const char *getBuffer() const;
     void flush();
     size_t getSize() const;
-    void setOffset(size_t offset);
-    size_t getOffset();
+    int	read(char *buffer, size_t len);
     void   clear()
     {
-      m_VectorBuffer.clear();
+      // TODO: Clear buffer
     }
 
   private:
+    HTTPBody(HTTPBody &body);
     bool _switchToFile();
     bool _writeToBuffer(const char *buffer, size_t len);
     bool _writeToFile(const char *buffer, size_t len);
 
     std::string m_Filename;
-    std::ofstream m_File;
-    std::vector<char> m_VectorBuffer;
+    std::fstream m_File;
+    // std::vector<char> m_VectorBuffer;
+    RingBuffer<char>  m_RingBuffer;
     size_t m_Size;
     bool m_IsFile;
-    size_t m_Offset;
 };
 
 #endif

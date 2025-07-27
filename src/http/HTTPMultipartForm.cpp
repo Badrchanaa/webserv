@@ -33,12 +33,14 @@ void			HTTPMultipartForm::onHeadersParsed()
 void	HTTPMultipartForm::onNewPart()
 {
 	std::cout << " NEW PART " << std::endl;
-	m_Parts.push_back(FormPart());
+
+	m_Parts.push_back(new FormPart());
+	// m_Parts.emplace_back();
 }
 
 FormPart&				HTTPMultipartForm::getCurrentPart()
 {
-	return m_Parts.back();
+	return *m_Parts.back();
 }
 
 HTTPMultipartForm::HTTPMultipartForm(const HTTPMultipartForm &other)

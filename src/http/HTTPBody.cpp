@@ -1,16 +1,19 @@
 #include "HTTPBody.hpp"
 #include <iostream>
 #include <unistd.h>
-#include <string>
+#include <errno.h>
 
-HTTPBody::HTTPBody(void): m_Offset(0)
+#include <string>
+#include <cstring>
+
+extern int errno;
+
+HTTPBody::HTTPBody(void): m_RingBuffer(MAX_BODY_MEMORY), m_Size(0), m_IsFile(false)
 {
 	std::cout << "new body" << std::endl;
-	m_IsFile = false;
-	m_Size = 0;
 }
 
-HTTPBody::HTTPBody(char *buffer, size_t len): m_Offset(0)
+HTTPBody::HTTPBody(char *buffer, size_t len): m_RingBuffer(MAX_BODY_MEMORY), m_Size(0), m_IsFile(false)
 {
 	std::cout << "new body cp" << std::endl;
 	this->append(buffer, len);
@@ -18,19 +21,13 @@ HTTPBody::HTTPBody(char *buffer, size_t len): m_Offset(0)
 
 size_t	HTTPBody::getSize() const
 {
-	return m_VectorBuffer.size() - m_Offset;
+	return m_Size;
 }
-
-void	HTTPBody::setOffset(size_t offset)
-{
-	m_Offset = offset;
-}
-
-const char*	HTTPBody::getBuffer() const
-{
-	const char*	buff = &m_VectorBuffer[m_Offset];
-	return buff;
-}
+// const char*	HTTPBody::getBuffer() const
+// {
+// 	const char*	buff = &m_VectorBuffer[m_Offset];
+// 	return buff;
+// }
 
 bool	HTTPBody::_writeToFile(const char *buffer, size_t len)
 {
@@ -41,11 +38,18 @@ bool	HTTPBody::_writeToFile(const char *buffer, size_t len)
 
 bool HTTPBody::_switchToFile()
 {
-	// m_File.open(std::tmpnam(NULL), std::ios::in | std::ios::binary);
-	m_File.open("body.http", std::ios::in | std::ios::binary);
+	// m_File.open("body.http", std::ios::in | std::ios::binary);
+	std::string filename = std::tmpnam(NULL);
+	std::cout << "switched to file: " << filename << std::endl;
+	m_File.open(filename.c_str(), std::ios::out | std::ios::in | std::ios::binary);
 	if (!m_File.is_open())
+	{
+		std::cout << "failed to open file" << std::endl;	
+		std::cout << "error: " << strerror(errno) << std::endl;
 		return false;
-	m_File.write(&m_VectorBuffer[0], m_Size);
+	}
+	m_IsFile = true;
+	// m_File.write(&m_VectorBuffer[0], m_Size);
 	return static_cast<bool>(m_File);
 }
 
@@ -55,9 +59,20 @@ void	HTTPBody::flush()
 		m_File.flush();
 }
 
+int	HTTPBody::read(char *buffer, size_t len)
+{
+	size_t	rbytes;
+
+	rbytes = m_RingBuffer.read(buffer, len);
+	if (rbytes == len)
+		return len;
+	m_File.read(buffer + rbytes, len - rbytes);
+	return len;
+}
+
 bool	HTTPBody::_writeToBuffer(const char *buffer, size_t len)
 {
-	m_VectorBuffer.insert(m_VectorBuffer.end(), buffer, buffer + len);
+	m_RingBuffer.write(buffer, len);
 	m_Size += len;
 	return true;
 }
