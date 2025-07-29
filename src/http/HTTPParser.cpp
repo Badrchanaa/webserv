@@ -483,7 +483,6 @@ size_t	_parseMultipartBoundary(HTTPRequest &request, const char *buff, size_t st
 	size_t	availableBytes = (len - start);
 	size_t	bytesToRead = std::min(availableBytes, remainingBoundaryBytes);
 
-
 	size_t i = 0;
 	while (i < bytesToRead && boundary[readBytes + i] == buff[start + i])
 		i++;
@@ -496,53 +495,16 @@ size_t	_parseMultipartBoundary(HTTPRequest &request, const char *buff, size_t st
 		return (start + i);
 	}
 
-	if (availableBytes < remainingBoundaryBytes) // buffer not enough
+	if (availableBytes < remainingBoundaryBytes) //	buffer end
 	{
 		parseState.setReadBytes(readBytes + i);
 		return (start + i);
 	}
-
+	// boundary match
 	parseState.setReadBytes(0);
 	parseState.setState(HTTPParseState::PARSE_MULTIPART_BOUNDARY_SUFFIX);
 	return (start + i);
-
-	// if (memcmp(boundary.c_str() + readBytes, buff + start, bytesToRead))
-	// {
-	// 	// add readBytes to form body
-	// 	const char *it =  std::mismatch(buff + start, buff + start + bytesToRead, boundary.c_str() + readBytes).second;
-	// 	std::cout << "bytesToRead = " << bytesToRead << std::endl;
-	// 	std::cout << "boundary = " << boundary << std::endl;
-	// 	std::cout << "buff[start(" << start << ")] = " << (int)buff[start] << std::endl;
-	// 	size_t mismatchPos = std::distance(boundary.c_str(), it);
-	// 	std::cout << "mismatch at index " <<  mismatchPos << " -> " << (int)buff[start + mismatchPos] << std::endl;
-	// 	std::cout << "readBytes = " << readBytes << std::endl;
-	// 	// exit(1);
-	// 	readBytes = std::distance(boundary.c_str(), it);
-	// 	// size_t mismatchIdx = std::distance(boundary.c_str(), it);
-	// 	request.multipartForm->getCurrentPart().getBody().append(boundary.c_str(), readBytes);
-	// 	parseState.setReadBytes(0);
-	// 	parseState.setState(HTTPParseState::PARSE_BODY);
-	// 	return (start + readBytes);
-	// }
-	// readBytes += bytesToRead;
-	// if (availableBytes < remainingBoundaryBytes)
-	// {
-	// 	parseState.setReadBytes(readBytes);
-	// 	return (len);
-	// }
-	// parseState.setReadBytes(0);
-	// parseState.setState(HTTPParseState::PARSE_MULTIPART_BOUNDARY_SUFFIX);
-	// return (start + bytesToRead);
 }
-
-    //    --AaB03x
-    //    content-disposition: form-data; name="field1"
-    //    content-type: text/plain;charset=UTF-8
-    //    content-transfer-encoding: quoted-printable
-
-    //    Joe owes =E2=82=AC100.
-    //    --AaB03x
-
 
 size_t	HTTPParser::_parseMultipartBody(HTTPRequest &request, const char *buff, size_t start, size_t len)
 {
@@ -552,15 +514,8 @@ size_t	HTTPParser::_parseMultipartBody(HTTPRequest &request, const char *buff, s
 	size_t	i = start;	
 	while (i < len && buff[i] != CR)
 		i++;
-	std::string t;
-	t.append(buff + start, i - start);
-	std::cout << "appending " << t << std::endl;
-	std::cout << "append size " << i - start << std::endl;
-	std::cout << "body addr " << &formPart.getBody() << std::endl;
-	
 	formPart.getBody().append(buff + start, i - start);
-	std::cout << "total size " << formPart.getBody().getSize() << std::endl;
-	if (i < len) // buff[i] == CR
+	if (i < len)
 	{
 		// end part body start boundary
 		parseState.setState(HTTPParseState::PARSE_MULTIPART_BOUNDARY);
@@ -575,7 +530,7 @@ size_t	HTTPParser::_parseMultipartForm(HTTPRequest &request, const char *buff, s
 	HTTPParseState&	parseState = form->getParseState();
 
 	size_t	i;
-	std::cout << "parse multipart start = " << start  << "->" << (int)buff[start] << std::endl;
+	// std::cout << "parse multipart start = " << start  << "->" << (int)buff[start] << std::endl;
 	std::cout << "parse multipart state = " << getStateString(parseState.getState()) << std::endl;
 	switch(parseState.getState())
 	{
