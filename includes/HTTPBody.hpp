@@ -21,13 +21,12 @@ class HTTPBody
     HTTPBody(char *buffer, size_t len);
     ~HTTPBody();
 
-    bool append(const char *buffer, size_t len);
-    // unsigned int				write(int fd);
-    // const char *getBuffer() const;
-    void flush();
-    size_t getSize() const;
-    int	read(char *buffer, size_t len);
-    void   clear()
+    bool    append(const char *buffer, size_t len);
+    void    flush();
+    size_t  getSize() const;
+    int     read(char *buffer, size_t len);
+    void    seal();
+    void    clear()
     {
       // TODO: Clear buffer
     }
@@ -38,12 +37,12 @@ class HTTPBody
     bool _writeToBuffer(const char *buffer, size_t len);
     bool _writeToFile(const char *buffer, size_t len);
 
-    std::string m_Filename;
-    std::fstream m_File;
-    // std::vector<char> m_VectorBuffer;
+    std::string       m_Filename;
+    std::fstream      m_File;
     RingBuffer<char>  m_RingBuffer;
-    size_t m_Size;
-    bool m_IsFile;
+    size_t            m_Size;
+    bool              m_IsFile;
+    bool              m_IsSealed;
 };
 
 #endif

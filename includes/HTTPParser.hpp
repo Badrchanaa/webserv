@@ -19,6 +19,8 @@ class HTTPParser
 		static void	parseRequest(HTTPRequest &request, const char *buff, size_t len);
 		static void	parseCgi(HTTPResponse &response, const char *buff, size_t len);
 
+		// static HTTPHeaders::header_map_t	parseHeaderDirectives(std::string headerValue, std::string::size_type startPos = 0);
+
 		static const uint8_t TOKEN_ALLOWED_CHARS[128];
 		
 	private:

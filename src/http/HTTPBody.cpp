@@ -8,12 +8,12 @@
 
 extern int errno;
 
-HTTPBody::HTTPBody(void): m_RingBuffer(MAX_BODY_MEMORY), m_Size(0), m_IsFile(false)
+HTTPBody::HTTPBody(void): m_RingBuffer(MAX_BODY_MEMORY), m_Size(0), m_IsFile(false), m_IsSealed(false)
 {
 	std::cout << "new body" << std::endl;
 }
 
-HTTPBody::HTTPBody(char *buffer, size_t len): m_RingBuffer(MAX_BODY_MEMORY), m_Size(0), m_IsFile(false)
+HTTPBody::HTTPBody(char *buffer, size_t len): m_RingBuffer(MAX_BODY_MEMORY), m_Size(0), m_IsFile(false), m_IsSealed(false)
 {
 	std::cout << "new body cp" << std::endl;
 	this->append(buffer, len);
@@ -33,6 +33,7 @@ bool	HTTPBody::_writeToFile(const char *buffer, size_t len)
 {
 	m_File.write(buffer, len);
 	m_Size += len;
+	// std::cout << "seekp:"
 	return static_cast<bool>(m_File);
 }
 
@@ -40,8 +41,8 @@ bool HTTPBody::_switchToFile()
 {
 	// m_File.open("body.http", std::ios::in | std::ios::binary);
 	std::string filename = std::tmpnam(NULL);
-	std::cout << "switched to file: " << filename << std::endl;
-	m_File.open(filename.c_str(), std::ios::out | std::ios::in | std::ios::binary);
+	// std::cout << "switched to file: " << filename << std::endl;
+	m_File.open(filename.c_str(), std::ios::out | std::ios::in | std::ios::trunc | std::ios::binary);
 	if (!m_File.is_open())
 	{
 		std::cout << "failed to open file" << std::endl;	
@@ -59,15 +60,32 @@ void	HTTPBody::flush()
 		m_File.flush();
 }
 
+void HTTPBody::seal()
+{
+	m_IsSealed = true;
+	if (m_IsFile && m_File.is_open())
+	{
+		m_File.seekg(0);
+		m_File.clear();
+	}
+}
+
 int	HTTPBody::read(char *buffer, size_t len)
 {
 	size_t	rbytes;
 
+	if (!m_IsSealed)
+		throw std::runtime_error("body must be sealed before read");
 	rbytes = m_RingBuffer.read(buffer, len);
+	m_Size -= rbytes;
 	if (rbytes == len)
 		return len;
-	m_File.read(buffer + rbytes, len - rbytes);
-	return len;
+	len -= rbytes;
+	size_t remainingBytes = std::min(len, m_Size - rbytes);
+	m_File.read(buffer + rbytes, remainingBytes);
+	size_t fileRbytes = m_File.gcount();
+	m_Size -= fileRbytes;
+	return rbytes + fileRbytes;
 }
 
 bool	HTTPBody::_writeToBuffer(const char *buffer, size_t len)
@@ -79,6 +97,8 @@ bool	HTTPBody::_writeToBuffer(const char *buffer, size_t len)
 
 bool	HTTPBody::append(const char *buffer, size_t len)
 {
+	if (m_IsSealed)
+		throw std::runtime_error("cannot write to a sealed body");
 	if (len == 0)
 		return true;
 	if (m_IsFile)

@@ -17,4 +17,12 @@ typedef enum {
   PUT = 1 << 3
 } httpMethod;
 
+#include <string>
+#include <map>
+// #include "HTTPHeaders.hpp"
+typedef std::map<std::string, std::string> header_map_t;
+
+header_map_t	parseHeaderDirectives(std::string headerValue, std::string::size_type startPos);
+std::string removeQuotes(std::string str);
+
 #endif

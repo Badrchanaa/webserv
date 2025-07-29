@@ -18,6 +18,8 @@
 #define WEBSERVER_NAME "WebServ 1.0"
 #define DEFAULT_PATH "./config/default.yml"
 
+# define READ_BUFFER_SIZE (8192 * 2)
+
 struct MethodPair {
   const char *name;
   httpMethod method;

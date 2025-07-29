@@ -4,48 +4,7 @@
 #include <HTTPMessage.hpp>
 #include <string>
 
-class FormPart
-{
-	public:
-		FormPart(void)
-		{
-		}
-		FormPart(const FormPart &part)
-		{
-			std::cout << "form part cp" << std::endl;
-			(void)part;
-			return;
-		}
-		~FormPart()
-		{
-
-		}
-		void	setContentType(const std::string &contentType)
-		{
-			m_ContentType = contentType;
-		}
-		void	setContentDisposition(const std::string &contentDisposition)
-		{
-			m_ContentDisposition = contentDisposition;
-		}
-
-		std::string	getContentDisposition()
-		{
-			return m_ContentDisposition;
-		}
-		std::string	getContentType()
-		{
-			return m_ContentType;
-		}
-		HTTPBody&	getBody()
-		{
-			return m_Body;
-		}
-	private:
-		std::string m_ContentType;
-		std::string m_ContentDisposition;
-		HTTPBody	m_Body;
-};
+#include "FormPart.hpp"
 
 class HTTPMultipartForm: public HTTPHeaders
 {
@@ -53,8 +12,11 @@ class HTTPMultipartForm: public HTTPHeaders
 		virtual HTTPParseState&	getParseState();
 
 		virtual void			onHeadersParsed();
+		void					onParseComplete();
 		void					onNewPart();
 		FormPart&				getCurrentPart();
+		FormPart*				getFirstFilePart();
+
 		HTTPMultipartForm(HTTPMessage::header_map_t &mediaTypes);
 		HTTPMultipartForm(const HTTPMultipartForm &other);
 		HTTPMultipartForm& operator=(const HTTPMultipartForm &other);

@@ -1,4 +1,5 @@
 #include "HTTPRequest.hpp"
+#include "HTTPParser.hpp"
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -27,6 +28,7 @@ bool	HTTPRequest::isError() const
 
 void	HTTPRequest::onBodyDone()
 {
+	m_Body.seal();
 	m_ParseState.setState(HTTPParseState::PARSE_DONE);
 }
 
@@ -40,22 +42,22 @@ void	HTTPRequest::_checkMultipart()
 	std::string::size_type pos = contentType.find(';');
 	if (contentType.substr(0, pos) != "multipart/form-data")
 		return ;
-	HTTPRequest::header_map_t mediaTypes; 
-	std::string::size_type sepPos;
-	while (pos != std::string::npos)
-	{
-		contentType = contentType.substr(pos + 1, std::string::npos);
-		sepPos = contentType.find('=', 0);
-		if (sepPos == std::string::npos)
-			break ;
-		pos = contentType.find(';', 0);
-		std::string mediaType = contentType.substr(0, sepPos);
-		size_t	firstNonSpace = mediaType.find_first_not_of(" ");
-		if (firstNonSpace == std::string::npos)
-			firstNonSpace = 0;
-		mediaType = mediaType.substr(firstNonSpace, std::string::npos);
-		mediaTypes[mediaType] = contentType.substr(sepPos + 1, pos - sepPos - 1);
-	}
+	HTTPRequest::header_map_t mediaTypes = parseHeaderDirectives(contentType, pos);
+	// std::string::size_type sepPos;
+	// while (pos != std::string::npos)
+	// {
+	// 	contentType = contentType.substr(pos + 1, std::string::npos);
+	// 	sepPos = contentType.find('=', 0);
+	// 	if (sepPos == std::string::npos)
+	// 		break ;
+	// 	pos = contentType.find(';', 0);
+	// 	std::string mediaType = contentType.substr(0, sepPos);
+	// 	size_t	firstNonSpace = mediaType.find_first_not_of(" ");
+	// 	if (firstNonSpace == std::string::npos)
+	// 		firstNonSpace = 0;
+	// 	mediaType = mediaType.substr(firstNonSpace, std::string::npos);
+	// 	mediaTypes[mediaType] = contentType.substr(sepPos + 1, pos - sepPos - 1);
+	// }
 	HTTPRequest::header_map_t::const_iterator it;
 	// for (it = mediaTypes.begin(); it != mediaTypes.end(); it++)
 	// {

@@ -359,7 +359,7 @@ Connection &WebServer::getClientConnection(int fd, uint32_t events) {
     if (conn.client_fd == fd)
     {
       conn.socketEvent = true;
-      std::cout << "[Connection: " << conn.client_fd << "] EVENT ON CLIENT FD: " << epoll.format_events(events) << std::endl;
+      // std::cout << "[Connection: " << conn.client_fd << "] EVENT ON CLIENT FD: " << epoll.format_events(events) << std::endl;
     }
     // else
     //   conn.socketEvent = false;
@@ -384,7 +384,7 @@ void WebServer::run() {
   DEBUG_LOG("Starting main event loop");
   // signal(SIGINT, WebServer::sig_interrupt_handler);
   while (running) {
-    std::cout << "WAITING FOR EVENTS" << std::endl;
+    // std::cout << "WAITING FOR EVENTS" << std::endl;
     // int n = epoll_wait(epoll.epfd, events, MAX_EVENTS, -1);
     int n = epoll_wait(epoll.epfd, events, MAX_EVENTS, TIMEOUT_SEC * 1000);
     DEBUG_LOG("Epoll_wait returned " << n << " events");
@@ -417,7 +417,7 @@ void WebServer::run() {
         DEBUG_LOG("[cgiFd] : " << conn->m_Response.getCgiFd() << " | client_fd : "
           << conn->client_fd  << " with events: " << epoll.format_events(conn->events) << std::endl);
         bool connectionDeleted = this->handle_client(*conn);
-        std::cout << "connectionDeleted " << connectionDeleted  << std::endl;
+        // std::cout << "connectionDeleted " << connectionDeleted  << std::endl;
         if (!connectionDeleted) { // it++
           // std::cout << "FIRST TIMEOUT CASE" << std::endl;
           if (current_time - conn->last_activity >= TIMEOUT_SEC) 
@@ -445,7 +445,7 @@ void WebServer::run() {
 
       }
     }
-    std::cout << "RUN END ------------ " << std::endl;
+    // std::cout << "RUN END ------------ " << std::endl;
   }
 }
 
@@ -683,7 +683,7 @@ bool WebServer::handle_client(Connection &conn) {
   // int client_fd = -1;
   isDeleted = false;
 
-  std::cout << "ENTER HANDLE CLIENT fd: " << conn.client_fd << std::endl;
+  // std::cout << "ENTER HANDLE CLIENT fd: " << conn.client_fd << std::endl;
   if (conn.events & EPOLL_ERRORS)
   {
   // std::cout << "IN HANDLE CLIENT ERROR fd: " << conn.client_fd << " events:" << this->epoll.format_events(conn.events) << std::endl;

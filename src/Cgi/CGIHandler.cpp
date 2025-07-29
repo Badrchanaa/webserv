@@ -69,17 +69,20 @@ void CGIHandler::setup_child(int sock, std::string &pathName, std::string &scrip
 //
 ssize_t  CGIProcess::write(HTTPBody &body)
 {
-  // Hello World + 5 >> World
-  const char *buff = body.getBuffer();
-  size_t len = body.getSize();
-  // std::cout << "buff : " << buff << std::endl;
-  // ssize_t sent = send(this->cgi_sock, buff, len, MSG_NOSIGNAL);
-  ssize_t sent = send(this->cgi_sock, buff, len, 0);
-  if (sent < 0) {
+  char buff[READ_BUFFER_SIZE];
+
+  size_t  leftoverBytes = m_SocketBuffer.read(buff, READ_BUFFER_SIZE);
+  size_t rbytes = body.read(buff + leftoverBytes, READ_BUFFER_SIZE - leftoverBytes);
+
+  size_t buffSize = leftoverBytes + rbytes;
+  ssize_t sent = send(this->cgi_sock, buff, buffSize, 0);
+  if (sent <= 0) {
     this->cleanup(true);
     return sent;
   }
-  body.setOffset(sent);
+  if (static_cast<size_t>(sent) < buffSize)
+    m_SocketBuffer.write(buff + sent, buffSize - sent);
+
   return sent;
 }
 

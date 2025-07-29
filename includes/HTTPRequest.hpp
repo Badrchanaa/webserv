@@ -28,6 +28,7 @@ typedef enum transferEncoding
 	CHUNKED,
 } transferEncoding;
 
+
 class HTTPRequest: public HTTPMessage
 {
 	public:

@@ -4,6 +4,8 @@
 #include <iostream>  // for std::cerr
 #include <string>
 #include "Resource.hpp"
+#include "Constants.hpp"
+
 
 HTTPResponse::status_map_t  createDefaultPages()
 {
@@ -43,7 +45,7 @@ const HTTPResponse::status_map_t HTTPResponse::_defaultPages = createDefaultPage
 const HTTPResponse::status_map_t HTTPResponse::_statusMap = createStatusMap();
 
 HTTPResponse::HTTPResponse(void)
-    : m_State(INIT), m_PollState(SOCKET_WRITE), m_CursorPos(0),
+    : m_SocketBuffer(READ_BUFFER_SIZE), m_State(INIT), m_PollState(SOCKET_WRITE), m_CursorPos(0),
       m_ConfigServer(NULL), m_Location(NULL), m_Cgi(NULL), m_CgiFd(0), m_CgiDone(false), m_HasCgi(false)
 {
   addHeader("server", WEBSERVER_NAME);
@@ -88,6 +90,7 @@ void  HTTPResponse::onHeadersParsed()
 
 void  HTTPResponse::onBodyDone()
 {
+  m_Body.seal();
   m_CgiDone = true;
   m_ParseState.setState(HTTPParseState::PARSE_DONE);
   return;
@@ -412,7 +415,8 @@ void HTTPResponse::_debugBody() {
   responseStream << "<h1>REQUEST BODY:</h1>";
   appendBody(responseStream.str());
 
-  appendBody(m_Request->getBody().getBuffer(), m_Request->getBody().getSize());
+  // appendBody(m_Request->getBody().getBuffer(), m_Request->getBody().getSize());
+  // TODO: appendBody(httpbody)
 
   appendBody(std::string("<h1>response body</h1>"));
   addHeader("content-type", "text/html");
@@ -497,22 +501,45 @@ void  HTTPResponse::_handleFileUpload()
 {
   std::vector<FormPart *>&  formParts = m_Request->multipartForm->getParts(); 
   if (formParts.size() < 1)
-    return setError(FORBIDDEN);
+    return setError(BAD_REQUEST);
   std::cout << "part count " << formParts.size() << std::endl;
-  FormPart &firstPart = *formParts.front();
-  std::stringstream body;
+  FormPart *filePart = m_Request->multipartForm->getFirstFilePart();
+  if (!filePart)
+    return setError(BAD_REQUEST);
+  HTTPHeaders::header_map_t directives = filePart->getDispositionDirectives();
 
-  std::cout << "part disposition " << firstPart.getContentDisposition() << std::endl;
-  std::cout << "part body size " << firstPart.getBody().getSize() << std::endl;
-	std::cout << "part addr: " << &firstPart << std::endl;
-	std::cout << "part body addr: " << &firstPart.getBody() << std::endl;
+  std::string filename = m_Location->root;
+  if (m_Location->upload[0] != '/' && filename[filename.size() - 1] != '/')
+    filename += "/"; 
+  filename = filename + m_Location->upload;
+  std::string rawFilename = removeQuotes(directives["filename"]);
+  if (rawFilename[0] != '/' && filename[filename.size() - 1] != '/')
+    filename += "/"; 
+  filename += rawFilename;
+  if (filename[0] == '/')
+    filename = "." + filename;
+  std::ofstream file;
+  std::cout << "UPLOAD TO FILE: " << filename << std::endl;
+
+  file.open(filename.c_str(), std::ios::out | std::ios::trunc);
+  if (!file.is_open())
+    return setError(FORBIDDEN);
   
-  const char *buff = firstPart.getBody().getBuffer();
-  appendBody(buff, firstPart.getBody().getSize());
+  char  buff[READ_BUFFER_SIZE];
+  HTTPBody &body = filePart->getBody();
+  while (body.getSize() > 0)
+  {
+    size_t rbytes = body.read(buff, READ_BUFFER_SIZE);
+    std::cout << "read " << rbytes << " from body" << std::endl;
+    file.write(buff, rbytes);
+    if (file.fail())
+      return setError(SERVER_ERROR);
+  }
 
+  m_Body.seal();
   m_State = PROCESS_HEADERS;
   m_PollState = SOCKET_WRITE;
-  m_StatusCode = OK;
+  m_StatusCode = NO_CONTENT;
   return;
 }
 
@@ -574,6 +601,7 @@ void HTTPResponse::setError(statusCode status) {
   std::cout << "[RESPONSE] set error: " << status << std::endl;
   m_StatusCode = status;
   _processErrorBody();
+  m_Body.seal();
   m_State = PROCESS_HEADERS;
   m_PollState = SOCKET_WRITE;
 }
@@ -632,6 +660,7 @@ void HTTPResponse::_processBody() {
   _processResource();
   if (m_StatusCode == OK)
     _readFileToBody(m_ResourcePath);
+  m_Body.seal();
   m_State = PROCESS_HEADERS;
 }
 
@@ -646,28 +675,37 @@ void HTTPResponse::_writeToCgi()
   HTTPBody &body = m_Request->getBody();
   ssize_t sent = m_Cgi->write(body);
   std::cout << "WROTE " << sent << " bytes to CGI" << std::endl;
-  if (body.getSize() == 0)
+  if (body.getSize() == 0 && m_Cgi->m_SocketBuffer.size() == 0)
     m_PollState = CGI_READ;
 }
 
 void HTTPResponse::_sendBody() {
-  std::cout << "PROCESS BODY" << std::endl;
-  const char *bodyBuffer = m_Body.getBuffer();
-  // const char * buff = const_cast<const char *>(&bodyBuffer[m_CursorPos]);
-  std::size_t size = m_Body.getSize();
-  // write(1, buff, size);
+  char buff[READ_BUFFER_SIZE];
 
-  ssize_t wBytes = send(m_ClientFd, bodyBuffer, size, 0);
-  if (wBytes < 0)
+  if (m_Body.getSize() == 0 && m_SocketBuffer.size() == 0)
+  {
+    m_State = DONE;
+    return;
+  }
+  size_t  leftoverBytes = m_SocketBuffer.read(buff, READ_BUFFER_SIZE);
+  size_t rbytes = m_Body.read(buff + leftoverBytes, READ_BUFFER_SIZE - leftoverBytes);
+
+  size_t buffSize = leftoverBytes + rbytes;
+
+  std::cout << "PROCESS BODY" << std::endl;
+  ssize_t wBytes = send(m_ClientFd, buff, buffSize, 0);
+  if (wBytes <= 0)
   {
     std::cerr << "[RESPONSE ERROR]: could not send response to client." << std::endl;
     m_State = DONE;
     return;
   }
+  if (static_cast<size_t>(wBytes) < buffSize)
+    m_SocketBuffer.write(buff + wBytes, buffSize - wBytes);
   std::cout << "body size: " << m_Body.getSize() << std::endl;
   std::cout << "BODY: sent " << wBytes << " bytes to socket " << m_ClientFd
             << std::endl;
-  if (static_cast<size_t>(wBytes) < size)
+  if (m_Body.getSize() > 0 || m_SocketBuffer.size() > 0)
     std::cout << "written: " << wBytes << std::endl;
   else
     m_State = DONE;

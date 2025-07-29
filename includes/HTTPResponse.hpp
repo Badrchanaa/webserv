@@ -155,6 +155,7 @@ class HTTPResponse: public HTTPMessage
 		std::vector<char *> env_ptrs;
 		std::vector<std::string> cgi_env;
 
+		RingBuffer<char>	m_SocketBuffer;
 		std::string			m_StatusString;
 		std::stringstream	m_HeadersStream;
 		int					m_ClientFd;

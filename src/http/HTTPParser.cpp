@@ -24,6 +24,29 @@ const uint8_t HTTPParser::TOKEN_ALLOWED_CHARS[128] = {
 			1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, // 112-127 (p-z, |, ~)
 };
 
+// HTTPHeaders::header_map_t	HTTPParser::parseHeaderDirectives(std::string headerValue, std::string::size_type startPos)
+// {
+// 	HTTPRequest::header_map_t directives; 
+// 	std::string::size_type sepPos;
+// 	std::string::size_type pos = startPos;
+
+// 	while (pos != std::string::npos)
+// 	{
+// 		headerValue = headerValue.substr(pos + 1, std::string::npos);
+// 		sepPos = headerValue.find('=', 0);
+// 		if (sepPos == std::string::npos)
+// 			break ;
+// 		pos = headerValue.find(';', 0);
+// 		std::string directive = headerValue.substr(0, sepPos);
+// 		size_t	firstNonSpace = directive.find_first_not_of(" ");
+// 		if (firstNonSpace == std::string::npos)
+// 			firstNonSpace = 0;
+// 		directive = directive.substr(firstNonSpace, std::string::npos);
+// 		directives[directive] = headerValue.substr(sepPos + 1, pos - sepPos - 1);
+// 	}
+// 	return directives;
+// }
+
 const char	*getStateString(HTTPParseState::state_t state);
 inline bool	HTTPParser::_isCrlf(char current, char previous = LF)
 {
@@ -153,7 +176,7 @@ size_t	HTTPParser::_parseVersion(HTTPRequest &request, const char *buff, size_t 
 		count++;
 		i++;
 	}
-	if (buff[i] == SLASH)
+	if (i < len && buff[i] == SLASH)
 	{
 		if (count == 4)
 			parseState.advance();
@@ -212,6 +235,7 @@ size_t	HTTPParser::_parseHeaderCrlf(HTTPHeaders &httpHeaders, const char *buff, 
 		return i;
 	if (parseState.getPrevChar() == CR)
 	{
+		std::cout << "readBytes: " << readBytes << " i: " << i << " len: " << len << std::endl;
 		// parseState.setState(HTTPParseState::PARSE_ERROR);
 		parseState.setError();
 		return i;
@@ -427,12 +451,16 @@ size_t	_parseMultipartBoundarySuffix(HTTPRequest &request, const char *buff, siz
 		parseState.setPrevChar(buff[start]);
 		return (start + 1);
 	}
-	if (!strncmp(BOUNDARY_DELIMITER + readBytes, buff + start, bytesToRead))
+	if (!memcmp(BOUNDARY_DELIMITER + readBytes, buff + start, bytesToRead))
+	{
 		parseState.setState(HTTPParseState::PARSE_DONE);
-	else if (!strncmp(BOUNDARY_CRLF + readBytes, buff + start, bytesToRead))
+		request.multipartForm->onParseComplete();
+	}
+	else if (!memcmp(BOUNDARY_CRLF + readBytes, buff + start, bytesToRead))
 	{
 		// new form part
 		request.multipartForm->onNewPart();
+		parseState.setPrevChar(LF);
 		parseState.setState(HTTPParseState::PARSE_HEADER_FIELD);
 	}
 	else
@@ -455,29 +483,56 @@ size_t	_parseMultipartBoundary(HTTPRequest &request, const char *buff, size_t st
 	size_t	availableBytes = (len - start);
 	size_t	bytesToRead = std::min(availableBytes, remainingBoundaryBytes);
 
-	if (strncmp(boundary.c_str() + readBytes, buff + start, bytesToRead))
+
+	size_t i = 0;
+	while (i < bytesToRead && boundary[readBytes + i] == buff[start + i])
+		i++;
+
+	if (i < bytesToRead) // mismatch
 	{
-		// add readBytes to form body
-		const char *it =  std::mismatch(buff + start, buff + start + bytesToRead, boundary.c_str()).second;
-		std::cout << "bytesToRead = " << bytesToRead << std::endl;
-		std::cout << "boundary = " << boundary << std::endl;
-		std::cout << "buff[start] = " << (int)buff[start] << std::endl;
-		std::cout << "mismatch at index " << std::distance(boundary.c_str(), it) << " -> " << (int) *it << std::endl;
-		std::cout << "readBytes = " << readBytes << std::endl;
-		std::cout << readBytes << std::endl;
-		request.multipartForm->getCurrentPart().getBody().append(boundary.c_str(), readBytes);
+		request.multipartForm->getCurrentPart().getBody().append(boundary.c_str(), readBytes + i);
+		parseState.setReadBytes(0);
 		parseState.setState(HTTPParseState::PARSE_BODY);
-		return (start);
+		return (start + i);
 	}
-	readBytes += bytesToRead;
-	if (availableBytes < remainingBoundaryBytes)
+
+	if (availableBytes < remainingBoundaryBytes) // buffer not enough
 	{
-		parseState.setReadBytes(readBytes);
-		return (len);
+		parseState.setReadBytes(readBytes + i);
+		return (start + i);
 	}
+
 	parseState.setReadBytes(0);
 	parseState.setState(HTTPParseState::PARSE_MULTIPART_BOUNDARY_SUFFIX);
-	return (start + bytesToRead);
+	return (start + i);
+
+	// if (memcmp(boundary.c_str() + readBytes, buff + start, bytesToRead))
+	// {
+	// 	// add readBytes to form body
+	// 	const char *it =  std::mismatch(buff + start, buff + start + bytesToRead, boundary.c_str() + readBytes).second;
+	// 	std::cout << "bytesToRead = " << bytesToRead << std::endl;
+	// 	std::cout << "boundary = " << boundary << std::endl;
+	// 	std::cout << "buff[start(" << start << ")] = " << (int)buff[start] << std::endl;
+	// 	size_t mismatchPos = std::distance(boundary.c_str(), it);
+	// 	std::cout << "mismatch at index " <<  mismatchPos << " -> " << (int)buff[start + mismatchPos] << std::endl;
+	// 	std::cout << "readBytes = " << readBytes << std::endl;
+	// 	// exit(1);
+	// 	readBytes = std::distance(boundary.c_str(), it);
+	// 	// size_t mismatchIdx = std::distance(boundary.c_str(), it);
+	// 	request.multipartForm->getCurrentPart().getBody().append(boundary.c_str(), readBytes);
+	// 	parseState.setReadBytes(0);
+	// 	parseState.setState(HTTPParseState::PARSE_BODY);
+	// 	return (start + readBytes);
+	// }
+	// readBytes += bytesToRead;
+	// if (availableBytes < remainingBoundaryBytes)
+	// {
+	// 	parseState.setReadBytes(readBytes);
+	// 	return (len);
+	// }
+	// parseState.setReadBytes(0);
+	// parseState.setState(HTTPParseState::PARSE_MULTIPART_BOUNDARY_SUFFIX);
+	// return (start + bytesToRead);
 }
 
     //    --AaB03x
@@ -488,11 +543,6 @@ size_t	_parseMultipartBoundary(HTTPRequest &request, const char *buff, size_t st
     //    Joe owes =E2=82=AC100.
     //    --AaB03x
 
-// size_t	HTTPParser::_parseMultipartBodyCrlf(HTTPRequest &request, const char *buff, size_t start, size_t len)
-// {
-// 	HTTPParseState&	parseState = request.multipartForm->getParseState();
-
-// }
 
 size_t	HTTPParser::_parseMultipartBody(HTTPRequest &request, const char *buff, size_t start, size_t len)
 {
@@ -507,6 +557,7 @@ size_t	HTTPParser::_parseMultipartBody(HTTPRequest &request, const char *buff, s
 	std::cout << "appending " << t << std::endl;
 	std::cout << "append size " << i - start << std::endl;
 	std::cout << "body addr " << &formPart.getBody() << std::endl;
+	
 	formPart.getBody().append(buff + start, i - start);
 	std::cout << "total size " << formPart.getBody().getSize() << std::endl;
 	if (i < len) // buff[i] == CR

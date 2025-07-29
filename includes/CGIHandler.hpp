@@ -33,15 +33,17 @@
 // #include ".hpp"
 // #include "WebServer.hpp"
 #include "HTTPBody.hpp"
+#include "Constants.hpp"
 
 extern char **environ;
 struct CGIProcess {
-  CGIProcess(int socket, pid_t p_pid) : cgi_sock(socket), pid(p_pid) {}
+  CGIProcess(int socket, pid_t p_pid) : m_SocketBuffer(READ_BUFFER_SIZE), cgi_sock(socket), pid(p_pid) {}
   
+  RingBuffer<char>  m_SocketBuffer;
   int cgi_sock;
   pid_t pid;
   ssize_t read(char *buff, size_t size);
-  ssize_t write(HTTPBody &body); // 
+  ssize_t write(HTTPBody &body); 
   void cleanup(bool error);
 };
 
