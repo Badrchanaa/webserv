@@ -22,6 +22,9 @@ session_start();
 //   echo "Value is: " . $_COOKIE[$cookie_name];
 // }
 
+
+wefowe;
+
 if (isset($_GET["set-session"]))
 {
 	$_SESSION["favcolor"] = "green";
@@ -42,10 +45,10 @@ else
 	echo "<br/>";
 }
 
-echo "----------------------<br />";
-$data = file_get_contents('php://input');
-echo "data: <br/>";
-echo $data;
+// echo "----------------------<br />";
+// $data = file_get_contents('php://input');
+// echo "data: <br/>";
+// echo $data;
 echo "=======<br/>";
  if ($_SERVER['REQUEST_METHOD'] == "POST")
  {

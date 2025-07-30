@@ -46,6 +46,7 @@ class HTTPParser
 		static size_t	_parseRawBody(HTTPRequest &request, const char *buff, size_t start, size_t len);
 
 		static size_t	_parseCgiBody(HTTPMessage &httpMessage, const char *buff, size_t start, size_t len);
+		static void		_parseCgiError(HTTPResponse &response, const char *buff, size_t len);
 		static size_t	_skipCrlf(HTTPParseState &parseState, const char *buff, size_t start, size_t len);
 		static inline bool	_isCrlf(char current, char previous);
 		static bool 		_notValidHeaderField(const int &c);

@@ -584,6 +584,7 @@ size_t	HTTPParser::_parseRawBody(HTTPRequest &request, const char *buff, size_t 
 
 size_t	HTTPParser::_parseBody(HTTPRequest &request, const char *buff, size_t start, size_t len)
 {
+	std::cout << "PARSE BODY" << std::endl;
 	if (request.isTransferChunked())
 		return _parseChunk(request, buff, start, len);
 
@@ -666,9 +667,17 @@ void	HTTPParser::parseRequest(HTTPRequest &request, const char *buff, size_t len
 }
 
 
-// void	HTTPParser::parseCgiError(HTTPResponse &response, const char *buff, size_t len)
-// {
-// }
+void	HTTPParser::_parseCgiError(HTTPResponse &response, const char *buff, size_t len)
+{
+	(void) response;
+	(void) buff;
+	(void) len;
+	// (void) ;
+
+	// std::string warningMessage = " Warning";
+	// std::string errorMessage = " Error";
+
+}
 
 void	HTTPParser::parseCgi(HTTPResponse &response, const char *buff, size_t len)
 {
@@ -698,7 +707,7 @@ void	HTTPParser::parseCgi(HTTPResponse &response, const char *buff, size_t len)
 				offset = _parseCgiBody(response, buff, offset, len);
 				break;
 			default:
-				std::cout << "CGI PARSER: UNEXPECTED PARSE STATE: " << getStateString(state) << std::endl;
+				std::cerr << "CGI PARSER: UNEXPECTED PARSE STATE: " << getStateString(state) << std::endl;
 				return;
 		}
 	}

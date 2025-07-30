@@ -636,8 +636,8 @@ void HTTPResponse::_processResource() {
 void HTTPResponse::_processCgiBody() {
   
   std::cout << "PROCESS CGI BODY" << std::endl;
-  char buff[8192];
-  ssize_t rbytes = m_Cgi->read(buff, 8192);
+  char buff[READ_BUFFER_SIZE];
+  ssize_t rbytes = m_Cgi->read(buff, READ_BUFFER_SIZE);
   // buff[rbytes] = 0;
   // std::cout << buff << std::endl;
   // std::cout << "read from cgi: " << rbytes  << " | " << buff << std::endl;
@@ -645,9 +645,10 @@ void HTTPResponse::_processCgiBody() {
     HTTPParser::parseCgi(*this, buff, rbytes);
     // appendBody(buff, rbytes);
 
-  if (rbytes < 8192 && m_CgiDone)
+  if (rbytes < READ_BUFFER_SIZE && m_CgiDone)
   {
     std::cout << "CGI READ FINISHED" << std::endl;
+    m_Body.seal();
     m_PollState = SOCKET_WRITE;
     m_State = PROCESS_HEADERS;
   }

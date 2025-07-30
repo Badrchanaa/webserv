@@ -92,9 +92,6 @@ void	HTTPRequest::onHeadersParsed()
 	}
 	else
 		m_Path = m_Uri;
-	if (m_Method == GET)
-		return m_ParseState.setState(HTTPParseState::PARSE_DONE);
-	m_ParseState.setState(HTTPParseState::PARSE_BODY);
 	for(it = m_Headers.begin(); it != m_Headers.end(); it++)
 	{
 		std::cout << "headers[" << it->first << "] = " << it->second << std::endl;
@@ -105,6 +102,10 @@ void	HTTPRequest::onHeadersParsed()
 		std::cout << "INVALID CONTENT LENGTH" << std::endl;
 	if (m_Error == ERR_INVALID_HOST)
 		std::cout << "INVALID HOST" << std::endl;
+	if (m_Method == GET || m_ContentLength == 0)
+		m_ParseState.setState(HTTPParseState::PARSE_DONE);
+	else
+		m_ParseState.setState(HTTPParseState::PARSE_BODY);
 	m_ConfigServer = &(Config::getServerByName(m_ConfigServers, m_Headers["host"]));
 	_checkMultipart();
 }
