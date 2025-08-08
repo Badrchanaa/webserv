@@ -293,4 +293,5 @@ HTTPRequest::~HTTPRequest(void)
 {
 	std::cout << "request destructor called" << std::endl;
 		delete multipartForm;
+    this->forceCleanup();
 }

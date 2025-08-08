@@ -32,6 +32,29 @@ typedef enum transferEncoding
 class HTTPRequest: public HTTPMessage
 {
 	public:
+		void forceCleanup() {
+			m_Path.clear();
+			m_Headers.clear();
+			
+			// Force string deallocation
+			std::string empty_path;
+			m_Path.swap(empty_path);
+			
+			std::string empty_uri;
+			m_Uri.swap(empty_uri);
+			
+			std::string empty_query;
+			m_Query.swap(empty_query);
+			
+			// Force map deallocation
+			header_map_t empty_headers;
+			m_Headers.swap(empty_headers);
+			
+			if (multipartForm) {
+				delete multipartForm;
+				multipartForm = NULL;
+			}
+		}
 		HTTPRequest(std::vector<ConfigServer> &servers);
 		// HTTPRequest(const HTTPRequest &other);
 		HTTPRequest& operator=(const HTTPRequest &other);

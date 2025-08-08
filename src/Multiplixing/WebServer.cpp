@@ -39,28 +39,81 @@ the queue, accept() fails with the error EAGAIN or EWOULDBLOCK.
 WebServer* WebServer::instance = NULL;
 
 
-void cleanupListenerMap(std::map<int, std::vector<ConfigServer> > &listener_map) {
+// Improve the existing cleanupListenerMap function
+void cleanupListenerMap(std::map<int, std::vector<ConfigServer> >& listener_map) {
     for (std::map<int, std::vector<ConfigServer> >::iterator it = listener_map.begin();
          it != listener_map.end(); ++it) {
-        std::vector<ConfigServer> &servers = it->second;
-
+        
+        std::vector<ConfigServer>& servers = it->second;
+        
         for (std::vector<ConfigServer>::iterator vec_it = servers.begin();
              vec_it != servers.end(); ++vec_it) {
+            
+            // Clear all nested containers
             vec_it->ports.clear();
             vec_it->server_names.clear();
             vec_it->errors.clear();
-
+            
+            // Force deallocation using swap trick
+            std::vector<int> empty_ports;
+            vec_it->ports.swap(empty_ports);
+            
+            std::vector<std::string> empty_names;
+            vec_it->server_names.swap(empty_names);
+            
+            std::map<int, std::string> empty_errors;
+            vec_it->errors.swap(empty_errors);
+            
+            // Clear locations
             for (std::vector<Location>::iterator loc_it = vec_it->locations.begin();
                  loc_it != vec_it->locations.end(); ++loc_it) {
                 loc_it->indexes.clear();
                 loc_it->cgi.clear();
+                
+                // Force deallocation
+                std::vector<std::string> empty_indexes;
+                loc_it->indexes.swap(empty_indexes);
+                
+                std::map<std::string, std::string> empty_cgi;
+                loc_it->cgi.swap(empty_cgi);
             }
             vec_it->locations.clear();
+            
+            // Force deallocation of locations vector
+            std::vector<Location> empty_locations;
+            vec_it->locations.swap(empty_locations);
         }
         servers.clear();
+        
+        // Force deallocation of servers vector
+        std::vector<ConfigServer> empty_servers;
+        servers.swap(empty_servers);
     }
     listener_map.clear();
 }
+
+// void cleanupListenerMap(std::map<int, std::vector<ConfigServer> > &listener_map) {
+//     for (std::map<int, std::vector<ConfigServer> >::iterator it = listener_map.begin();
+//          it != listener_map.end(); ++it) {
+//         std::vector<ConfigServer> &servers = it->second;
+
+//         for (std::vector<ConfigServer>::iterator vec_it = servers.begin();
+//              vec_it != servers.end(); ++vec_it) {
+//             vec_it->ports.clear();
+//             vec_it->server_names.clear();
+//             vec_it->errors.clear();
+
+//             for (std::vector<Location>::iterator loc_it = vec_it->locations.begin();
+//                  loc_it != vec_it->locations.end(); ++loc_it) {
+//                 loc_it->indexes.clear();
+//                 loc_it->cgi.clear();
+//             }
+//             vec_it->locations.clear();
+//         }
+//         servers.clear();
+//     }
+//     listener_map.clear();
+// }
 
 
 void WebServer::sig_interrupt_handler(int signum) {
@@ -77,19 +130,96 @@ void WebServer::sig_interrupt_handler(int signum) {
 
 
 
+// void WebServer::handle_sigint(int signum) {
+//     (void)signum;
+//     std::cout << "Signal received, cleaning up..." << std::endl;
+    
+//     // Set running to false to exit main loop
+//     running = false;
+    
+//     for (std::list<Connection *>::iterator it = connections.begin(); it != connections.end();) {
+//         cleanup_connection(it);
+//     }
+//     connections.clear();
+
+//     for (std::vector<FileDescriptor*>::iterator it = listener_descriptors.begin(); it != listener_descriptors.end(); ++it) {
+//         if (*it) {
+//             if ((*it)->fd > 0) {
+//                 bool flag = true;
+//                 epoll.remove_fd(flag, (*it)->fd);
+//                 close((*it)->fd);
+//             }
+//             delete *it;
+//         }
+//     }
+//     listener_descriptors.clear();
+//     cleanupListenerMap(listener_map);
+
+
+//     for (std::vector<ConfigServer>::iterator it = config.getServers().begin(); 
+//         it != config.getServers().end(); ++it) 
+//     {
+//         ConfigServer server = *it;
+//         server.ports.clear();
+//         server.server_names.clear();
+//         server.errors.clear();
+
+//         for (std::vector<Location>::iterator loc_it = server.locations.begin(); 
+//             loc_it != server.locations.end(); ++loc_it) 
+//         {
+//             loc_it->indexes.clear();
+//             loc_it->cgi.clear();
+//         }
+
+//         server.locations.clear();
+//     }
+//     this->config.getServers().clear();
+    
+//     if (epoll.epfd > 0) {
+//         close(epoll.epfd);
+//         epoll.epfd = -1;
+//     }
+    
+//     // exit(0);
+//     // throw std::runtime_error("Cleanup completed. Exiting...\n");
+// }
+
+// In WebServer::handle_sigint()
 void WebServer::handle_sigint(int signum) {
     (void)signum;
     std::cout << "Signal received, cleaning up..." << std::endl;
     
-    // Set running to false to exit main loop
     running = false;
     
-    for (std::list<Connection *>::iterator it = connections.begin(); it != connections.end();) {
-        cleanup_connection(it);
+    // Force cleanup all connections
+    std::list<Connection*>::iterator it = connections.begin();
+    while (it != connections.end()) {
+        Connection* conn = *it;
+        
+        // Close all file descriptors
+        if (conn->client_fd > 0) {
+            if (conn->client_Added) {
+                bool flag = true;
+                epoll.remove_fd(flag, conn->client_fd);
+            }
+            close(conn->client_fd);
+        }
+        
+        if (conn->m_Response.hasCgi()) {
+            conn->m_Response.cleanupCgi(true);
+        }
+        
+        conn->m_Request.forceCleanup();
+        conn->m_Response.forceCleanup();
+
+        delete conn;
+        it = connections.erase(it);
     }
     connections.clear();
-
-    for (std::vector<FileDescriptor*>::iterator it = listener_descriptors.begin(); it != listener_descriptors.end(); ++it) {
+    
+    // Clean up other resources
+    for (std::vector<FileDescriptor*>::iterator it = listener_descriptors.begin();
+         it != listener_descriptors.end(); ++it) {
         if (*it) {
             if ((*it)->fd > 0) {
                 bool flag = true;
@@ -100,35 +230,42 @@ void WebServer::handle_sigint(int signum) {
         }
     }
     listener_descriptors.clear();
+    
     cleanupListenerMap(listener_map);
-
-
-    for (std::vector<ConfigServer>::iterator it = config.getServers().begin(); 
-        it != config.getServers().end(); ++it) 
-    {
-        ConfigServer server = *it;
-        server.ports.clear();
-        server.server_names.clear();
-        server.errors.clear();
-
-        for (std::vector<Location>::iterator loc_it = server.locations.begin(); 
-            loc_it != server.locations.end(); ++loc_it) 
-        {
-            loc_it->indexes.clear();
-            loc_it->cgi.clear();
-        }
-
-        server.locations.clear();
+    
+    // Force cleanup of config servers vector
+    std::vector<ConfigServer>& servers = config.getServers();
+    for (std::vector<ConfigServer>::iterator it = servers.begin(); 
+         it != servers.end(); ++it) {
+        
+        it->ports.clear();
+        it->server_names.clear();
+        it->errors.clear();
+        it->locations.clear();
+        
+        // Force deallocation using swap trick
+        std::vector<int> empty_ports;
+        it->ports.swap(empty_ports);
+        
+        std::vector<std::string> empty_names;
+        it->server_names.swap(empty_names);
+        
+        std::map<int, std::string> empty_errors;
+        it->errors.swap(empty_errors);
+        
+        std::vector<Location> empty_locations;
+        it->locations.swap(empty_locations);
     }
-    this->config.getServers().clear();
+    servers.clear();
+    
+    // Force deallocation of main servers vector
+    std::vector<ConfigServer> empty_servers;
+    servers.swap(empty_servers);
     
     if (epoll.epfd > 0) {
         close(epoll.epfd);
         epoll.epfd = -1;
     }
-    
-    // exit(0);
-    // throw std::runtime_error("Cleanup completed. Exiting...\n");
 }
 
 void WebServer::setupSignalHandler() {
@@ -294,31 +431,98 @@ void WebServer::create_listeners() {
   }
 
 }
+
+// In WebServer.cpp - Improved destructor
 WebServer::~WebServer() {
-  // for (std::vector<FileDescriptor *>::iterator it =
-  //          listener_descriptors.begin();
-  //      it != listener_descriptors.end(); ++it) {
-  //   delete *it;
-  // }
-  for (std::vector<FileDescriptor *>::iterator it = listener_descriptors.begin();
-        it != listener_descriptors.end(); ++it) {
-      if ((*it)->fd > 0) {
-          bool flag = true;
-          epoll.remove_fd(flag, (*it)->fd); // Remove from epoll first
-          close((*it)->fd);
-          (*it)->fd = -1;
+    // Clean up connections first with explicit iteration
+    std::list<Connection*>::iterator it = connections.begin();
+    while (it != connections.end()) {
+      Connection* conn = *it;
+      
+      // Close client socket
+      if (conn->client_fd > 0) {
+          if (conn->client_Added) {
+              bool flag = true;
+              epoll.remove_fd(flag, conn->client_fd);
+          }
+          close(conn->client_fd);
       }
-    delete *it;
-  }
-  for (std::list<Connection *>::iterator it = connections.begin();
-       it != connections.end();) {
-    this->connections.erase(it);
-  }
-  if (epoll.epfd > 0) {
-      close(epoll.epfd);
-      epoll.epfd = -1;
-  }
+      
+      // Close CGI sockets
+      if (conn->m_Response.hasCgi()) {
+          int cgi_fd = conn->m_Response.getCgiFd();
+          int cgi_stderr_fd = conn->m_Response.getCgiStderrFd();
+          
+          if (cgi_fd > 0 && conn->cgi_Added) {
+              bool flag = true;
+              epoll.remove_fd(flag, cgi_fd);
+          }
+          if (cgi_stderr_fd > 0 && conn->cgi_stderr_Added) {
+              bool flag = true;
+              epoll.remove_fd(flag, cgi_stderr_fd);
+          }
+          conn->m_Response.cleanupCgi(true);
+      }
+      conn->m_Request.forceCleanup();
+      conn->m_Response.forceCleanup();
+
+      delete conn;
+        it = connections.erase(it);
+    }
+    connections.clear();
+    
+    // Clean up listeners
+    for (std::vector<FileDescriptor*>::iterator it = listener_descriptors.begin();
+         it != listener_descriptors.end(); ++it) {
+        if (*it && (*it)->fd > 0) {
+            bool flag = true;
+            epoll.remove_fd(flag, (*it)->fd);
+            close((*it)->fd);
+            (*it)->fd = -1;
+        }
+        delete *it;
+    }
+    listener_descriptors.clear();
+    
+    // Force vector deallocation using swap trick (C++98 compatible)
+    std::vector<FileDescriptor*> empty_listeners;
+    listener_descriptors.swap(empty_listeners);
+    
+    // Clean up listener map
+    cleanupListenerMap(listener_map);
+    
+    // Close epoll
+    if (epoll.epfd > 0) {
+        close(epoll.epfd);
+        epoll.epfd = -1;
+    }
 }
+
+// WebServer::~WebServer() {
+//   // for (std::vector<FileDescriptor *>::iterator it =
+//   //          listener_descriptors.begin();
+//   //      it != listener_descriptors.end(); ++it) {
+//   //   delete *it;
+//   // }
+//   for (std::vector<FileDescriptor *>::iterator it = listener_descriptors.begin();
+//         it != listener_descriptors.end(); ++it) {
+//       if ((*it)->fd > 0) {
+//           bool flag = true;
+//           epoll.remove_fd(flag, (*it)->fd); // Remove from epoll first
+//           close((*it)->fd);
+//           (*it)->fd = -1;
+//       }
+//     delete *it;
+//   }
+//   for (std::list<Connection *>::iterator it = connections.begin();
+//        it != connections.end();) {
+//     this->connections.erase(it);
+//   }
+//   if (epoll.epfd > 0) {
+//       close(epoll.epfd);
+//       epoll.epfd = -1;
+//   }
+// }
 
 // WebServer::WebServer(const char *FileCofig) : running(true) {
 //   config.creatDefaultServer();
@@ -549,6 +753,9 @@ bool WebServer::handle_client_response(Connection &conn) {
 
         if (!response.isKeepAlive()) {
             shouldDelete = true;
+            conn.m_Request.forceCleanup();
+            conn.m_Response.forceCleanup();
+
         } else {
             std::cout << "NOT DONE" << std::endl;
             conn.reset();
@@ -736,31 +943,68 @@ void WebServer::log_connection(const struct sockaddr_storage &addr) {
 }
 
 
+void WebServer::cleanup_connection(std::list<Connection*>::iterator& it) {
+    Connection* conn = *it;
+    
+    if (conn->client_fd > 0) {
+        if (conn->client_Added) {
+            epoll.remove_fd(conn->client_Added, conn->client_fd);
+        }
+        close(conn->client_fd);
+        conn->client_fd = -1;
+    }
+    
+    if (conn->m_Response.hasCgi()) {
+        int cgi_fd = conn->m_Response.getCgiFd();
+        int cgi_stderr_fd = conn->m_Response.getCgiStderrFd();
+        
+        if (cgi_fd > 0 && conn->cgi_Added) {
+            try {
+                epoll.remove_fd(conn->cgi_Added, cgi_fd);
+            } catch (...) {
+            }
+        }
+        if (cgi_stderr_fd > 0 && conn->cgi_stderr_Added) {
+            try {
+                epoll.remove_fd(conn->cgi_stderr_Added, cgi_stderr_fd);
+            } catch (...) {
+            }
+        }
+        
+        conn->m_Response.cleanupCgi(true);
+    }
+    
+    conn->m_Request.reset();
+    conn->m_Response.reset();
+    
+    delete conn;
+    it = connections.erase(it);
+}
 
-// void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
-//     Connection *conn = *it;
-//     if (conn->client_fd > 0) {
-//         if (conn->client_Added){
-//           epoll.remove_fd(conn->client_Added, conn->client_fd);
-//         }
-//         close(conn->client_fd);
-//     }
-//     if (conn->m_Response.hasCgi() && conn->m_Response.getCgiFd() > 0) {
-//         if (conn->cgi_Added){
-//           epoll.remove_fd(conn->cgi_Added, conn->m_Response.getCgiFd());
-//         }
-//         if (conn->cgi_stderr_Added)
-//             epoll.remove_fd(conn->cgi_stderr_Added, conn->m_Response.getCgiStderrFd());
-//         conn->m_Response.cleanupCgi(true);
-//         // close(conn->m_Response.getCgiFd());
-//         // if  (conn->m_Response.getCGIProcessPid() > 0)
-//         //   kill(conn->m_Response.getCGIProcessPid(), SIGKILL);
-//         if (conn->m_Response.getCGIProcess())
-//           delete conn->m_Response.getCGIProcess();
-//     }
-//     delete conn;
-//     it = connections.erase(it);
-// }
+void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
+    Connection *conn = *it;
+    if (conn->client_fd > 0) {
+        if (conn->client_Added){
+          epoll.remove_fd(conn->client_Added, conn->client_fd);
+        }
+        close(conn->client_fd);
+    }
+    if (conn->m_Response.hasCgi() && conn->m_Response.getCgiFd() > 0) {
+        if (conn->cgi_Added){
+          epoll.remove_fd(conn->cgi_Added, conn->m_Response.getCgiFd());
+        }
+        if (conn->cgi_stderr_Added)
+            epoll.remove_fd(conn->cgi_stderr_Added, conn->m_Response.getCgiStderrFd());
+        conn->m_Response.cleanupCgi(true);
+        // close(conn->m_Response.getCgiFd());
+        // if  (conn->m_Response.getCGIProcessPid() > 0)
+        //   kill(conn->m_Response.getCGIProcessPid(), SIGKILL);
+        if (conn->m_Response.getCGIProcess())
+          delete conn->m_Response.getCGIProcess();
+    }
+    delete conn;
+    it = connections.erase(it);
+}
 
 int main(int argc, char **argv) {
     WebServer *server = NULL;

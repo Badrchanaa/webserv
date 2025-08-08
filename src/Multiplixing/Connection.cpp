@@ -42,12 +42,14 @@ void Connection::reset() {
     m_Response.reset();
 
     if (m_Response.getCgiFd() != -1) {
-        // close(m_Response.getCgiFd());
-        // close(m_Response.getCgiStderrFd());
         m_Response.cleanupCgi(false);
     }
 
     m_Request.reset();
+    
+    m_Request.forceCleanup();
+    m_Response.forceCleanup();
+    
     m_State = REQUEST_PARSING;
 }
 

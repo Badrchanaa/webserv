@@ -50,6 +50,19 @@ class HTTPResponse: public HTTPMessage
 		typedef std::map<statusCode, const char *> status_map_t;
 	
 	public:
+		void forceCleanup() {
+			cleanupCgiEnv();
+			m_Body.clear();
+			m_Headers.clear();
+			
+			// Force header map deallocation
+			header_map_t empty_headers;
+			m_Headers.swap(empty_headers);
+			
+			// Clear string streams
+			m_HeadersStream.str("");
+			m_HeadersStream.clear();
+		}
 		void cleanupCgiEnv();
 		HTTPResponse( void );
 		// HTTPResponse(const HTTPResponse &other);

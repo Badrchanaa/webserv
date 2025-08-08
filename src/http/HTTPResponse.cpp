@@ -836,4 +836,5 @@ HTTPResponse::~HTTPResponse() {
         delete m_Cgi;
         m_Cgi = NULL;
     }
+    this->forceCleanup();
 }
