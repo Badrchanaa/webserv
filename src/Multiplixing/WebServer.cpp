@@ -974,37 +974,13 @@ void WebServer::cleanup_connection(std::list<Connection*>::iterator& it) {
         conn->m_Response.cleanupCgi(true);
     }
     
-    conn->m_Request.reset();
-    conn->m_Response.reset();
+    // conn->m_Request.reset();
+    // conn->m_Response.reset();
     
     delete conn;
     it = connections.erase(it);
 }
 
-void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
-    Connection *conn = *it;
-    if (conn->client_fd > 0) {
-        if (conn->client_Added){
-          epoll.remove_fd(conn->client_Added, conn->client_fd);
-        }
-        close(conn->client_fd);
-    }
-    if (conn->m_Response.hasCgi() && conn->m_Response.getCgiFd() > 0) {
-        if (conn->cgi_Added){
-          epoll.remove_fd(conn->cgi_Added, conn->m_Response.getCgiFd());
-        }
-        if (conn->cgi_stderr_Added)
-            epoll.remove_fd(conn->cgi_stderr_Added, conn->m_Response.getCgiStderrFd());
-        conn->m_Response.cleanupCgi(true);
-        // close(conn->m_Response.getCgiFd());
-        // if  (conn->m_Response.getCGIProcessPid() > 0)
-        //   kill(conn->m_Response.getCGIProcessPid(), SIGKILL);
-        if (conn->m_Response.getCGIProcess())
-          delete conn->m_Response.getCGIProcess();
-    }
-    delete conn;
-    it = connections.erase(it);
-}
 
 int main(int argc, char **argv) {
     WebServer *server = NULL;
