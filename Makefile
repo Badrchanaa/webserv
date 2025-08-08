@@ -42,7 +42,7 @@ SRC_PATH = ./src
 
 # LIBS
 
-CFLAGS = -Wall -Wextra -Werror -std=c++98 -g3 -I includes
+CFLAGS = -Wall -Wextra  -std=c++98 -g3 -I includes
 
 # ANIMATION
 SRCS_COUNT = 0

@@ -31,6 +31,9 @@ public:
   connectionState m_State;
   std::vector<ConfigServer> &servers;
 
+  // hadchi lizt
+  bool cgi_stderr_Added;
+  bool cgiStderrEvent;
 /// Added by regex33
   // Config &config;
   // CGIHandler &Cgihander;

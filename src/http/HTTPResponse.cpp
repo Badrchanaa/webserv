@@ -7,6 +7,27 @@
 #include "Constants.hpp"
 
 
+
+int HTTPResponse::getCgiStderrFd() const {
+    if (!m_Cgi)
+        return -1;
+    return m_Cgi->cgi_stderr_sock;
+}
+
+void HTTPResponse::processStderr() {
+    if (!m_Cgi) return;
+    
+    char stderrBuff[READ_BUFFER_SIZE];
+    ssize_t rbytes = m_Cgi->readStderr(stderrBuff, READ_BUFFER_SIZE);
+    
+    if (rbytes > 0) {
+        m_StderrBuffer.append(stderrBuff, rbytes);
+        m_HasStderrData = true;
+        std::cout << "[CGI STDERR]: " << std::string(stderrBuff, rbytes) << std::endl;
+    }
+}
+
+
 HTTPResponse::status_map_t  createDefaultPages()
 {
   	HTTPResponse::status_map_t defaultPages;
@@ -46,7 +67,7 @@ const HTTPResponse::status_map_t HTTPResponse::_statusMap = createStatusMap();
 
 HTTPResponse::HTTPResponse(void)
     : m_SocketBuffer(READ_BUFFER_SIZE), m_State(INIT), m_PollState(SOCKET_WRITE), m_CursorPos(0),
-      m_ConfigServer(NULL), m_Location(NULL), m_Cgi(NULL), m_CgiFd(0), m_CgiDone(false), m_HasCgi(false)
+      m_ConfigServer(NULL), m_Location(NULL), m_Cgi(NULL), m_CgiFd(0), m_CgiDone(false), m_HasCgi(false), m_HasStderrData(false)
 {
   addHeader("server", WEBSERVER_NAME);
   m_StatusCode = HTTPResponse::OK;
@@ -180,7 +201,7 @@ void HTTPResponse::setupCgiEnv(std::string &ScriptFileName) {
   // this->cgi_env.push_back("REQUEST_METHOD=");
 
   for (std::vector<std::string>::iterator it = this->cgi_env.begin(); it != this->cgi_env.end(); ++it) {
-      std::cout << " regex char * : " << const_cast<char*>((*it).c_str()) << std::endl;
+      // std::cout << " regex char * : " << const_cast<char*>((*it).c_str()) << std::endl;
       this->env_ptrs.push_back(const_cast<char*>((*it).c_str()));
   }
   this->env_ptrs.push_back(NULL);
@@ -200,7 +221,7 @@ void HTTPResponse::_initCgi(const std::string path,
   scriptName =
       m_Location->root + m_Location->uri + m_Location->cgi_uri + scriptName;
   
-  std::cout << "scriptName : " << scriptName << " | " << pathName << std::endl;
+  // std::cout << "scriptName : " << scriptName << " | " << pathName << std::endl;
 
   struct stat fileStat;
   if (stat(scriptName.c_str(), &fileStat) != 0 || !S_ISREG(fileStat.st_mode) ||
@@ -216,7 +237,7 @@ void HTTPResponse::_initCgi(const std::string path,
     if (m_Cgi)
     {
       m_HasCgi = true;
-      setCgiFd(m_Cgi->cgi_sock);
+      setCgiFd(m_Cgi->cgi_stdout_sock);
     }
     std::cout << "end init cgi" << std::endl;
     if (m_Request->getBody().getSize() > 0)
@@ -634,28 +655,67 @@ void HTTPResponse::_processResource() {
 }
 
 void HTTPResponse::_processCgiBody() {
-  
-  std::cout << "PROCESS CGI BODY" << std::endl;
-  char buff[READ_BUFFER_SIZE];
-  ssize_t rbytes = m_Cgi->read(buff, READ_BUFFER_SIZE);
-  // buff[rbytes] = 0;
-  // std::cout << buff << std::endl;
-  // std::cout << "read from cgi: " << rbytes  << " | " << buff << std::endl;
-  if (rbytes > 0)
-    HTTPParser::parseCgi(*this, buff, rbytes);
-    // appendBody(buff, rbytes);
+    std::cout << "PROCESS CGI BODY" << std::endl;
+    char buff[READ_BUFFER_SIZE];
+    ssize_t rbytes = m_Cgi->read(buff, READ_BUFFER_SIZE);
+    
+    if (rbytes > 0)
+        HTTPParser::parseCgi(*this, buff, rbytes);
 
-  if (rbytes < READ_BUFFER_SIZE && m_CgiDone)
-  {
-    std::cout << "CGI READ FINISHED" << std::endl;
-    m_Body.seal();
-    m_PollState = SOCKET_WRITE;
-    m_State = PROCESS_HEADERS;
-  }
-  // setError(SERVER_ERROR);
-  // m_State = PROCESS_HEADERS;
-  // m_PollState = SOCKET_WRITE;
+    if (rbytes < READ_BUFFER_SIZE && m_CgiDone) {
+        std::cout << "CGI read FINISHED here : " << m_HasStderrData <<  std::endl;
+        
+        // wa9ila khasni n tchickiif we have stderr data and no valid response m_Body.getSize() == 0
+        // if (m_HasStderrData && m_StatusCode >= 400) {
+        if (m_HasStderrData && !m_Body.getSize()){
+          
+        std::cout << "===============================" << std::endl;
+        std::cout << "Ana f cgi error " << std::endl;
+        std::cout << "===============================" << std::endl;
+            // setError(SERVER_ERROR);
+            m_StatusCode = SERVER_ERROR;
+            
+            std::stringstream errorBody;
+            errorBody << "<html><body>";
+            errorBody << "<h1>CGI Script Error</h1>";
+            errorBody << "<pre>" << this->m_StderrBuffer << "</pre>";
+            errorBody << "</body></html>";
+            
+            std::cout << "m_StderrBuffer : " << this->m_StderrBuffer << std::endl;
+            m_Body.clear();
+            appendBody(errorBody.str());
+            addHeader("content-type", "text/html");
+        }
+        
+        m_Body.seal();
+        m_PollState = SOCKET_WRITE;
+        m_State = PROCESS_HEADERS;
+    }
 }
+
+// void HTTPResponse::_processCgiBody() {
+  
+//   std::cout << "PROCESS CGI BODY" << std::endl;
+//   char buff[READ_BUFFER_SIZE];
+//   ssize_t rbytes = m_Cgi->read(buff, READ_BUFFER_SIZE);
+//   // buff[rbytes] = 0;
+//   // std::cout << buff << std::endl;
+//   // std::cout << "read from cgi: " << rbytes  << " | " << buff << std::endl;
+//   if (rbytes > 0)
+//     HTTPParser::parseCgi(*this, buff, rbytes);
+//     // appendBody(buff, rbytes);
+
+//   if (rbytes < READ_BUFFER_SIZE && m_CgiDone)
+//   {
+//     std::cout << "CGI READ FINISHED" << std::endl;
+//     m_Body.seal();
+//     m_PollState = SOCKET_WRITE;
+//     m_State = PROCESS_HEADERS;
+//   }
+//   // setError(SERVER_ERROR);
+//   // m_State = PROCESS_HEADERS;
+//   // m_PollState = SOCKET_WRITE;
+// }
 
 void HTTPResponse::_processBody() {
   _processResource();
@@ -756,11 +816,24 @@ bool HTTPResponse::resume(bool isCgiReady, bool isClientReady) {
 
 // }
 
+
+void HTTPResponse::cleanupCgiEnv() {
+    env_ptrs.clear();
+    cgi_env.clear();
+    
+    std::vector<char*> empty_ptrs;
+    env_ptrs.swap(empty_ptrs);
+    
+    std::vector<std::string> empty_env;
+    cgi_env.swap(empty_env);
+}
+
 // HTTPResponse::~HTTPResponse(void) {}
 HTTPResponse::~HTTPResponse() {
-  if (m_Cgi)
-  {
-    m_Cgi->cleanup(false);
-    delete m_Cgi;
-  }
+    cleanupCgiEnv();
+    if (m_Cgi) {
+        m_Cgi->cleanup(false);
+        delete m_Cgi;
+        m_Cgi = NULL;
+    }
 }

@@ -55,14 +55,10 @@ EpollManager::EpollManager() {
   }
 
   void EpollManager::add_fd(bool &is_added, int fd, uint32_t events) {
-    // eventsMap::const_iterator it = fds.find(fd);
-    // if (it == fds.end())
-    //   return ;
     DEBUG_LOG("[Epoll] Adding fd "
               << fd << " with events: " << format_events(events));
     struct epoll_event ev;
     ev.events = events | EPOLL_ERRORS;
-    // ev.events = events;
     ev.data.fd = fd;
 
     if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev) == -1) {

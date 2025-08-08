@@ -349,7 +349,6 @@ WebServer::WebServer(const char *FileCofig) : running(true) {
 }
 
 
-// In src/Multiplixing/WebServer.cpp
 Connection &WebServer::getClientConnection(int fd, uint32_t events) {
   (void)events;
   for (std::list<Connection *>::iterator it = connections.begin();
@@ -363,16 +362,18 @@ Connection &WebServer::getClientConnection(int fd, uint32_t events) {
     }
     // else
     //   conn.socketEvent = false;
-    if (conn.m_Response.getCgiFd() == fd)
-    {
-
+    if (conn.m_Response.getCgiFd() == fd) {
       conn.cgiEvent = true;
-      std::cout << "[Connection: " << conn.client_fd << "] EVENT ON CGI FD: " << epoll.format_events(events) << std::endl;
+      // std::cout << "[Connection: " << conn.client_fd << "] EVENT ON CGI STDOUT FD: " << epoll.format_events(events) << std::endl;
     }
-    // else
-    //   conn.cgiEvent = false;
-    if ((conn.client_fd == fd && conn.socketEvent) || (conn.m_Response.getCgiFd() == fd && conn.cgiEvent))
-    {
+    if (conn.m_Response.getCgiStderrFd() == fd) {
+      conn.cgiStderrEvent = true;  // Add this flag to Connection class
+      std::cout << "[Connection: " << conn.client_fd << "] EVENT ON CGI STDERR FD: " << epoll.format_events(events) << std::endl;
+    }
+    
+    if ((conn.client_fd == fd && conn.socketEvent) || 
+        (conn.m_Response.getCgiFd() == fd && conn.cgiEvent) ||
+        (conn.m_Response.getCgiStderrFd() == fd && conn.cgiStderrEvent)) {
         return conn;
     }
   }
@@ -456,6 +457,8 @@ void WebServer::handle_connection_timeout(std::list<Connection *>::iterator &it)
     if (conn->cgi_Added) // Timeout in CGI
     {
       epoll.remove_fd(conn->cgi_Added, conn->m_Response.getCgiFd());
+      if (conn->cgi_stderr_Added)
+        epoll.remove_fd(conn->cgi_stderr_Added, conn->m_Response.getCgiStderrFd());
       epoll.add_fd(conn->client_Added, conn->client_fd, EPOLL_READ | EPOLL_WRITE);
       conn->m_Response.cleanupCgi(true);
       conn->m_Response.setError(HTTPResponse::GATEWAY_TIMEOUT);
@@ -503,54 +506,59 @@ bool WebServer::handle_client_response(Connection &conn) {
     HTTPResponse &response = conn.m_Response;
     bool shouldDelete = false;
     int cgi_fd = response.getCgiFd();
+    int cgi_stderr_fd = response.getCgiStderrFd(); // this
     HTTPResponse::pollState state = response.getPollState();
+    
+    // handle stderr events
+    if (conn.cgiStderrEvent && cgi_stderr_fd > 0) {
+        response.processStderr();
+    }
+    
     if (conn.cgiEvent && conn.events & EPOLLHUP)
         response.setCgiDone();
-    else if (conn.cgiEvent) // if cgiEvent and Response in READ or WRITE
-    {
-      // std::cout << "CGI Events: " << epoll.format_events(conn.events)  << std::endl;
-      if ( (state == HTTPResponse::CGI_READ && !(conn.events & EPOLLIN)) ||
-         (state == HTTPResponse::CGI_WRITE && !(conn.events & EPOLLOUT)))
-      {
-        // std::cout << "CGI Event but CONN state doesnt match event. Ignore" << std::endl;
-        return shouldDelete;
-      }
+    else if (conn.cgiEvent) {// if cgiEvent and Response in READ or WRITE
+        if ((state == HTTPResponse::CGI_READ && !(conn.events & EPOLLIN)) ||
+            (state == HTTPResponse::CGI_WRITE && !(conn.events & EPOLLOUT))) {
+            return shouldDelete;
+        }
     }
+    
     if (state == !HTTPResponse::SOCKET_WRITE && conn.socketEvent)
-      return shouldDelete;
+        return shouldDelete;
 
     conn.last_activity = std::time(NULL);
     response.resume(conn.cgiEvent, conn.socketEvent);
 
     if (response.isDone()) {
-        // Clean up CGI resources first
         if (response.hasCgi()) {
             try {
-              if (conn.cgi_Added){
-                conn.cgi_Added = 0;
-                epoll.remove_fd(conn.cgi_Added, cgi_fd);
-              }
-              close(cgi_fd);
-              response.cleanupCgi(false);
+                if (conn.cgi_Added) {
+                    epoll.remove_fd(conn.cgi_Added, cgi_fd);
+                }
+                if (conn.cgi_stderr_Added) { 
+                    epoll.remove_fd(conn.cgi_stderr_Added, cgi_stderr_fd);
+                }
+                // close(cgi_fd); 
+                // close(cgi_stderr_fd);
+                // kan klosihom f cleanupCgi
+                response.cleanupCgi(false);
             } catch (...) {
-                DEBUG_LOG("Error cleaning up CGI fd: " << cgi_fd);
+                DEBUG_LOG("Error cleaning up CGI fds");
             }
         }
 
         if (!response.isKeepAlive()) {
             shouldDelete = true;
         } else {
-          std::cout << "NOT DONE" << std::endl;
-            // Reset connection for keep-alive
+            std::cout << "NOT DONE" << std::endl;
             conn.reset();
             try {
                 // epoll.mod_fd(conn.client_fd, EPOLLIN | EPOLLONESHOT);
-                if (!conn.client_Added){
-                    std::cout << "hello 2" << std::endl;
-                  epoll.add_fd(conn.client_Added, conn.client_fd,EPOLLOUT |  EPOLLIN );
+                if (!conn.client_Added) {
+                    epoll.add_fd(conn.client_Added, conn.client_fd, EPOLLOUT | EPOLLIN);
+                } else {
+                    epoll.mod_fd(conn.client_fd, EPOLLOUT | EPOLLIN);
                 }
-                else
-                  epoll.mod_fd(conn.client_fd,EPOLLOUT |  EPOLLIN);
             } catch (...) {
                 DEBUG_LOG("Error resetting client fd: " << conn.client_fd);
                 shouldDelete = true;
@@ -564,47 +572,49 @@ bool WebServer::handle_client_response(Connection &conn) {
         try {
             switch (currState) {
                 case HTTPResponse::CGI_READ:
-                  std::cout << "CONN in CGI_READ" << std::endl;
-                  if (conn.client_Added)
-                  {
-                    epoll.remove_fd(conn.client_Added, conn.client_fd);
-                  }
-                  if (!conn.cgi_Added){
-                    std::cout << "add cgi fd: " << cgi_fd << std::endl;
-                    epoll.add_fd(conn.cgi_Added, cgi_fd, EPOLLOUT | EPOLLIN); 
-                    // epoll.add_fd(conn.cgi_Added, cgi_fd,  EPOLLIN | EPOLLONESHOT); 
-                  }
-                  else
-                    epoll.mod_fd(cgi_fd,EPOLLOUT |  EPOLLIN);
-                  break;
+                    std::cout << "CONN in CGI_READ" << std::endl;
+                    if (conn.client_Added) {
+                        epoll.remove_fd(conn.client_Added, conn.client_fd);
+                    }
+                    if (!conn.cgi_Added) {
+                        epoll.add_fd(conn.cgi_Added, cgi_fd, EPOLLOUT | EPOLLIN);
+                    } else {
+                        epoll.mod_fd(cgi_fd, EPOLLOUT | EPOLLIN);
+                    }
+                    
+                    if (!conn.cgi_stderr_Added && cgi_stderr_fd > 0) {
+                        epoll.add_fd(conn.cgi_stderr_Added, cgi_stderr_fd, EPOLLIN);
+                    }
+                    break;
                     
                 case HTTPResponse::CGI_WRITE:
-                  std::cout << "CONN in CGI_WRITE" << std::endl;
-                  if (conn.client_Added)
-                  {
-                    epoll.remove_fd(conn.client_Added, conn.client_fd);
-                  }
-                  if (!conn.cgi_Added){
-                    std::cout << "add cgi fd : " << cgi_fd << std::endl;
-                    epoll.add_fd(conn.cgi_Added,cgi_fd,EPOLLIN |  EPOLLOUT );
-                  }
-                  else
-                    epoll.mod_fd(cgi_fd, EPOLLIN | EPOLLOUT );
-                  break;
+                    if (conn.client_Added) {
+                        epoll.remove_fd(conn.client_Added, conn.client_fd);
+                    }
+                    if (!conn.cgi_Added) {
+                        epoll.add_fd(conn.cgi_Added, cgi_fd, EPOLLIN | EPOLLOUT);
+                    } else {
+                        epoll.mod_fd(cgi_fd, EPOLLIN | EPOLLOUT);
+                    }
+                    
+                    if (!conn.cgi_stderr_Added && cgi_stderr_fd > 0) {
+                        epoll.add_fd(conn.cgi_stderr_Added, cgi_stderr_fd, EPOLLIN);
+                    }
+                    break;
                     
                 case HTTPResponse::SOCKET_WRITE:
-                  std::cout << "CONN in SOCKET_WRITE" << std::endl;
-                  if (conn.cgi_Added)
-                  {
-                    epoll.remove_fd(conn.cgi_Added, cgi_fd);
-                  }
-                  if (!conn.client_Added){
-                    std::cout << "hello 5" << std::endl;
-                    epoll.add_fd(conn.client_Added, conn.client_fd, EPOLLIN | EPOLLOUT );
-                  }
-                  else
-                    epoll.mod_fd(conn.client_fd, EPOLLIN | EPOLLOUT );
-                  break;
+                    if (conn.cgi_Added) {
+                        epoll.remove_fd(conn.cgi_Added, cgi_fd);
+                    }
+                    if (conn.cgi_stderr_Added) {
+                        epoll.remove_fd(conn.cgi_stderr_Added, cgi_stderr_fd);
+                    }
+                    if (!conn.client_Added) {
+                        epoll.add_fd(conn.client_Added, conn.client_fd, EPOLLIN | EPOLLOUT);
+                    } else {
+                        epoll.mod_fd(conn.client_fd, EPOLLIN | EPOLLOUT);
+                    }
+                    break;
                     
                 default:
                     break;
@@ -619,7 +629,6 @@ bool WebServer::handle_client_response(Connection &conn) {
     return shouldDelete;
 }
 
-
 void WebServer::close_fds(Connection &connection) {
     try {
         if (connection.client_fd > 0) {
@@ -633,10 +642,10 @@ void WebServer::close_fds(Connection &connection) {
         int cgi_fd = connection.m_Response.getCgiFd();
         if (cgi_fd > 0) {
           if (connection.cgi_Added)
-          {
             epoll.remove_fd(connection.cgi_Added, cgi_fd);
-          }
-          close(cgi_fd);
+          if (connection.cgi_stderr_Added)
+              epoll.remove_fd(connection.cgi_stderr_Added, connection.m_Response.getCgiStderrFd());
+          // close(cgi_fd);
           connection.m_Response.cleanupCgi(false);
         }
     } catch (...) {
@@ -686,43 +695,12 @@ bool WebServer::handle_client(Connection &conn) {
   // std::cout << "ENTER HANDLE CLIENT fd: " << conn.client_fd << std::endl;
   if (conn.events & EPOLL_ERRORS)
   {
-  // std::cout << "IN HANDLE CLIENT ERROR fd: " << conn.client_fd << " events:" << this->epoll.format_events(conn.events) << std::endl;
-    // int fd = this->getCgiFdBasedOnClientFd(conn.client_fd);
     cgi_fd = conn.m_Response.getCgiFd();
-    // if (cgi_fd != -1 && conn.cgiEvent && (conn.events & EPOLLERR)) {
-    //   // try{
-
-    //   // this->epoll.remove_fd(cgi_fd);
-    //   conn.m_Response.setError(HTTPResponse::SERVER_ERROR);
-    //     if (conn.cgi_Added)
-    //     {
-    //       epoll.remove_fd(conn.cgi_Added, cgi_fd);
-    //     }
-    //     if (!conn.client_Added){
-    //       std::cout << "hello 5" << std::endl;
-    //       epoll.add_fd(conn.client_Added, conn.client_fd, EPOLLIN | EPOLLOUT );
-    //     }
-    //     else
-    //       epoll.mod_fd(conn.client_fd, EPOLLIN | EPOLLOUT );
-    //     conn.m_Response.cleanupCgi(true);
-    //     // close(cgi_fd);
-    //     conn.cgiEvent = false; 
-    //   // }
-    //   // catch(...)
-    //   // {
-    //   //   DEBUG_LOG("error in handle_client remove_fd\n");
-    //   // }
-    //   // mybe should set 0 on cgi_sock of response object
-    // } 
     if (conn.socketEvent)
     {
-      // client_fd = conn.client_fd;
-      // epoll.remove_fd(client_fd);
       conn.socketEvent = false; 
-      // cleanup_connection(&conn);
       close_fds(conn);
       isDeleted = true; // hadle errors don't forget
-      // return true;
     return isDeleted; // hadle errors don't forget
     }
     // DEBUG_LOG("Connection closed by client (fd: " << cgi_fd << " | " << client_fd << ")" << this->epoll.format_events(conn.events));
@@ -733,7 +711,7 @@ bool WebServer::handle_client(Connection &conn) {
         std::cout << "CONNECTION IN REQUEST PARSING" << std::endl;
         isDeleted = this->handle_client_request(conn);
   } else if (conn.m_State == Connection::RESPONSE_PROCESSING) {
-        std::cout << "CONNECTION IN RESPONSE PROCESSING" << std::endl;
+        // std::cout << "CONNECTION IN RESPONSE PROCESSING" << std::endl;
         isDeleted = this->handle_client_response(conn);
   }
 
@@ -759,27 +737,30 @@ void WebServer::log_connection(const struct sockaddr_storage &addr) {
 
 
 
-void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
-    Connection *conn = *it;
-    if (conn->client_fd > 0) {
-        if (conn->client_Added){
-          epoll.remove_fd(conn->client_Added, conn->client_fd);
-        }
-        close(conn->client_fd);
-    }
-    if (conn->m_Response.hasCgi() && conn->m_Response.getCgiFd() > 0) {
-        if (conn->cgi_Added){
-          epoll.remove_fd(conn->cgi_Added, conn->m_Response.getCgiFd());
-        }
-        close(conn->m_Response.getCgiFd());
-        if  (conn->m_Response.getCGIProcessPid() > 0)
-          kill(conn->m_Response.getCGIProcessPid(), SIGKILL);
-        if (conn->m_Response.getCGIProcess())
-          delete conn->m_Response.getCGIProcess();
-    }
-    delete conn;
-    it = connections.erase(it);
-}
+// void WebServer::cleanup_connection(std::list<Connection *>::iterator &it) {
+//     Connection *conn = *it;
+//     if (conn->client_fd > 0) {
+//         if (conn->client_Added){
+//           epoll.remove_fd(conn->client_Added, conn->client_fd);
+//         }
+//         close(conn->client_fd);
+//     }
+//     if (conn->m_Response.hasCgi() && conn->m_Response.getCgiFd() > 0) {
+//         if (conn->cgi_Added){
+//           epoll.remove_fd(conn->cgi_Added, conn->m_Response.getCgiFd());
+//         }
+//         if (conn->cgi_stderr_Added)
+//             epoll.remove_fd(conn->cgi_stderr_Added, conn->m_Response.getCgiStderrFd());
+//         conn->m_Response.cleanupCgi(true);
+//         // close(conn->m_Response.getCgiFd());
+//         // if  (conn->m_Response.getCGIProcessPid() > 0)
+//         //   kill(conn->m_Response.getCGIProcessPid(), SIGKILL);
+//         if (conn->m_Response.getCGIProcess())
+//           delete conn->m_Response.getCGIProcess();
+//     }
+//     delete conn;
+//     it = connections.erase(it);
+// }
 
 int main(int argc, char **argv) {
     WebServer *server = NULL;

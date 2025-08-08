@@ -628,7 +628,7 @@ void	HTTPParser::parseRequest(HTTPRequest &request, const char *buff, size_t len
 	while (offset < len)
 	{
 		state = parseState.getState();
-		std::cout << "parse state: " << getStateString(state) << std::endl;
+		// std::cout << "parse state: " << getStateString(state) << std::endl;
 		switch(state)
 		{
 			case HTTPParseState::PARSE_LINE_START:
@@ -690,7 +690,7 @@ void	HTTPParser::parseCgi(HTTPResponse &response, const char *buff, size_t len)
 	while (offset < len)
 	{
 		state = parseState.getState();
-		std::cout << "parse state: " << getStateString(state) << std::endl;
+		// std::cout << "parse state: " << getStateString(state) << std::endl;
 		switch(state)
 		{
 			case HTTPParseState::PARSE_HEADER_CRLF:

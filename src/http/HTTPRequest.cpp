@@ -94,7 +94,7 @@ void	HTTPRequest::onHeadersParsed()
 		m_Path = m_Uri;
 	for(it = m_Headers.begin(); it != m_Headers.end(); it++)
 	{
-		std::cout << "headers[" << it->first << "] = " << it->second << std::endl;
+		// std::cout << "headers[" << it->first << "] = " << it->second << std::endl;
 	}
 	if (!this->_validateHeaders())
 		m_ParseState.setError();

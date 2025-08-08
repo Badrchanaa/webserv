@@ -50,6 +50,7 @@ class HTTPResponse: public HTTPMessage
 		typedef std::map<statusCode, const char *> status_map_t;
 	
 	public:
+		void cleanupCgiEnv();
 		HTTPResponse( void );
 		// HTTPResponse(const HTTPResponse &other);
 		// HTTPResponse& operator=(const HTTPResponse &other);
@@ -115,7 +116,8 @@ class HTTPResponse: public HTTPMessage
     void cleanupCgi(bool error) {
       if (m_Cgi) {
           m_Cgi->cleanup(error);
-        //   m_Cgi = NULL;
+		  delete m_Cgi;
+          m_Cgi = NULL;
 		  m_CgiDone = true;
       }
       m_CgiFd = -1;  
@@ -128,6 +130,9 @@ class HTTPResponse: public HTTPMessage
 	CGIProcess *getCGIProcess(){
 		return this->m_Cgi;
 	}
+
+    int getCgiStderrFd() const;
+    void processStderr();
 
 	private:
 		void	_readFileToBody(const std::string filename);
@@ -178,6 +183,8 @@ class HTTPResponse: public HTTPMessage
   		static const status_map_t _statusMap;
 		// int client_fd;
 
+		std::string m_StderrBuffer;  // store stderr content
+		bool m_HasStderrData;
 };
 
 #endif

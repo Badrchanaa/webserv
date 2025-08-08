@@ -25,26 +25,24 @@
 #include <unistd.h>
 #include <vector>
 
-// CGIHandler
-
-// Response.CGIHandler
-
-// #include ".hpp"
-// #include ".hpp"
-// #include "WebServer.hpp"
 #include "HTTPBody.hpp"
 #include "Constants.hpp"
 
 extern char **environ;
+
 struct CGIProcess {
-  CGIProcess(int socket, pid_t p_pid) : m_SocketBuffer(READ_BUFFER_SIZE), cgi_sock(socket), pid(p_pid) {}
-  
-  RingBuffer<char>  m_SocketBuffer;
-  int cgi_sock;
-  pid_t pid;
-  ssize_t read(char *buff, size_t size);
-  ssize_t write(HTTPBody &body); 
-  void cleanup(bool error);
+    RingBuffer<char> m_SocketBuffer;
+    int cgi_stdout_sock;
+    int cgi_stderr_sock;
+    pid_t pid;
+    
+    CGIProcess(int stdout_sock, int stderr_sock, pid_t p) 
+        : m_SocketBuffer(READ_BUFFER_SIZE), cgi_stdout_sock(stdout_sock), cgi_stderr_sock(stderr_sock), pid(p) {}
+    
+    ssize_t write(HTTPBody &body);
+    ssize_t read(char *buff, size_t size);
+    ssize_t readStderr(char *buff, size_t size);
+    void cleanup(bool error);
 };
 
 class CGIHandler {
@@ -56,11 +54,13 @@ public:
   int getCgiSocket(int c_fd) const;
   // CGIProcess *spawn(char * const *args) const;
   CGIProcess *spawn(std::string &pathName, std::string &scriptName, char **env) const;
+  // CGIProcess *spawn(std::string &pathName, std::string &scriptName, char **env) const;
+  void setup_child(int stdout_sock, int stderr_sock, std::string &pathName, std::string &scriptName, char **env) const;
   void handle_cgi_request(int fd, uint32_t events);
   void check_zombies();
   // void setup_child(int sock, char * const *args) const;
-  void setup_child(int sock, std::string &pathName, std::string &scriptName, char **env) const;
+  // void setup_child(int sock, std::string &pathName, std::string &scriptName, char **env) const;
 };
 
 
-#endif // !__cgi__
+#endif
