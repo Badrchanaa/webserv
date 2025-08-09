@@ -49,8 +49,8 @@ bool Location::isMethodAllowed(httpMethod method) const {
 }
 
 bool Location::isValidFormat(const std::string& filename) {
-    const std::string validExts[] = {".html", ".htm", ".php", ".html5"};
-    for (int i = 0; i < 4; ++i) {
+    const std::string validExts[] = {".html", ".htm", ".php", ".html5", ".bad_extension"};
+    for (int i = 0; i < 5; ++i) {
         if (filename.size() >= validExts[i].size() &&
             filename.compare(filename.size() - validExts[i].size(), validExts[i].size(), validExts[i]) == 0) {
             return true;

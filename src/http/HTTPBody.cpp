@@ -1,4 +1,4 @@
-#include "HTTPBody.hpp"
+#include "../../includes/HTTPBody.hpp"
 #include <iostream>
 #include <unistd.h>
 #include <errno.h>
@@ -10,12 +10,10 @@ extern int errno;
 
 HTTPBody::HTTPBody(void): m_RingBuffer(MAX_BODY_MEMORY), m_Size(0), m_IsFile(false), m_IsSealed(false)
 {
-	std::cout << "new body" << std::endl;
 }
 
 HTTPBody::HTTPBody(char *buffer, size_t len): m_RingBuffer(MAX_BODY_MEMORY), m_Size(0), m_IsFile(false), m_IsSealed(false)
 {
-	std::cout << "new body cp" << std::endl;
 	this->append(buffer, len);
 }
 
@@ -49,6 +47,7 @@ bool HTTPBody::_switchToFile()
 		std::cout << "error: " << strerror(errno) << std::endl;
 		return false;
 	}
+	m_Filename = filename;
 	m_IsFile = true;
 	// m_File.write(&m_VectorBuffer[0], m_Size);
 	return static_cast<bool>(m_File);
@@ -116,5 +115,8 @@ bool	HTTPBody::append(const char *buffer, size_t len)
 HTTPBody::~HTTPBody(void)
 {
 	if (m_IsFile)
+	{
 		m_File.close();
+		std::remove(m_Filename.c_str());
+	}
 }

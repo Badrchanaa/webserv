@@ -5,7 +5,7 @@
 #include <sstream>
 
 HTTPRequest::HTTPRequest(std::vector<ConfigServer> &servers): HTTPMessage(),
-	multipartForm(NULL), m_Error(ERR_NONE), 
+	multipartForm(NULL), m_isMultipartForm(false),  m_Error(ERR_NONE), 
 	 m_TransferEncoding(DEFAULT), m_ConfigServers(servers), m_ConfigServer(NULL)
 {
 }
@@ -43,26 +43,7 @@ void	HTTPRequest::_checkMultipart()
 	if (contentType.substr(0, pos) != "multipart/form-data")
 		return ;
 	HTTPRequest::header_map_t mediaTypes = parseHeaderDirectives(contentType, pos);
-	// std::string::size_type sepPos;
-	// while (pos != std::string::npos)
-	// {
-	// 	contentType = contentType.substr(pos + 1, std::string::npos);
-	// 	sepPos = contentType.find('=', 0);
-	// 	if (sepPos == std::string::npos)
-	// 		break ;
-	// 	pos = contentType.find(';', 0);
-	// 	std::string mediaType = contentType.substr(0, sepPos);
-	// 	size_t	firstNonSpace = mediaType.find_first_not_of(" ");
-	// 	if (firstNonSpace == std::string::npos)
-	// 		firstNonSpace = 0;
-	// 	mediaType = mediaType.substr(firstNonSpace, std::string::npos);
-	// 	mediaTypes[mediaType] = contentType.substr(sepPos + 1, pos - sepPos - 1);
-	// }
 	HTTPRequest::header_map_t::const_iterator it;
-	// for (it = mediaTypes.begin(); it != mediaTypes.end(); it++)
-	// {
-	// 	std::cout << "mediaTypes[" << it->first << "] = " << it->second << std::endl;
-	// }
 	it = mediaTypes.find("boundary");
 	if (it == mediaTypes.end() || it->second.empty())
 	{
@@ -102,7 +83,7 @@ void	HTTPRequest::onHeadersParsed()
 		std::cout << "INVALID CONTENT LENGTH" << std::endl;
 	if (m_Error == ERR_INVALID_HOST)
 		std::cout << "INVALID HOST" << std::endl;
-	if (m_Method == GET || m_ContentLength == 0)
+	if (m_Method == GET || m_Method == HEAD || m_ContentLength == 0)
 		m_ParseState.setState(HTTPParseState::PARSE_DONE);
 	else
 		m_ParseState.setState(HTTPParseState::PARSE_BODY);
@@ -181,7 +162,7 @@ bool	HTTPRequest::_validateHeaders()
 		m_Error = ERR_INVALID_CONTENT_LENGTH;
 		return false;
 	}
-	if (m_Method != GET && it == m_Headers.end() && !isChunked)
+	if (m_Method != GET && m_Method != HEAD && it == m_Headers.end() && !isChunked)
 	{
 		std::cout << "CONTENT LENGTH NOT FOUND" << std::endl;
 		m_Error = ERR_INVALID_CONTENT_LENGTH;
@@ -213,6 +194,8 @@ void	HTTPRequest::setMethod(const char *method_cstr)
 		m_Method = POST;
 	else if (method == "PUT")
 		m_Method = PUT;
+	else if (method == "HEAD")
+		m_Method = HEAD;
 	else if (method == "DELETE")
 		m_Method = DELETE;
 	else // unsupported method
@@ -232,6 +215,8 @@ const char*	HTTPRequest::getMethodStr() const
 			return "POST";
 		case PUT:
 			return "PUT";
+		case HEAD:
+			return "HEAD";
 		case DELETE:
 			return "DELETE";
 		default:

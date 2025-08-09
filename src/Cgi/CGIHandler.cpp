@@ -1,7 +1,10 @@
 #include "../../includes/CGIHandler.hpp"
 #include "../../includes/WebServer.hpp"
+#include <cstdlib>
+#include <cstring>
 
-CGIProcess *CGIHandler::spawn(std::string &pathName, std::string &scriptName, char **env) const {
+CGIProcess *CGIHandler::spawn(std::string &pathName, std::string &scriptName,
+                              char **env) const {
   CGIProcess *proc = NULL;
   int stdout_sockets[2];
   int stderr_sockets[2];
@@ -64,28 +67,37 @@ void CGIHandler::setup_child(int stdout_sock, int stderr_sock, std::string &path
   
   std::string script_path(scriptName);
   size_t last_slash = scriptName.find_last_of('/');
-  std::string script_dir = (last_slash != std::string::npos) ? scriptName.substr(0, last_slash) : ".";
-  scriptName = (last_slash != std::string::npos) ? scriptName.substr(last_slash + 1) : scriptName; 
-  
-  if (chdir(script_dir.c_str()) == -1) {
-      std::cerr << "chdir failed: " << strerror(errno) << std::endl;
-      exit(EXIT_FAILURE);
-  }
-  
-  char *const args[3] = {const_cast<char *const>(pathName.c_str()),
-                        const_cast<char *const>(scriptName.c_str()), NULL};
+  std::string script_dir = (last_slash != std::string::npos)
+                               ? scriptName.substr(0, last_slash)
+                               : ".";
+  scriptName = (last_slash != std::string::npos)
+                   ? scriptName.substr(last_slash + 1)
+                   : scriptName;
 
+  if (chdir(script_dir.c_str()) == -1) {
+    std::cerr << "chdir failed: " << strerror(errno) << std::endl;
+    exit(EXIT_FAILURE);
+  }
+  char *const pathn = new char[pathName.length() + 1];
+  char *const scriptn = new char[scriptName.length() + 1];
+  std::strncpy(pathn, pathName.c_str(), pathName.length());
+  std::strncpy(scriptn, scriptName.c_str(), scriptName.length());
+  pathn[pathName.length()] = 0;
+  scriptn[scriptName.length()] = 0;
+  char *const args[3] = {pathn, scriptn, NULL};
   execve(args[0], args, env);
+  delete[] pathn;
+  delete[] scriptn;
   std::cerr << "execve failed: " << strerror(errno) << std::endl;
   exit(EXIT_FAILURE);
 }
-
-ssize_t CGIProcess::write(HTTPBody &body)
-{
+//
+ssize_t CGIProcess::write(HTTPBody &body) {
   char buff[READ_BUFFER_SIZE];
 
   size_t leftoverBytes = m_SocketBuffer.read(buff, READ_BUFFER_SIZE);
-  size_t rbytes = body.read(buff + leftoverBytes, READ_BUFFER_SIZE - leftoverBytes);
+  size_t rbytes =
+      body.read(buff + leftoverBytes, READ_BUFFER_SIZE - leftoverBytes);
 
   size_t buffSize = leftoverBytes + rbytes;
   ssize_t sent = send(this->cgi_stdout_sock, buff, buffSize, 0);

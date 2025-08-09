@@ -18,7 +18,7 @@
 #define WEBSERVER_NAME "WebServ 1.0"
 #define DEFAULT_PATH "./config/default.yml"
 
-# define READ_BUFFER_SIZE (8192 * 2)
+# define READ_BUFFER_SIZE (65536)
 
 struct MethodPair {
   const char *name;
@@ -34,7 +34,7 @@ const std::set<std::string> LOCATION_KEYS(location_keys_array, location_keys_arr
 
 const std::string location_required_params[] = { "index", "uri", "root", "methods", "autoindex", "upload"};
 
-const MethodPair valid_methods[] = {{"GET", GET}, {"POST", POST}, {"DELETE", DELETE}};
+const MethodPair valid_methods[] = {{"GET", GET}, {"POST", POST}, {"PUT", PUT}, {"HEAD", HEAD}, {"DELETE", DELETE}};
 
 
 #endif

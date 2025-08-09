@@ -1,35 +1,34 @@
 #ifndef __HTTPREQUEST_HPP__
-# define __HTTPREQUEST_HPP__
+#define __HTTPREQUEST_HPP__
 
-#include "HTTPMultipartForm.hpp"
-#include "HTTPBody.hpp"
-#include <map>
-#include <vector>
-#include <string>
-#include <stdint.h>
-#include <list>
 #include "Config.hpp"
+#include "HTTPBody.hpp"
 #include "HTTPMessage.hpp"
+#include "HTTPMultipartForm.hpp"
+#include <list>
+#include <map>
+#include <stdint.h>
+#include <string>
+#include <vector>
 
 typedef enum requestError
 {
-	ERR_NONE,
-	ERR_UNIMPLEMENTED_TE,
-	ERR_INVALID_HOST,
-	ERR_INVALID_METHOD,
-	ERR_INVALID_PATH,
-	ERR_INVALID_CONTENT_LENGTH,
-
+    ERR_NONE,
+    ERR_UNIMPLEMENTED_TE,
+    ERR_INVALID_HOST,
+    ERR_INVALID_METHOD,
+    ERR_INVALID_PATH,
+    ERR_INVALID_CONTENT_LENGTH,
+    ERR_CONTENT_TOO_LARGE,
 } requestError;
 
 typedef enum transferEncoding
 {
-	DEFAULT,
-	CHUNKED,
+    DEFAULT,
+    CHUNKED,
 } transferEncoding;
 
-
-class HTTPRequest: public HTTPMessage
+class HTTPRequest : public HTTPMessage
 {
 	public:
 		void forceCleanup() {
@@ -62,52 +61,60 @@ class HTTPRequest: public HTTPMessage
 		virtual void		onHeadersParsed();
 		virtual void		onBodyDone();
 
-		void				setMethod(const char *method_cstr);
-		httpMethod			getMethod() const;
-		const char*			getMethodStr() const;
-		void				appendUri(const char *buff, size_t start, size_t len);
-		// bool				appendBody(const char *buff, size_t len);
-		bool				validUri();
-		// std::string			getBodyStr() const;
-		const std::string&	getPath() const;
-		const std::string&	getUri() const;
-		HTTPMultipartForm	*getMultipartForm();
-		bool				isMultipartForm() const;
-		bool				isError() const;
-		const ConfigServer*	getServer() const;
-		void				reset();
-		bool				isTransferChunked() const;
+	void setMethod(const char *method_cstr);
+	httpMethod getMethod() const;
+	const char *getMethodStr() const;
+	void appendUri(const char *buff, size_t start, size_t len);
+	// bool				appendBody(const char *buff, size_t
+	// len);
+	bool validUri();
+	// std::string			getBodyStr() const;
+	const std::string &getPath() const;
+	const std::string &getUri() const;
+	HTTPMultipartForm *getMultipartForm();
+	bool isMultipartForm() const;
+	bool isError() const;
+	void setError(requestError err)
+	{
+	    m_Error = err;
+	    m_ParseState.setError();
+	}
+	requestError getError() const { return m_Error; }
 
-		// added by regex 
-		const std::string	getQuery() const{
-			return this->m_Query;
-		}
-		
-		HTTPMultipartForm	*multipartForm;
-	private:
-		void				_checkMultipart();
-		bool				_checkTransferChunked();
-		bool				_validateHeaders();
-		bool				_preBody();
+	const ConfigServer *getServer() const;
+	void reset();
+	bool isTransferChunked() const;
 
-		bool				m_isMultipartForm;
-		std::string			m_FormBoundary;
+	// added by regex
+	const std::string getQuery() const { return this->m_Query; }
 
-		httpMethod			m_Method;
-		requestError		m_Error;
-		std::string			m_Host;
-		std::string			m_Path;
-		std::string			m_Query;
-		std::string			m_Uri;
-		transferEncoding	m_TransferEncoding;
-		size_t				m_BodySize;
-		size_t				m_BoundaryIndex;
+	HTTPMultipartForm *multipartForm;
 
-		/*
-			TODO: remove ConfigServers from constructor, get them from config after header parsing
-		*/
-		std::vector<ConfigServer>		&m_ConfigServers;
-		const ConfigServer				*m_ConfigServer;
+    private:
+	void _checkMultipart();
+	bool _checkTransferChunked();
+	bool _validateHeaders();
+	bool _preBody();
+
+	bool m_isMultipartForm;
+	std::string m_FormBoundary;
+
+	httpMethod m_Method;
+	requestError m_Error;
+	std::string m_Host;
+	std::string m_Path;
+	std::string m_Query;
+	std::string m_Uri;
+	transferEncoding m_TransferEncoding;
+	size_t m_BodySize;
+	size_t m_BoundaryIndex;
+
+	/*
+	        TODO: remove ConfigServers from constructor, get them from config
+	   after header parsing
+	*/
+	std::vector<ConfigServer> &m_ConfigServers;
+	const ConfigServer *m_ConfigServer;
 };
 
 #endif

@@ -1,0 +1,54 @@
+server:
+ host: 127.0.0.1
+ timeout: 5
+ port: 4000
+ server_name: ""
+ body_size: 400000M 
+ errors:
+   "500": errors/500.html
+   "404": errors/404.html
+   "403": errors/403.html
+   "405": errors/405.html
+   "400": errors/400.html
+ location:
+   uri: /
+   upload: uploads
+   methods:
+     - GET
+   root: www
+   autoindex: on
+
+ location:
+   uri: /put_test
+   upload: uploads
+   index: index.html
+   methods:
+     - GET
+   root: www
+   autoindex: on
+   cgi_uri: /cgi-bin/
+   methods_cgi:
+     - PUT
+   cgi:
+     - .bla: ./cgi_test
+
+ location:
+   uri: /post_body
+   upload: uploads
+   index: index.html
+   methods:
+     - POST
+   root: www
+   autoindex: on
+
+ location:
+   uri: /directory
+   upload: uploads
+   index: youpi.bad_extension
+   methods:
+     - POST
+     - GET
+     - HEAD
+     - PUT
+   root: www/YoupiBanane
+   autoindex: on

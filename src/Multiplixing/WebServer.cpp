@@ -726,9 +726,8 @@ bool WebServer::handle_client_response(Connection &conn) {
             return shouldDelete;
         }
     }
-    
-    if (state == !HTTPResponse::SOCKET_WRITE && conn.socketEvent)
-        return shouldDelete;
+    // if (state != HTTPResponse::SOCKET_WRITE && conn.socketEvent)
+    //   return shouldDelete;
 
     conn.last_activity = std::time(NULL);
     response.resume(conn.cgiEvent, conn.socketEvent);
@@ -895,14 +894,12 @@ bool WebServer::handle_client_request(Connection &connection) {
 bool WebServer::handle_client(Connection &conn) {
 
   bool isDeleted;
-  int cgi_fd = -1;
   // int client_fd = -1;
   isDeleted = false;
 
   // std::cout << "ENTER HANDLE CLIENT fd: " << conn.client_fd << std::endl;
   if (conn.events & EPOLL_ERRORS)
   {
-    cgi_fd = conn.m_Response.getCgiFd();
     if (conn.socketEvent)
     {
       conn.socketEvent = false; 
@@ -927,19 +924,19 @@ bool WebServer::handle_client(Connection &conn) {
 
 void WebServer::log_connection(const struct sockaddr_storage &addr) {
   char ip[INET6_ADDRSTRLEN];
-  int port = 0;
+	// int port;
 
   if (addr.ss_family == AF_INET) {
     struct sockaddr_in *s = (struct sockaddr_in *)&addr;
     inet_ntop(AF_INET, &s->sin_addr, ip, sizeof(ip));
-    port = ntohs(s->sin_port);
+    // port = ntohs(s->sin_port);
   } else {
     struct sockaddr_in6 *s = (struct sockaddr_in6 *)&addr;
     inet_ntop(AF_INET6, &s->sin6_addr, ip, sizeof(ip));
-    port = ntohs(s->sin6_port);
+    // port = ntohs(s->sin6_port);
   }
 
-  DEBUG_LOG("New connection from " << ip << ":" << port);
+  // DEBUG_LOG("New connection from " << ip << ":" << port);
 }
 
 
@@ -996,12 +993,12 @@ int main(int argc, char **argv) {
 
         delete server;
         
-    } catch (const std::exception &e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-        delete server;
-        return EXIT_FAILURE;
     } catch (const std::runtime_error &e) {
         std::cerr << "Runtime Error: " << e.what() << std::endl;
+        delete server;
+        return EXIT_FAILURE;
+    } catch (const std::exception &e) {
+        std::cerr << "Error: " << e.what() << std::endl;
         delete server;
         return EXIT_FAILURE;
     } catch (...) {
