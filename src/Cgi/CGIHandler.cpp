@@ -9,17 +9,15 @@ CGIProcess *CGIHandler::spawn(std::string &pathName, std::string &scriptName,
   int stdout_sockets[2];
   int stderr_sockets[2];
   
-  std::cout << "SOCKET PAIR CALLED" << std::endl;
-  
   // socket pair for stdout
   if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, stdout_sockets))
-    throw std::runtime_error("socketpair for stdout");
+    throw std::runtime_error("socketpair for stdout failure");
     
   // socket pair for stderr
   if (socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, stderr_sockets)) {
     close(stdout_sockets[0]);
     close(stdout_sockets[1]);
-    throw std::runtime_error("socketpair for stderr");
+    throw std::runtime_error("socketpair for stderr failure");
   }
 
   pid_t pid = fork();
@@ -28,7 +26,7 @@ CGIProcess *CGIHandler::spawn(std::string &pathName, std::string &scriptName,
     close(stdout_sockets[1]);
     close(stderr_sockets[0]);
     close(stderr_sockets[1]);
-    throw std::runtime_error("fork");
+    throw std::runtime_error("fork failure");
   }
 
   if (pid == 0) {
@@ -41,7 +39,6 @@ CGIProcess *CGIHandler::spawn(std::string &pathName, std::string &scriptName,
   close(stdout_sockets[1]);
   close(stderr_sockets[1]);
   
-  std::cout << "stdout socket: " << stdout_sockets[0] << ", stderr socket: " << stderr_sockets[0] << std::endl;
   proc = new CGIProcess(stdout_sockets[0], stderr_sockets[0], pid);
   return proc;
 }
@@ -52,13 +49,13 @@ void CGIHandler::setup_child(int stdout_sock, int stderr_sock, std::string &path
     return (perror("signal"), exit(EXIT_FAILURE));
     
   if (dup2(stdout_sock, STDIN_FILENO) == -1 || dup2(stdout_sock, STDOUT_FILENO) == -1) {
-      std::cerr << "dup2 failed for stdout: " << strerror(errno) << std::endl;
+      // std::cerr << "dup2 failed for stdout: " << strerror(errno) << std::endl;
       exit(EXIT_FAILURE);
   }
   
   // gedirect stderr to stderr socket
   if (dup2(stderr_sock, STDERR_FILENO) == -1) {
-      std::cerr << "dup2 failed for stderr: " << strerror(errno) << std::endl;
+      // std::cerr << "dup2 failed for stderr: " << strerror(errno) << std::endl;
       exit(EXIT_FAILURE);
   }
 
@@ -75,7 +72,7 @@ void CGIHandler::setup_child(int stdout_sock, int stderr_sock, std::string &path
                    : scriptName;
 
   if (chdir(script_dir.c_str()) == -1) {
-    std::cerr << "chdir failed: " << strerror(errno) << std::endl;
+    // std::cerr << "chdir failed: " << strerror(errno) << std::endl;
     exit(EXIT_FAILURE);
   }
   char *const pathn = new char[pathName.length() + 1];
@@ -88,7 +85,7 @@ void CGIHandler::setup_child(int stdout_sock, int stderr_sock, std::string &path
   execve(args[0], args, env);
   delete[] pathn;
   delete[] scriptn;
-  std::cerr << "execve failed: " << strerror(errno) << std::endl;
+  // std::cerr << "execve failed: " << strerror(errno) << std::endl;
   exit(EXIT_FAILURE);
 }
 //
@@ -116,16 +113,11 @@ ssize_t CGIProcess::read(char *buff, size_t size)
   ssize_t received = recv(this->cgi_stdout_sock, buff, size, 0);
 
   if (received < 0) { // -1
-    std::cout << "++++++++++++++++++++++++++++" << std::endl;
-    std::cout << "received == < 0" << std::endl;
     // this->cleanup(true);
     return received;
   } else if (received == 0) {
-    std::cout << "----------------------------" << std::endl;
-    std::cout << "received == 0" << std::endl;
     // this->cleanup(false);
   }
-  std::cout << "RECEIVED: " << received << std::endl;
   return received;
 }
 
@@ -134,14 +126,11 @@ ssize_t CGIProcess::readStderr(char *buff, size_t size)
   ssize_t received = recv(this->cgi_stderr_sock, buff, size, 0);
   
   if (received < 0) {
-    std::cout << "stderr read error" << std::endl;
     // this->cleanup(true);
     return received;
   } else if (received == 0) {
-    std::cout << "stderr closed" << std::endl;
     // this->cleanup(false);
   }
-  std::cout << "STDERR RECEIVED: " << received << std::endl;
   return received;
 }
 

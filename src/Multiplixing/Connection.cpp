@@ -64,12 +64,7 @@ bool Connection::keepAlive() { return this->m_KeepAlive; }
   configServer = m_Request.getServer(); 
   if (!configServer)
   {
-    std::cout << "CANNOT FIND CONFIGSERVER" << std::endl;
     configServer = &(Config::getServerByName(servers, ""));
-  }
-  else
-  {
-    std::cout << "CONFIGSERVER FOUND" << std::endl;
   }
   
   // Initialize response and CGI

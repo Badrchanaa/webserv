@@ -19,8 +19,6 @@ httpMethod Config::get_method_bit(const std::string &method) {
   for (size_t i = 0; i < sizeof(valid_methods) / sizeof(valid_methods[0]);
        ++i) {
     if (method == valid_methods[i].name) {
-      std::cout << "method : " << valid_methods[i].name << "|"
-                << valid_methods[i].method << std::endl;
       return valid_methods[i].method;
     }
   }

@@ -12,9 +12,6 @@ std::string Location::getScriptPath(const std::string &scriptName) const
     //   ext = scriptName;
     // else 
     ext = scriptName.substr(dotPos);
-    std::cout << "--------------------------------" << std::endl;
-    std::cout << "ext " << ext << std::endl;
-    std::cout << "--------------------------------" << std::endl;
     std::map<std::string, std::string>::const_iterator it = cgi.find(ext);
     if (it == cgi.end())
     return (std::string(""));
@@ -27,20 +24,14 @@ std::string Location::getScriptName(const std::string &path) const
     std::string::size_type slashPos = path.rfind('/');
     if (slashPos == std::string::npos || path.length() == 1)
         return (std::string(""));
-    std::cout << "++++++++++++++++++++++++++++ -> " <<  slashPos << std::endl;
-
     std::string temp = path.substr(slashPos + 1);
-    std::cout << "++++++++++++++++++++++++++++ " << std::endl;
     return temp;
 }
 
 bool Location::isCgiPath(const std::string &path) const
 {
     std::string filename = getScriptName(path);
-    std::cout << "fileName : " << filename  << std::endl;
     std::string scriptPath = getScriptPath(filename);
-    std::cout << "scriptPath: " << scriptPath  << std::endl;
-
     return (!scriptPath.empty() &&  (this->uri + this->cgi_uri == path.substr(0, path.length() - filename.length())));
 }
 

@@ -37,7 +37,6 @@ bool	HTTPBody::_writeToFile(const char *buffer, size_t len)
 
 bool HTTPBody::_switchToFile()
 {
-	// m_File.open("body.http", std::ios::in | std::ios::binary);
 	std::string filename = std::tmpnam(NULL);
 	// std::cout << "switched to file: " << filename << std::endl;
 	m_File.open(filename.c_str(), std::ios::out | std::ios::in | std::ios::trunc | std::ios::binary);

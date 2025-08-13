@@ -153,8 +153,6 @@ bool	HTTPRequest::_validateHeaders()
 		return false;
 	}
 	isChunked = _checkTransferChunked();
-	if (isChunked)
-		std::cout << "TRANSFER IS CHUNKED" << std::endl;
 	m_Host = it->second;
 	it = m_Headers.find("content-length");
 	if (it != m_Headers.end() && isChunked) // has both content-length and chunked, should reject
@@ -164,17 +162,14 @@ bool	HTTPRequest::_validateHeaders()
 	}
 	if (m_Method != GET && m_Method != HEAD && it == m_Headers.end() && !isChunked)
 	{
-		std::cout << "CONTENT LENGTH NOT FOUND" << std::endl;
 		m_Error = ERR_INVALID_CONTENT_LENGTH;
 		return false;
 	}
 	if (it == m_Headers.end())
 		return true;
 	iss.str(it->second);
-	std::cout << "value length: " << it->second.length() << std::endl;
 	if (!(iss >> m_ContentLength) || !iss.eof())
 	{
-		std::cout << "INVALID CONTENT LENGTH ISS" << std::endl;
 		m_Error = ERR_INVALID_CONTENT_LENGTH;
 		return false;
 	}
@@ -226,9 +221,6 @@ const char*	HTTPRequest::getMethodStr() const
 
 bool	HTTPRequest::validUri()
 {
-	// if (m_uri[0] != '/')
-	// 	return false;
-	// return true;
 	return m_Uri[0] == '/';
 }
 
@@ -247,11 +239,6 @@ void	HTTPRequest::appendUri(const char *buff, size_t start, size_t len)
 	}
 	// m_Path.append(buff + start, 0, len - start);
 }
-
-// HTTPRequest::HTTPRequest(const HTTPRequest &other)
-// {
-// 	(void)other;
-// }
 
 const std::string		&HTTPRequest::getPath() const
 {
@@ -276,7 +263,7 @@ HTTPRequest& HTTPRequest::operator=(const HTTPRequest &other)
 
 HTTPRequest::~HTTPRequest(void)
 {
-	std::cout << "request destructor called" << std::endl;
-		delete multipartForm;
+	// std::cout << "request destructor called" << std::endl;
+	delete multipartForm;
     this->forceCleanup();
 }

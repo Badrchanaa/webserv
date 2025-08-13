@@ -258,7 +258,6 @@ void Config::ProcessLocationKeyValue(const std::string &key,
                                      const std::string &value) {
 
   if (key == "uri") {
-    std::cout << "URI -> " << value << std::endl;
     this->currentLocation.uri = value;
   } else if (key == "root") {
     // std::cout << "********************************" << std::endl;
@@ -266,7 +265,6 @@ void Config::ProcessLocationKeyValue(const std::string &key,
     // std::cout << "********************************" << std::endl;
     this->currentLocation.root = value;
   } else if (key == "autoindex" && (value == "on" || value == "off")) {
-    std::cout << "value : " << value << std::endl;
     this->currentLocation.autoindex = (value == "on");
   } else if (key == "upload") {
     this->currentLocation.upload = value;
@@ -388,24 +386,6 @@ void Config::HandleIndentFive(const std::string &trimmed) {
 }
 
 bool Config::isValidLocation() {
-  // std::cout << "00000000000000000000000000000000000000000000" << std::endl;
-  // if (this->currentLocation.uri.empty()) {
-  //   std::cerr << "Missing 'uri' in location block" << std::endl;
-  //   // return false;
-  // }
-  // if (this->currentLocation.root.empty()) {
-  //   std::cerr << "Missing 'root' in location block" << std::endl;
-  //   // return false;
-  // }
-  // if (this->currentLocation.upload.empty()) {
-  //   std::cerr << "Missing 'upload' in location block" << std::endl;
-  //   // return false;
-  // }
-  // if (this->currentLocation.allowed_methods == 0) {
-  //   std::cerr << "No 'methods' specified in location block" << std::endl;
-  // return false;
-  // }
-  // std::cout << "00000000000000000000000000000000000000000000" << std::endl;
   return !this->currentLocation.uri.empty() &&
          !this->currentLocation.root.empty() &&
          !this->currentLocation.upload.empty() &&
@@ -416,24 +396,12 @@ void Config::FinalizeLocation() {
   // if (!this->isValidLocation()) {
   if (this->isValidLocation()) {
     currentServer.locations.push_back(currentLocation);
-    std::cout << "==================================" << std::endl;
-    std::cout << "currentLocation Size :: " << currentServer.locations.size()
-              << std::endl;
-    std::cout << "uri :: " << currentLocation.uri << std::endl;
-    std::cout << "root :: " << currentLocation.root << std::endl;
-    std::cout << "upload :: " << currentLocation.upload << std::endl;
-    std::cout << "cgi_uri :: " << currentLocation.cgi_uri << std::endl;
-    std::cout << "allowed_methods :: " << currentLocation.allowed_methods << std::endl;
-    std::cout << "==================================" << std::endl;
-    std::cout << "cgi paths :: " << currentLocation.cgi[".py"] << "   |||||   " << currentLocation.cgi[".php"] << std::endl;
-    std::cout << "==================================" << std::endl;
     currentLocation = Location(); // Reset
   }
 }
 
 void Config::FinalizeServer() {
-  // Add any pending location
-  // std::cout << "uri :: " << this->currentLocation.uri << std::endl;
+
   this->FinalizeLocation();
 
   if (!validate_server(currentServer))
@@ -446,8 +414,6 @@ void Config::FinalizeServer() {
 void Config::ProcessLines(std::ifstream &infile) {
   std::string line;
   while (std::getline(infile, line)) {
-
-    // std::cout << "Lline : " << line << "| char : " << line[0] << std::endl;
     if (line.empty() || this->is_commented(line))
       continue;
 
@@ -455,7 +421,6 @@ void Config::ProcessLines(std::ifstream &infile) {
     std::string trimmed = trim(line);
     if (trimmed.empty())
       continue;
-    // std::cout << indent << " |line : " << line << std::endl;
 
     if (indent == 0 && trimmed == "server:") {
       this->EnterServerContext();

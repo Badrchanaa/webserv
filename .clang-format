@@ -1,9 +1,0 @@
-BasedOnStyle: LLVM
-IndentWidth: 4
-UseTab: ForIndentation
-BreakBeforeBraces: Allman
-AccessModifierOffset: 0
-IndentAccessModifiers: true
-IndentCaseLabels: true
-ColumnLimit: 100
-DerivePointerAlignment: false

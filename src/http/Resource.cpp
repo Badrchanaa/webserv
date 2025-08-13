@@ -10,7 +10,6 @@ Resource::Resource(void) {}
 
 Resource::Resource(const char *path, int perms): m_Path(path), m_Exist(false), m_Perm(0), m_CheckedPerms(0), m_Type(Resource::UNKNOWN)
 {
-	std::cout << "NEW RESOURCE: " << m_Path << std::endl;
 	_checkPermissions(perms);
 }
 
@@ -83,7 +82,6 @@ bool			Resource::canExecute()
 
 void		Resource::_checkPermissions(int perms)
 {
-	std::cout << "ENTER CHECK PERMISSIONS" << std::endl;
 	struct stat fileStat;
 	const char	*path = m_Path.c_str();
 
@@ -103,8 +101,6 @@ void		Resource::_checkPermissions(int perms)
 	m_CheckedPerms |= perms;
 	if (stat(path, &fileStat) == -1)
 	{
-		std::cout << "ERRNO: " << strerror(errno) << std::endl;
-		std::cout << "PATH: " << path << std::endl;
 		m_Perm = 0;
 		return ;
 	}
@@ -112,24 +108,6 @@ void		Resource::_checkPermissions(int perms)
 		m_Type = Resource::FILE;
 	else if (S_ISDIR(fileStat.st_mode))
 		m_Type = Resource::DIR;
-	std::cout<< "CHECKING PERMISSION FOR: " << m_Path << std::endl;
-	std::cout << "\tExists: ";
-	if (exists())
-		std::cout << "true" << std::endl;
-	else
-		std::cout << "false" << std::endl;
-	if (isFile())
-		std::cout << "\tType: File" << std::endl;
-	else if (isDir())
-		std::cout << "\tType: Directory" << std::endl;
-	std::cout << "\tPermissions: ";
-	if (canRead())
-		std::cout << "READ ";
-	if (canWrite())
-		std::cout << "WRITE ";
-	if (canExecute())
-		std::cout << "EXECUTE ";
-	std::cout << std::endl;
 }
 
 bool	Resource::remove()

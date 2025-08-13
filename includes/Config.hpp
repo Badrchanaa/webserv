@@ -78,10 +78,8 @@ public:
 
   /// Seters
   void AddServer(ConfigServer &ref);
-  /// Main
   void ParseConfigFile(const char *FileName);
 
-  // +++++++++++ Helps Functions +++++++++++//
   std::string trim(const std::string &s);
   void split_key_value(const std::string &line, std::string &key,
                        std::string &value);
