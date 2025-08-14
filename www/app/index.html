@@ -24,8 +24,10 @@
       method: form.method,
       body: formData
     }).then(response => {
-      if (response.status === 204) {
-        document.getElementById('message').style.display = 'block';
+	if ([204, 201, 200].includes(response.status)) {
+        const el = document.getElementById('message');
+	el.style.display = 'block';
+	el.innerText = 'Uploaded successful: ' + response.headers.get('Location');
       } else {
         alert('Upload failed with status: ' + response.status);
       }

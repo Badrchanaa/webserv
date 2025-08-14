@@ -15,7 +15,7 @@
 // #include "Location.hpp"
 // #include "ConfigServer.hpp"
 
-#define WEBSERVER_NAME "WebServ 1.0"
+#define WEBSERVER_NAME "WebServ 1.1"
 #define DEFAULT_PATH "./config/default.yml"
 
 # define READ_BUFFER_SIZE (65536)

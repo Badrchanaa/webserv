@@ -51,4 +51,10 @@ server:
      - HEAD
      - PUT
    root: www/YoupiBanane
+   cgi_uri: /
+   methods_cgi:
+     - PUT
+     - POST
+   cgi:
+     - .bla: ./cgi_test
    autoindex: on

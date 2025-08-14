@@ -26,6 +26,8 @@ server:
    upload: uploads
    methods:
      - POST
+     - PUT
+     - HEAD
      - GET
      - DELETE
    root: www
@@ -44,7 +46,9 @@ server:
    index: index.html
    methods:
      - POST
+     - PUT
      - GET
+     - HEAD
      - DELETE
    root: www
    autoindex: on

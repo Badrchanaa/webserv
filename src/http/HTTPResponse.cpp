@@ -1,7 +1,7 @@
 #include "../../includes/HTTPResponse.hpp"
 #include "../../includes/Constants.hpp"
-#include "HTTPParser.hpp"
-#include "Resource.hpp"
+#include "../../includes/HTTPParser.hpp"
+#include "../../includes/Resource.hpp"
 #include <cstdlib>  // for realpath
 #include <iostream> // for std::cerr
 #include <string>
@@ -310,13 +310,13 @@ void HTTPResponse::init(HTTPRequest &request, CGIHandler const &cgihandler,
 
     if (request.isError())
     {
-        switch (request.getError())
-        {
-        case ERR_CONTENT_TOO_LARGE:
-            return setError(CONTENT_TOO_LARGE);
-        default:
-            setError(BAD_REQUEST);
-        }
+	switch (request.getError())
+	{
+	    case ERR_CONTENT_TOO_LARGE:
+		return setError(CONTENT_TOO_LARGE);
+	    default:
+		return setError(BAD_REQUEST);
+	}
     }
     if (not m_Location->isMethodAllowed(request.getMethod()))
         return setError(METHOD_NOT_ALLOWED);
@@ -483,45 +483,81 @@ void HTTPResponse::_processErrorBody()
         _readFileToBody(filename);
 }
 
-void HTTPResponse::_handleFileUpload()
+HTTPResponse::statusCode saveToFile(std::string filename, HTTPBody &body)
 {
-    std::vector<FormPart *> &formParts = m_Request->multipartForm->getParts();
-    if (formParts.size() < 1)
-        return setError(BAD_REQUEST);
-    FormPart *filePart = m_Request->multipartForm->getFirstFilePart();
-    if (!filePart)
-        return setError(BAD_REQUEST);
-    HTTPHeaders::header_map_t directives = filePart->getDispositionDirectives();
-
-    std::string filename = m_Location->root;
-    if (m_Location->upload[0] != '/' && filename[filename.size() - 1] != '/')
-        filename += "/";
-    filename = filename + m_Location->upload;
-    std::string rawFilename = removeQuotes(directives["filename"]);
-    if (rawFilename[0] != '/' && filename[filename.size() - 1] != '/')
-        filename += "/";
-    filename += rawFilename;
-    if (filename[0] == '/')
-        filename = "." + filename;
     std::ofstream file;
+    std::cout << "SAVE TO FILE: " << filename << std::endl;
+
     file.open(filename.c_str(), std::ios::out | std::ios::trunc);
     if (!file.is_open())
-        return setError(FORBIDDEN);
+	return (HTTPResponse::FORBIDDEN);
     char buff[READ_BUFFER_SIZE];
-    HTTPBody &body = filePart->getBody();
     while (body.getSize() > 0)
     {
-        size_t rbytes = body.read(buff, READ_BUFFER_SIZE);
-        // std::cout << "read " << rbytes << " from body" << std::endl;
-        file.write(buff, rbytes);
-        if (file.fail())
-            return setError(SERVER_ERROR);
+	size_t rbytes = body.read(buff, READ_BUFFER_SIZE);
+	file.write(buff, rbytes);
+	if (file.fail())
+	    return (HTTPResponse::SERVER_ERROR);
     }
+    return (HTTPResponse::CREATED);
+}
 
+std::string getFilename(const std::string &path)
+{
+    size_t pos = path.find_last_of("/");
+    if (pos == std::string::npos)
+	return path;
+    return path.substr(pos + 1);
+}
+
+std::string joinPath(std::string base, std::string name)
+{
+    std::string path(base);
+    if (name[0] != '/' && base[base.length() - 1] != '/')
+	path += "/";
+    path += name;
+    return path;
+}
+
+void HTTPResponse::_handleFileUpload()
+{
+    if (m_Request->getMethod() == PUT)
+    {
+	if (m_Request->isMultipartForm())
+	    return setError(BAD_REQUEST);
+	std::string basePath = joinPath(m_Location->root, m_Location->upload);
+	std::string filename = getFilename(m_ResourcePath);
+	if (filename[0] == '/')
+	    filename = "." + filename;
+	statusCode status = saveToFile(joinPath(basePath, filename), m_Request->getBody());
+    	addHeader("Location", filename);
+	m_Body.seal();
+	m_State = PROCESS_HEADERS;
+	m_PollState = SOCKET_WRITE;
+	m_StatusCode = status;
+	return;
+    }
+    if (!m_Request->isMultipartForm())
+      return setError(NOT_IMPLEMENTED);
+    std::vector<FormPart *> &formParts = m_Request->multipartForm->getParts();
+    if (formParts.size() < 1)
+	return setError(BAD_REQUEST);
+    std::cout << "part count " << formParts.size() << std::endl;
+    FormPart *filePart = m_Request->multipartForm->getFirstFilePart();
+    if (!filePart)
+	return setError(BAD_REQUEST);
+    HTTPHeaders::header_map_t directives = filePart->getDispositionDirectives();
+
+    std::string basePath = joinPath(m_Location->root, m_Location->upload);
+    std::string filename = joinPath(basePath, removeQuotes(directives["filename"]));
+    if (filename[0] == '/')
+	filename = "." + filename;
+    statusCode status = saveToFile(filename, filePart->getBody());
+    addHeader("Location", filename);
     m_Body.seal();
     m_State = PROCESS_HEADERS;
     m_PollState = SOCKET_WRITE;
-    m_StatusCode = NO_CONTENT;
+    m_StatusCode = status;
     return;
 }
 

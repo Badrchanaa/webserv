@@ -38,6 +38,7 @@ server:
    methods:
      - POST
      - GET
+     - PUT
      - DELETE
    root: www
    autoindex: on
@@ -58,6 +59,7 @@ server:
    upload: uploads
    methods:
      - POST
+     - PUT
      - GET
      - DELETE
    root: www
