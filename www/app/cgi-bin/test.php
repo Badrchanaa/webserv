@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['set_cookie'])) {
     if (!empty($_POST['cookie_name'])) {
         setcookie($_POST['cookie_name'], $_POST['cookie_value'], time() + 3600, '/'); // expires in 1 hour
-        /* $_COOKIE[$_POST['cookie_name']] = $_POST['cookie_value']; // update for immediate display */
+       	$_COOKIE[$_POST['cookie_name']] = $_POST['cookie_value']; // update for immediate display
     }
 }
 ?>
