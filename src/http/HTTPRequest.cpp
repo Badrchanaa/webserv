@@ -145,7 +145,7 @@ bool HTTPRequest::_validateHeaders() {
     m_Error = ERR_INVALID_CONTENT_LENGTH;
     return false;
   }
-  if (m_Method != GET && m_Method != HEAD && it == m_Headers.end() &&
+  if (m_Method != GET && m_Method != HEAD && m_Method != DELETE && it == m_Headers.end() &&
       !isChunked) {
     std::cout << "CONTENT LENGTH NOT FOUND" << std::endl;
     m_Error = ERR_INVALID_CONTENT_LENGTH;
