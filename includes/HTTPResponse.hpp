@@ -77,6 +77,7 @@ class HTTPResponse: public HTTPMessage
 		
 		/// @brief process CGI Headers after parsing
 		virtual void		onHeadersParsed();
+		virtual void		addHeader(std::string key, std::string value);
 		virtual void		onBodyDone();
 		void				_writeToCgi();
 
@@ -174,6 +175,7 @@ class HTTPResponse: public HTTPMessage
 		std::vector<char *> env_ptrs;
 		std::vector<std::string> cgi_env;
 
+		std::vector<std::string>	m_Cookies;
 		RingBuffer<char>	m_SocketBuffer;
 		std::string			m_StatusString;
 		std::stringstream	m_HeadersStream;

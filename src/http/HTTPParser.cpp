@@ -215,7 +215,6 @@ size_t HTTPParser::_parseHeaderCrlf(HTTPHeaders &httpHeaders, const char *buff, 
 		return i;
 	if (parseState.getPrevChar() == CR)
 	{
-		std::cout << "readBytes: " << readBytes << " i: " << i << " len: " << len << std::endl;
 		// parseState.setState(HTTPParseState::PARSE_ERROR);
 		parseState.setError();
 		return i;
